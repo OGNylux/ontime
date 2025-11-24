@@ -1,7 +1,7 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
+import { Link } from "react-router-dom";
+import reactLogo from "../../assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
@@ -14,8 +14,9 @@ function App() {
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1 className="bg-slate-900 text-white p-4 rounded-lg">Welcome to Tauri + React</h1>
 
+      
       <div className="row">
         <a href="https://vite.dev" target="_blank">
           <img src="/vite.svg" className="logo vite" alt="Vite logo" />
@@ -44,6 +45,12 @@ function App() {
         <button type="submit">Greet</button>
       </form>
       <p>{greetMsg}</p>
+
+      <div className="mt-4">
+        <Link to="/timer" className="text-blue-500 hover:underline">
+          Go to Timer
+        </Link>
+      </div>
     </main>
   );
 }
