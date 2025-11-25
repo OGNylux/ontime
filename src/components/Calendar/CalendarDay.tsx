@@ -1,4 +1,6 @@
+import { Box, Paper, Typography } from "@mui/material";
 import CalendarEntryOverlay from "./CalendarEntry";
+import CreateEntryDialog from "./CreateEntryDialog";
 import { HOURS_PER_DAY } from "./calendarUtility";
 import {
     EntryAttributes,
@@ -16,6 +18,8 @@ interface CalendarDayProps {
     moveState: MoveState | null;
     onCreateEntry: (dayIndex: number, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
+    isCompact?: boolean;
+    totalDays: number;
 }
 
 const HOURS = Array.from({ length: HOURS_PER_DAY }, (_, hour) => hour);
@@ -28,6 +32,8 @@ export default function CalendarDay({
     moveState,
     onCreateEntry,
     onEntryDragStart,
+    isCompact = false,
+    totalDays,
 }: CalendarDayProps) {
     const {
         containerRef,
@@ -36,6 +42,9 @@ export default function CalendarDay({
         handleEntryDragStart,
         renderedEntries,
         dragOverlayEntry,
+        pendingEntry,
+        setPendingEntry,
+        pendingEntryAnchor,
     } = useCalendarDay({
         dayIndex,
         entries,
@@ -44,26 +53,83 @@ export default function CalendarDay({
         onEntryDragStart,
     });
 
+    const compactWidthPercent = `${totalDays ? 100 / totalDays : 100}%`;
+
     return (
-        <div
-            className="bg-gray-50 flex-1 md:min-w-24"
+        <Box
             data-day-index={dayIndex}
+            sx={{
+                flex: 1,
+                bgcolor: "grey.50",
+                position: "relative",
+                overflow: "hidden",
+                flexShrink: isCompact ? 1 : 0,
+                ...(isCompact
+                    ? {
+                        minWidth: 0,
+                        flexBasis: compactWidthPercent,
+                        maxWidth: compactWidthPercent,
+                        borderRight: theme => `1px solid ${theme.palette.divider}`,
+                    }
+                    : {
+                        minWidth: { xs: 140, md: 176 },
+                        borderRight: theme => `1px solid ${theme.palette.divider}`,
+                    }),
+            }}
         >
-            <h2 className="h-16 sticky bg-gray-50 z-30 truncate font-semibold text-center text-s md:text-base">
-                <p>{dayOfTheWeek}</p>
-                <p>{dayOfTheMonth}</p>
-            </h2>
-            <div ref={containerRef} className="relative" data-day-index={dayIndex}>
-                {/* Hour slots grid */}
+            <Paper
+                elevation={0}
+                square
+                sx={{
+                    height: 64,
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 3,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 0.5,
+                    bgcolor: "grey.50",
+                    borderBottom: theme => `1px solid ${theme.palette.divider}`,
+                }}
+            >
+                <Typography variant="subtitle2" noWrap>
+                    {dayOfTheWeek}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                    {dayOfTheMonth}
+                </Typography>
+            </Paper>
+            <Box
+                ref={containerRef}
+                data-day-index={dayIndex}
+                sx={{
+                    position: "relative",
+                    bgcolor: "background.paper",
+                    pb: { xs: 4, md: 4 },
+                }}
+            >
                 {HOURS.map(hour => (
-                    <div
+                    <Box
                         key={hour}
                         data-hour={hour}
-                        className="h-10 md:h-12 border border-gray-200 last:border-b-0 relative select-none transition-all bg-white hover:bg-gray-50 cursor-pointer"
                         onMouseDown={handleMouseDown(hour)}
+                        sx={{
+                            height: { xs: 40, md: 48 },
+                            borderBottom: theme => `1px solid ${theme.palette.divider}`,
+                            cursor: moveState ? "default" : "crosshair",
+                            bgcolor: "background.paper",
+                            transition: theme =>
+                                theme.transitions.create("background-color", {
+                                    duration: theme.transitions.duration.shortest,
+                                }),
+                            "&:hover": {
+                                bgcolor: moveState ? "background.paper" : "action.hover",
+                            },
+                        }}
                     />
                 ))}
-                {/* Overlays for entries and drag */}
                 {renderedEntries.map(({ entry, isPreview }) => (
                     <CalendarEntryOverlay
                         key={`${entry.id}${isPreview ? "-preview" : ""}`}
@@ -73,7 +139,9 @@ export default function CalendarDay({
                         offsetPercent={entry.offsetPercent}
                         zIndex={isPreview ? entry.zIndex + 50 : entry.zIndex}
                         isPreview={isPreview}
-                        onDragStart={!isPreview ? (event) => handleEntryDragStart(entry, event) : undefined}
+                        onDragStart={
+                            !isPreview ? event => handleEntryDragStart(entry, event) : undefined
+                        }
                     />
                 ))}
                 {dragOverlayEntry && (
@@ -83,11 +151,39 @@ export default function CalendarDay({
                         hourHeight={hourHeight}
                         widthPercent={100}
                         offsetPercent={0}
-                        zIndex={200}
+                        zIndex={250}
                         isPreview
                     />
                 )}
-            </div>
-        </div>
+                {pendingEntry && (
+                    <CalendarEntryOverlay
+                        key="pending"
+                        entry={{ ...pendingEntry, id: "pending" }}
+                        hourHeight={hourHeight}
+                        widthPercent={100}
+                        offsetPercent={0}
+                        zIndex={250}
+                        isPreview
+                    />
+                )}
+            </Box>
+            {pendingEntry && (
+                <CreateEntryDialog
+                    open={true}
+                    anchorPosition={pendingEntryAnchor}
+                    onClose={() => setPendingEntry(null)}
+                    onSave={(title, startMinute, endMinute) => {
+                        onCreateEntry(dayIndex, {
+                            startMinute,
+                            endMinute,
+                            title,
+                        });
+                        setPendingEntry(null);
+                    }}
+                    initialStartMinute={pendingEntry.startMinute}
+                    initialEndMinute={pendingEntry.endMinute}
+                />
+            )}
+        </Box>
     );
 }

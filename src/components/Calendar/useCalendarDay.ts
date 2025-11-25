@@ -29,6 +29,9 @@ export interface UseCalendarDayResult {
     handleEntryDragStart: (entry: AssignedEntry, event: ReactMouseEvent<HTMLDivElement>) => void;
     renderedEntries: Array<{ entry: AssignedEntry; isPreview: boolean }>;
     dragOverlayEntry: DragOverlayEntry | null;
+    pendingEntry: EntryAttributes | null;
+    setPendingEntry: (entry: EntryAttributes | null) => void;
+    pendingEntryAnchor: { left: number; top: number } | null;
 }
 
 const resolveMinuteOffset = (y: number, rect: DOMRect) => {
@@ -42,11 +45,18 @@ const resolveMinuteOffsetWithinHour = (y: number, rect: DOMRect, hour: number) =
     return Math.round(absoluteMinute / INTERVAL_MINUTES) * INTERVAL_MINUTES;
 };
 
-export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, onEntryDragStart }: UseCalendarDayParams): UseCalendarDayResult {
+export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart }: UseCalendarDayParams): UseCalendarDayResult {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [drag, setDrag] = useState<DragState>(INITIAL_DRAG);
     const [hourHeight, setHourHeight] = useState(40);
     const isDragHandledRef = useRef(true);
+    const [pendingEntry, setPendingEntry] = useState<EntryAttributes | null>(null);
+    const [pendingEntryAnchor, setPendingEntryAnchor] = useState<{ left: number; top: number } | null>(null);
+    const dragRef = useRef<DragState>(INITIAL_DRAG);
+
+    useEffect(() => {
+        dragRef.current = drag;
+    }, [drag]);
 
     useEffect(() => {
         const updateHourHeight = () => {
@@ -86,33 +96,50 @@ export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, on
         });
     }, [findMinuteOffset]);
 
-    const finishDrag = useCallback(() => {
-        setDrag(prev => {
-            if (!prev.active || prev.startMinute === null || prev.endMinute === null) {
-                return INITIAL_DRAG;
-            }
-            if (isDragHandledRef.current) {
-                return INITIAL_DRAG;
-            }
-            isDragHandledRef.current = true;
+    const finishDrag = useCallback((event?: MouseEvent | TouchEvent) => {
+        const prev = dragRef.current;
+        if (!prev.active || prev.startMinute === null || prev.endMinute === null) {
+            setDrag(INITIAL_DRAG);
+            return;
+        }
+        if (isDragHandledRef.current) {
+            setDrag(INITIAL_DRAG);
+            return;
+        }
+        isDragHandledRef.current = true;
 
-            const startMinute = Math.min(prev.startMinute, prev.endMinute);
-            const endMinute = Math.max(prev.startMinute, prev.endMinute);
-            if (startMinute === endMinute) {
-                return INITIAL_DRAG;
+        const startMinute = Math.min(prev.startMinute, prev.endMinute);
+        const endMinute = Math.max(prev.startMinute, prev.endMinute);
+        
+        setDrag(INITIAL_DRAG);
+
+        if (startMinute === endMinute) {
+            return;
+        }
+
+        let anchor = null;
+        if (event) {
+            if ('changedTouches' in event) {
+                const touch = event.changedTouches[0];
+                anchor = { left: touch.clientX, top: touch.clientY };
+            } else {
+                const mouseEvent = event as MouseEvent;
+                anchor = { left: mouseEvent.clientX, top: mouseEvent.clientY };
             }
-            onCreateEntry(dayIndex, {
-                startMinute,
-                endMinute,
-                title: "New Entry",
-            });
-            return INITIAL_DRAG;
+        }
+
+        setPendingEntry({
+            startMinute,
+            endMinute,
+            title: "",
         });
-    }, [dayIndex, onCreateEntry]);
+        setPendingEntryAnchor(anchor);
+    }, []);
 
     const handleMouseDown = useCallback((hour: number) => (event: ReactMouseEvent<HTMLDivElement>) => {
         if (moveState) return;
-        event.preventDefault();
+        if (event.cancelable) event.preventDefault();
+
         const rect = event.currentTarget.getBoundingClientRect();
         const y = event.clientY - rect.top;
         const minute = findMinuteOffset(y, rect, hour);
@@ -121,7 +148,7 @@ export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, on
 
     const handleEntryDragStart = useCallback((entry: AssignedEntry, event: ReactMouseEvent<HTMLDivElement>) => {
         if (moveState) return;
-        event.preventDefault();
+        if (event.cancelable) event.preventDefault();
         const container = containerRef.current;
         if (!container) return;
 
@@ -163,7 +190,7 @@ export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, on
 
         const handleTouchStart = (event: TouchEvent) => {
             if (moveState) return;
-            event.preventDefault();
+            if (event.cancelable) event.preventDefault();
             const hourElement = resolveHourElement(event.target);
             if (!hourElement) return;
 
@@ -176,7 +203,7 @@ export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, on
 
         const handleTouchMove = (event: TouchEvent) => {
             if (moveState) return;
-            event.preventDefault();
+            if (event.cancelable) event.preventDefault();
             const touch = event.touches[0];
             const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
             const hourElement = elements.find(el => el.hasAttribute("data-hour"));
@@ -194,7 +221,7 @@ export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, on
 
         const handleTouchEnd = (event: TouchEvent) => {
             if (moveState) return;
-            event.preventDefault();
+            if (event.cancelable) event.preventDefault();
             finishDrag();
         };
 
@@ -261,5 +288,8 @@ export function useCalendarDay({ dayIndex, entries, moveState, onCreateEntry, on
         handleEntryDragStart,
         renderedEntries,
         dragOverlayEntry,
+        pendingEntry,
+        setPendingEntry,
+        pendingEntryAnchor,
     };
 }

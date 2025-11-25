@@ -1,16 +1,69 @@
+import { Box, Paper, Typography } from "@mui/material";
 import { formatTime } from "./calendarUtility";
 
-export default function CalendarTime() {
+interface CalendarTimeProps {
+    isCompact?: boolean;
+}
+
+export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
     const hours = Array.from({ length: 23 }).map((_, i) => i);
 
     return (
-        <div className="bg-gray-50 w-16 md:w-20 lg:w-20">
-            <h2 className="h-16 px-1 md:px-2 lg:px-4 font-semibold text-center sticky top-0 bg-gray-50 z-30 truncate text-s md:text-base">Time</h2>
-            {hours.map((hour) => (
-                <div key={hour} className="h-10 md:h-12 bg-white relative group">
-                    <p className="z-30 absolute -bottom-1 right-1 md:right-2 text-xs md:text-s">{formatTime(hour+1)}</p>
-                </div>
+        <Box
+            sx={{
+                width: { xs: isCompact ? 56 : 64, md: 84 },
+                bgcolor: "grey.50",
+                borderRight: theme => `1px solid ${theme.palette.divider}`,
+                position: "sticky",
+                left: 0,
+                top: 0,
+                zIndex: 4,
+                boxShadow: isCompact ? theme => theme.shadows[2] : "none",
+                flexShrink: 0,
+            }}
+        >
+            <Paper
+                elevation={0}
+                sx={{
+                    height: 64,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    px: { xs: 1, md: 2 },
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 2,
+                    bgcolor: "grey.50",
+                }}
+            >
+                <Typography variant="subtitle2" noWrap>
+                    Time
+                </Typography>
+            </Paper>
+            {hours.map(hour => (
+                <Box
+                    key={hour}
+                    sx={{
+                        height: { xs: 40, md: 48 },
+                        position: "relative",
+                        bgcolor: "background.paper",
+                    }}
+                >
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            position: "absolute",
+                            bottom: 0,
+                            zIndex: 2,
+                            transform: "translateY(50%)",
+                            right: { xs: 6, md: 10 },
+                            color: "text.secondary",
+                        }}
+                    >
+                        {formatTime(hour + 1)}
+                    </Typography>
+                </Box>
             ))}
-        </div>
+        </Box>
     );
 }

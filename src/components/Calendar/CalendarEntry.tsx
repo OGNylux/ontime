@@ -1,3 +1,5 @@
+import { Paper, Stack, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { MouseEvent } from "react";
 import { ENTRY_MARGIN_PERCENT, formatTime, MINUTES_PER_HOUR } from "./calendarUtility";
 import { TimeEntry } from "./calendarTypes";
@@ -16,6 +18,7 @@ const MIN_RENDER_WIDTH = 6;
 
 export default function CalendarEntryOverlay({ entry, hourHeight, widthPercent = 100, offsetPercent = 0, zIndex = 100, isPreview = false, onDragStart }: CalendarEntryOverlayProps) {
     const pxPerMinute = hourHeight / MINUTES_PER_HOUR;
+    const theme = useTheme();
     const clampPercent = (value: number) => Math.max(0, Math.min(value, 100));
     const clampedWidth = clampPercent(widthPercent);
     const clampedOffset = clampPercent(offsetPercent);
@@ -36,33 +39,45 @@ export default function CalendarEntryOverlay({ entry, hourHeight, widthPercent =
         }
     }
 
-    const baseClasses = "absolute bg-blue-500 bg-opacity-80 transition-all p-1 md:p-2 flex flex-col justify-between text-white overflow-hidden rounded-sm cursor-pointer";
-    const interactionClasses = isPreview ? "opacity-90 ring-2 ring-blue-200 ring-offset-1" : "hover:bg-opacity-90";
+    const baseColor = entry.color ?? theme.palette.primary.main;
+    const backgroundColor = isPreview ? alpha(baseColor, 0.85) : baseColor;
+    const textColor = theme.palette.getContrastText(backgroundColor);
 
     return (
-        <div
-            className={`${baseClasses} ${interactionClasses}`}
-            style={{
+        <Paper
+            elevation={6}
+            onMouseDown={onDragStart}
+            sx={{
+                position: "absolute",
                 top: `${entry.startMinute * pxPerMinute}px`,
                 height: `${(entry.endMinute - entry.startMinute) * pxPerMinute}px`,
                 width: `${renderWidth}%`,
                 left: `${renderOffset}%`,
                 zIndex,
-                boxShadow: "0 6px 12px rgba(15, 23, 42, 0.18)",
+                bgcolor: backgroundColor,
+                color: textColor,
+                display: "flex",
+                flexDirection: "column",
+                px: { xs: 0.75, md: 1 },
+                py: 0.75,
+                cursor: isPreview ? "default" : "grab",
                 pointerEvents: isPreview ? "none" : "auto",
+                opacity: isPreview ? 0.9 : 1,
+                transition: theme.transitions.create(["transform", "box-shadow", "opacity"], {
+                    duration: theme.transitions.duration.shortest,
+                }),
+                borderRadius: 1,
+                overflow: "hidden",
             }}
-            onMouseDown={onDragStart}
         >
-            <div className="flex items-start justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[10px] md:text-sm">
-                        {entry.title || 'New Entry'}
-                    </p>
-                    <p className="text-[8px] md:text-xs opacity-90 truncate">
-                        {formatTime(entry.startMinute, true)} - {formatTime(entry.endMinute, true)}
-                    </p>
-                </div>
-            </div>
-        </div>
+            <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography variant="caption" sx={{ fontSize: { xs: "0.65rem", md: "0.85rem" } }}>
+                    {entry.title || "New Entry"}
+                </Typography>
+                <Typography variant="subtitle2" noWrap sx={{ fontSize: { xs: "0.55rem", md: "0.75rem" }, opacity: 0.9 }}>
+                    {formatTime(entry.startMinute, true)} - {formatTime(entry.endMinute, true)}
+                </Typography>
+            </Stack>
+        </Paper>
     );
 }
