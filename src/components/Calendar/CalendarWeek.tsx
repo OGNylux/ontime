@@ -1,27 +1,31 @@
-import dayjs from "dayjs";
 import CalendarDay from "./CalendarDay";
 import CalendarTime from "./CalendarTime";
-
+import { useCalendarWeekState } from "./useCalendarWeek";
 
 export default function Calendar() {
-    const startOfWeek = dayjs().startOf("week");
+    const {
+        weekDays,
+        entriesByDay,
+        moveState,
+        handleCreateEntry,
+        handleEntryDragStart,
+    } = useCalendarWeekState();
 
-    const weekDays = Array.from({ length: 7 }).map((_, i) => {
-        const dayOfTheMonth: string = startOfWeek.add(i, "day").format("DD");
-        const dayOfTheWeek: string = startOfWeek.add(i, "day").format("ddd");
-
-        return {
-            id: i,
-            dayOfTheMonth: dayOfTheMonth,
-            dayOfTheWeek: dayOfTheWeek
-        };
-    });
     return (
         <div className="w-full h-full overflow-x-auto scrollbar-hide">
             <div className="h-full flex scrollbar-hide">
                 <CalendarTime />
-                {weekDays.map((day) => (
-                    <CalendarDay key={day.id} dayOfTheMonth={day.dayOfTheMonth} dayOfTheWeek={day.dayOfTheWeek} />
+                {weekDays.map(day => (
+                    <CalendarDay
+                        key={day.id}
+                        dayIndex={day.id}
+                        dayOfTheMonth={day.dayOfTheMonth}
+                        dayOfTheWeek={day.dayOfTheWeek}
+                        entries={entriesByDay[day.id] ?? []}
+                        moveState={moveState}
+                        onCreateEntry={handleCreateEntry}
+                        onEntryDragStart={handleEntryDragStart}
+                    />
                 ))}
             </div>
         </div>

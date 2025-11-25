@@ -1,4 +1,4 @@
-import { formatTime } from "../../util/timeUtil";
+import { formatTime } from "./calendarUtility";
 
 export default function CalendarTime() {
     const hours = Array.from({ length: 23 }).map((_, i) => i);
