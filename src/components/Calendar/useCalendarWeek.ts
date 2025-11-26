@@ -20,9 +20,6 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const snapToInterval = (value: number) => Math.round(value / INTERVAL_MINUTES) * INTERVAL_MINUTES;
 
 const generateEntryId = () => {
-    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-        return crypto.randomUUID();
-    }
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
@@ -56,16 +53,28 @@ export function useCalendarWeekState() {
     const addEntry = useCallback((dayIndex: number, attributes: EntryAttributes) => {
         setEntriesByDay(prev => {
             const next: EntriesByDay = { ...prev };
-            const nextEntries = next[dayIndex] ? [...next[dayIndex]] : [];
-            nextEntries.push({
-                id: generateEntryId(),
-                startMinute: attributes.startMinute,
-                endMinute: attributes.endMinute,
-                title: attributes.title,
-                color: attributes.color,
-            });
-            nextEntries.sort((a, b) => a.startMinute - b.startMinute);
-            next[dayIndex] = nextEntries;
+
+            const pushEntry = (dIndex: number, start: number, end: number) => {
+                const nextEntries = next[dIndex] ? [...next[dIndex]] : [];
+                nextEntries.push({
+                    id: generateEntryId(),
+                    startMinute: start,
+                    endMinute: end,
+                    title: attributes.title,
+                    color: attributes.color,
+                });
+                nextEntries.sort((a, b) => a.startMinute - b.startMinute);
+                next[dIndex] = nextEntries;
+            };
+
+            if (attributes.endMinute > MINUTES_PER_DAY) {
+                // Split entry across midnight
+                pushEntry(dayIndex, attributes.startMinute, MINUTES_PER_DAY);
+                pushEntry(dayIndex + 1, 0, attributes.endMinute - MINUTES_PER_DAY);
+            } else {
+                pushEntry(dayIndex, attributes.startMinute, attributes.endMinute);
+            }
+
             return next;
         });
     }, []);
@@ -194,12 +203,91 @@ export function useCalendarWeekState() {
             });
         };
 
+        let animationFrameId: number | null = null;
+
+        const handleTouchMove = (event: globalThis.TouchEvent) => {
+            if (event.cancelable) {
+                event.preventDefault();
+            }
+            const touch = event.touches[0];
+            const clientX = touch.clientX;
+            const clientY = touch.clientY;
+
+            if (animationFrameId) return;
+
+            animationFrameId = requestAnimationFrame(() => {
+                setMoveState(prev => {
+                    if (!prev) return prev;
+                    const nextPosition = calculateMovePosition(clientX, clientY, prev);
+                    if (!nextPosition) return prev;
+                    if (
+                        nextPosition.targetDayIndex === prev.currentDayIndex &&
+                        nextPosition.startMinute === prev.startMinute
+                    ) {
+                        return prev;
+                    }
+
+                    return {
+                        ...prev,
+                        currentDayIndex: nextPosition.targetDayIndex,
+                        startMinute: nextPosition.startMinute,
+                        endMinute: nextPosition.endMinute,
+                    };
+                });
+                animationFrameId = null;
+            });
+        };
+
+        const handleTouchEnd = (event: globalThis.TouchEvent) => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            const touch = event.changedTouches[0];
+            setMoveState(prev => {
+                if (!prev) return prev;
+                const nextPosition = calculateMovePosition(touch.clientX, touch.clientY, prev);
+                const targetDayIndex = nextPosition?.targetDayIndex ?? prev.currentDayIndex;
+                const startMinute = nextPosition?.startMinute ?? prev.startMinute;
+                const endMinute = nextPosition?.endMinute ?? prev.endMinute;
+
+                commitMove(prev, { dayIndex: targetDayIndex, startMinute, endMinute });
+                return null;
+            });
+        };
+
         window.addEventListener("mousemove", handleMouseMove);
         window.addEventListener("mouseup", handleMouseUp);
+        window.addEventListener("touchmove", handleTouchMove, { passive: false });
+        window.addEventListener("touchend", handleTouchEnd);
+        window.addEventListener("touchcancel", handleTouchEnd);
+
+        const originalOverflow = document.body.style.overflow;
+        const originalTouchAction = document.body.style.touchAction;
+        const originalUserSelect = document.body.style.userSelect;
+        
+        document.body.style.overflow = "hidden";
+        document.body.style.touchAction = "none";
+        document.body.style.userSelect = "none";
+        // @ts-ignore
+        document.body.style.webkitUserSelect = "none";
 
         return () => {
             window.removeEventListener("mousemove", handleMouseMove);
             window.removeEventListener("mouseup", handleMouseUp);
+            window.removeEventListener("touchmove", handleTouchMove);
+            window.removeEventListener("touchend", handleTouchEnd);
+            window.removeEventListener("touchcancel", handleTouchEnd);
+
+            document.body.style.overflow = originalOverflow;
+            document.body.style.touchAction = originalTouchAction;
+            document.body.style.userSelect = originalUserSelect;
+            // @ts-ignore
+            document.body.style.webkitUserSelect = "";
+            
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
         };
     }, [moveState ? moveState.entry.id : null, calculateMovePosition, commitMove]);
 

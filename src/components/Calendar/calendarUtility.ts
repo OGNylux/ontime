@@ -66,29 +66,18 @@ export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
             let offsetPercent = Math.max(0, cumulativeWidth - overlapShare);
             let widthPercent = Math.min(100 - offsetPercent, baseWidth + overlapShare);
 
-            if (widthPercent < MIN_WIDTH) {
-                widthPercent = MIN_WIDTH;
-                if (offsetPercent + widthPercent > 100) {
-                    offsetPercent = Math.max(0, 100 - widthPercent);
-                }
-            }
+            if (widthPercent < MIN_WIDTH) widthPercent = MIN_WIDTH;
 
-            if (offsetPercent + widthPercent > 100) {
-                widthPercent = Math.max(MIN_WIDTH, 100 - offsetPercent);
-            }
+            if (offsetPercent + widthPercent > 100) offsetPercent = Math.max(0, 100 - widthPercent);
 
             let scaledOffset = ENTRY_MARGIN_PERCENT + offsetPercent * INNER_SCALE;
             let scaledWidth = widthPercent * INNER_SCALE;
 
-            if (scaledOffset + scaledWidth > 100) {
-                scaledWidth = Math.max(MIN_WIDTH, 100 - scaledOffset);
-            }
+            if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_WIDTH, 100 - scaledOffset);
 
             if (scaledWidth < MIN_WIDTH) {
                 scaledWidth = MIN_WIDTH;
-                if (scaledOffset + scaledWidth > 100) {
-                    scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, 100 - scaledWidth);
-                }
+                if (scaledOffset + scaledWidth > 100) scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, 100 - scaledWidth);
             }
 
             const zIndex = 200 + index;

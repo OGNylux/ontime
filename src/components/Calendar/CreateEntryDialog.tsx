@@ -56,7 +56,12 @@ export default function CreateEntryDialog({
 
     const handleSave = () => {
         const start = timeToMinutes(startTime);
-        const end = timeToMinutes(endTime);
+        let end = timeToMinutes(endTime);
+
+        if (end < start) {
+            end += 24 * 60;
+        }
+
         onSave(title || "New Entry", start, end);
     };
 

@@ -107,7 +107,6 @@ export default function CalendarDay({
                 sx={{
                     position: "relative",
                     bgcolor: "background.paper",
-                    pb: { xs: 4, md: 4 },
                 }}
             >
                 {HOURS.map(hour => (
@@ -117,7 +116,7 @@ export default function CalendarDay({
                         onMouseDown={handleMouseDown(hour)}
                         sx={{
                             height: { xs: 40, md: 48 },
-                            borderBottom: theme => `1px solid ${theme.palette.divider}`,
+                            borderBottom: theme => hour === HOURS_PER_DAY - 1 ? "none" : `1px solid ${theme.palette.divider}`,
                             cursor: moveState ? "default" : "crosshair",
                             bgcolor: "background.paper",
                             transition: theme =>
@@ -130,17 +129,20 @@ export default function CalendarDay({
                         }}
                     />
                 ))}
-                {renderedEntries.map(({ entry, isPreview }) => (
+                {renderedEntries.map(({ entry, isPreview, isDragging }) => (
                     <CalendarEntryOverlay
-                        key={`${entry.id}${isPreview ? "-preview" : ""}`}
+                        key={entry.id}
                         entry={entry}
                         hourHeight={hourHeight}
                         widthPercent={entry.widthPercent}
                         offsetPercent={entry.offsetPercent}
                         zIndex={isPreview ? entry.zIndex + 50 : entry.zIndex}
                         isPreview={isPreview}
+                        isDragging={isDragging}
                         onDragStart={
-                            !isPreview ? event => handleEntryDragStart(entry, event) : undefined
+                            !isPreview && !isDragging
+                                ? (clientX: number, clientY: number) => handleEntryDragStart(entry, clientX, clientY)
+                                : undefined
                         }
                     />
                 ))}

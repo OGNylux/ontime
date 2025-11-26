@@ -26,8 +26,8 @@ export interface UseCalendarDayResult {
     containerRef: RefObject<HTMLDivElement | null>;
     hourHeight: number;
     handleMouseDown: (hour: number) => (event: ReactMouseEvent<HTMLDivElement>) => void;
-    handleEntryDragStart: (entry: AssignedEntry, event: ReactMouseEvent<HTMLDivElement>) => void;
-    renderedEntries: Array<{ entry: AssignedEntry; isPreview: boolean }>;
+    handleEntryDragStart: (entry: AssignedEntry, clientX: number, clientY: number) => void;
+    renderedEntries: Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }>;
     dragOverlayEntry: DragOverlayEntry | null;
     pendingEntry: EntryAttributes | null;
     setPendingEntry: (entry: EntryAttributes | null) => void;
@@ -113,10 +113,6 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         
         setDrag(INITIAL_DRAG);
 
-        if (startMinute === endMinute) {
-            return;
-        }
-
         let anchor = null;
         if (event) {
             if ('changedTouches' in event) {
@@ -126,6 +122,16 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
                 const mouseEvent = event as MouseEvent;
                 anchor = { left: mouseEvent.clientX, top: mouseEvent.clientY };
             }
+        }
+
+        if (startMinute === endMinute) {
+            setPendingEntry({
+                startMinute,
+                endMinute: startMinute + 15,
+                title: "",
+            });
+            setPendingEntryAnchor(anchor);
+            return;
         }
 
         setPendingEntry({
@@ -146,14 +152,13 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         beginDrag(minute);
     }, [beginDrag, findMinuteOffset, moveState]);
 
-    const handleEntryDragStart = useCallback((entry: AssignedEntry, event: ReactMouseEvent<HTMLDivElement>) => {
+    const handleEntryDragStart = useCallback((entry: AssignedEntry, clientX: number, clientY: number) => {
         if (moveState) return;
-        if (event.cancelable) event.preventDefault();
         const container = containerRef.current;
         if (!container) return;
 
         const rect = container.getBoundingClientRect();
-        const y = event.clientY - rect.top;
+        const y = clientY - rect.top;
         const pointerMinute = findMinuteOffset(y, rect);
         const pointerOffset = pointerMinute - entry.startMinute;
 
@@ -161,8 +166,8 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
             dayIndex,
             entryId: entry.id,
             pointerOffset,
-            clientX: event.clientX,
-            clientY: event.clientY,
+            clientX: clientX,
+            clientY: clientY,
         });
     }, [dayIndex, findMinuteOffset, moveState, onEntryDragStart]);
 
@@ -179,91 +184,40 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         };
     }, [drag.active, finishDrag, updateDrag]);
 
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
+    const assignedEntries = useMemo(() => assignEntryLayout(entries), [entries]);
 
-        const resolveHourElement = (target: EventTarget | null) => {
-            if (!(target instanceof HTMLElement)) return null;
-            return target.closest<HTMLElement>("[data-hour]");
+    const previewEntry = useMemo<AssignedEntry | null>(() => {
+        if (!moveState) return null;
+        if (moveState.currentDayIndex !== dayIndex) return null;
+
+        const preview: TimeEntry = {
+            ...moveState.entry,
+            id: `${moveState.entry.id}-preview`,
+            startMinute: moveState.startMinute,
+            endMinute: moveState.endMinute,
         };
 
-        const handleTouchStart = (event: TouchEvent) => {
-            if (moveState) return;
-            if (event.cancelable) event.preventDefault();
-            const hourElement = resolveHourElement(event.target);
-            if (!hourElement) return;
+        const comparisonEntries = moveState.fromDayIndex === dayIndex
+            ? entries.filter(entry => entry.id !== moveState.entry.id)
+            : entries;
 
-            const hour = parseInt(hourElement.getAttribute("data-hour") ?? "0", 10);
-            const rect = hourElement.getBoundingClientRect();
-            const y = event.touches[0].clientY - rect.top;
-            const minute = findMinuteOffset(y, rect, hour);
-            beginDrag(minute);
-        };
-
-        const handleTouchMove = (event: TouchEvent) => {
-            if (moveState) return;
-            if (event.cancelable) event.preventDefault();
-            const touch = event.touches[0];
-            const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-            const hourElement = elements.find(el => el.hasAttribute("data-hour"));
-            if (!hourElement) return;
-
-            const hour = parseInt(hourElement.getAttribute("data-hour") ?? "0", 10);
-            const rect = hourElement.getBoundingClientRect();
-            const y = touch.clientY - rect.top;
-            const minute = findMinuteOffset(y, rect, hour);
-            setDrag(prev => {
-                if (!prev.active || prev.endMinute === minute) return prev;
-                return { ...prev, endMinute: minute };
-            });
-        };
-
-        const handleTouchEnd = (event: TouchEvent) => {
-            if (moveState) return;
-            if (event.cancelable) event.preventDefault();
-            finishDrag();
-        };
-
-        container.addEventListener("touchstart", handleTouchStart, { passive: false });
-        container.addEventListener("touchmove", handleTouchMove, { passive: false });
-        container.addEventListener("touchend", handleTouchEnd, { passive: false });
-        container.addEventListener("touchcancel", handleTouchEnd, { passive: false });
-
-        return () => {
-            container.removeEventListener("touchstart", handleTouchStart);
-            container.removeEventListener("touchmove", handleTouchMove);
-            container.removeEventListener("touchend", handleTouchEnd);
-            container.removeEventListener("touchcancel", handleTouchEnd);
-        };
-    }, [beginDrag, finishDrag, findMinuteOffset, moveState]);
-
-    const visibleEntries = useMemo(() => {
-        if (!moveState) return entries;
-        if (moveState.fromDayIndex !== dayIndex) return entries;
-        return entries.filter(entry => entry.id !== moveState.entry.id);
+        const layout = assignEntryLayout([...comparisonEntries, preview]);
+        return layout.find(item => item.id === preview.id) ?? null;
     }, [entries, moveState, dayIndex]);
 
-    const layoutEntries = useMemo<AssignedEntry[]>(() => {
-        const base = visibleEntries;
-        if (moveState && moveState.currentDayIndex === dayIndex) {
-            const previewEntry: TimeEntry = {
-                ...moveState.entry,
-                startMinute: moveState.startMinute,
-                endMinute: moveState.endMinute,
-            };
-            return assignEntryLayout([...base, previewEntry]);
-        }
-        return assignEntryLayout(base);
-    }, [visibleEntries, moveState, dayIndex]);
-
-    const renderedEntries = useMemo((): Array<{ entry: AssignedEntry; isPreview: boolean }> => {
-        const previewId = moveState && moveState.currentDayIndex === dayIndex ? moveState.entry.id : null;
-        return layoutEntries.map(entry => ({
+    const renderedEntries = useMemo((): Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }> => {
+        const list = assignedEntries.map(entry => ({
             entry,
-            isPreview: previewId === entry.id,
+            isPreview: false,
+            isDragging: Boolean(moveState && moveState.entry.id === entry.id && moveState.fromDayIndex === dayIndex),
         }));
-    }, [layoutEntries, moveState, dayIndex]);
+
+        if (previewEntry) {
+            list.push({ entry: previewEntry, isPreview: true, isDragging: false });
+        }
+
+        return list;
+    }, [assignedEntries, previewEntry, moveState, dayIndex]);
 
     const dragOverlayEntry = useMemo<DragOverlayEntry | null>(() => {
         if (moveState) return null;
