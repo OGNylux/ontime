@@ -1,10 +1,21 @@
+import { useEffect } from "react";
 import Calendar from "../../components/Calendar/CalendarWeek";
 
 export default function Timer() {
+    useEffect(() => {
+        const prev = document.body.style.overflow;
+        // Prevent the document from scrolling while on the Timer page so
+        // the calendar's inner scroll handles vertical movement.
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = prev || "";
+        };
+    }, []);
+
     return (
-        <div className="h" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             <h1 className="text-2xl font-bold mb-4">Timer Page</h1>
-            <div style={{ flex: 1, overflowY: "auto" }}>
+            <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
                 <Calendar />
             </div>
         </div>

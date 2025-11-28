@@ -93,6 +93,13 @@ export default function CalendarEntryOverlay({ entry, hourHeight, widthPercent =
     let renderOffset = clampedOffset;
     let renderWidth = clampedWidth;
 
+    // While dragging or showing a preview for a move, render the entry
+    // at full column width so it doesn't shrink when overlapping other items.
+    if (isDragging || isPreview) {
+        renderOffset = 0;
+        renderWidth = 100;
+    }
+
     if (renderWidth >= 100 && renderOffset === 0) {
         renderOffset = ENTRY_MARGIN_PERCENT;
         renderWidth = Math.max(MIN_RENDER_WIDTH, 100 - ENTRY_MARGIN_PERCENT * 2);

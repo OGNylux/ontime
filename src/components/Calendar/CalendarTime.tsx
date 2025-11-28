@@ -15,8 +15,6 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                 bgcolor: "grey.50",
                 borderRight: theme => `1px solid ${theme.palette.divider}`,
                 position: "sticky",
-                left: 0,
-                top: 0,
                 flexShrink: 0,
             }}
         >

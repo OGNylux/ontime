@@ -62,7 +62,7 @@ export default function CalendarDay({
                 flex: 1,
                 bgcolor: "grey.50",
                 position: "relative",
-                overflow: "hidden",
+                overflow: "visible",
                 flexShrink: isCompact ? 1 : 0,
                 ...(isCompact
                     ? {

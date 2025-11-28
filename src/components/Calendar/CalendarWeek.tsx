@@ -110,6 +110,7 @@ export default function Calendar() {
 
     return (
         <Container
+            className="scrollbar-hide"
             ref={containerRef}
             disableGutters
             maxWidth={false}
@@ -119,7 +120,8 @@ export default function Calendar() {
                 overflowX: "auto",
                 overflowY: "auto",
                 px: { xs: 1, md: 2 },
-                py: { xs: 1, md: 2 },
+                pt: 0,
+                pb: { xs: 1, md: 2 },
                 WebkitOverflowScrolling: "touch",
                 ...(moveState && {
                     overflow: "hidden",
