@@ -1,10 +1,26 @@
 import dayjs from "dayjs";
 import { AssignedEntry, TimeEntry } from "./calendarTypes";
 
+
 export const MINUTES_PER_HOUR = 60;
 export const MINUTES_PER_DAY = 1440;
 export const HOURS_PER_DAY = 24;
 export const INTERVAL_MINUTES = 15;
+
+export const HOUR_ARRAY = Array.from({ length: HOURS_PER_DAY }).map((_, i) => i);
+
+export const pixelPerMinute = (hourHeight: number) => hourHeight / MINUTES_PER_HOUR;
+
+export const MIN_ENTRY_WIDTH = 22;
+
+export const ENTRY_MARGIN_PERCENT = 4;
+const OVERLAP_PERCENT = 4;
+const INNER_SCALE = (100 - ENTRY_MARGIN_PERCENT * 2) / 100;
+
+export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+export const clampPercent = (value: number) => clamp(value, 0, 100);
+export const clampMinute = (minute: number) => clamp(minute, 0, MINUTES_PER_DAY);
+export const snap = (value: number) => Math.round(value / INTERVAL_MINUTES) * INTERVAL_MINUTES;
 
 export function formatTime(hourOrMinute: number, useMinutes: boolean = false) {
     if (useMinutes) {
@@ -19,12 +35,7 @@ export function roundTo15Minutes(minute: number) {
     return Math.round(minute / 15) * 15;
 }
 
-const OVERLAP_PERCENT = 4;
-const MIN_WIDTH = 22;
-export const ENTRY_MARGIN_PERCENT = 4;
-const INNER_SCALE = (100 - ENTRY_MARGIN_PERCENT * 2) / 100;
-
-export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
+export function assignEntryLayout(entries: TimeEntry[], hourHeight: number = 40): AssignedEntry[] {
     if (!entries.length) return [];
 
     // Layout algorithm summary:
@@ -85,14 +96,34 @@ export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
 
     // Prepare annotated entries
     const annotated: AssignedEntry[] = [];
+    const TITLE_HEIGHT_PX = 30;
+    const titleMinutes = (TITLE_HEIGHT_PX / hourHeight) * 60;
 
     for (const entry of sorted) {
         const col = assignedColumns.get(entry.id) ?? 0;
         const concurrency = maxConcurrencyById.get(entry.id) ?? 1;
 
         // width and offset in percent
-        let widthPercent = Math.max(MIN_WIDTH, 100 / concurrency);
+        let widthPercent = Math.max(MIN_ENTRY_WIDTH, 100 / concurrency);
         let offsetPercent = col * (100 / concurrency);
+
+        // If there are two elements overlapping each other and the 2nd one is not overlapping the title
+        // it should be 30% wider.
+        if (concurrency === 2 && col === 1) {
+            const overlappingEntry = sorted.find(other => {
+                const otherCol = assignedColumns.get(other.id);
+                if (otherCol !== 0) return false;
+                return Math.max(entry.startMinute, other.startMinute) < Math.min(entry.endMinute, other.endMinute);
+            });
+
+            if (overlappingEntry && entry.startMinute >= overlappingEntry.startMinute + titleMinutes) {
+                const expansionFactor = 1.6;
+                const newWidth = widthPercent * expansionFactor;
+                const diff = newWidth - widthPercent;
+                widthPercent = newWidth;
+                offsetPercent = Math.max(0, offsetPercent - diff);
+            }
+        }
 
         if (offsetPercent + widthPercent > 100) {
             offsetPercent = Math.max(0, 100 - widthPercent);
@@ -114,10 +145,10 @@ export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
             scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, scaledOffset - shiftPerCol);
         }
 
-        if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_WIDTH, 100 - scaledOffset);
+        if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_ENTRY_WIDTH, 100 - scaledOffset);
 
-        if (scaledWidth < MIN_WIDTH) {
-            scaledWidth = MIN_WIDTH;
+        if (scaledWidth < MIN_ENTRY_WIDTH) {
+            scaledWidth = MIN_ENTRY_WIDTH;
             if (scaledOffset + scaledWidth > 100) scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, 100 - scaledWidth);
         }
 
@@ -127,4 +158,9 @@ export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
     return annotated;
 }
 
+// Generate a reasonably unique id for new entries. Not cryptographically strong;
+// used only for in-memory demo state.
+export const generateEntryId = () => {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
 

@@ -1,13 +1,11 @@
 import { Box, Paper, Typography } from "@mui/material";
-import { formatTime, HOURS_PER_DAY } from "./calendarUtility";
+import { formatTime, HOUR_ARRAY, HOURS_PER_DAY } from "./calendarUtility";
 
 interface CalendarTimeProps {
     isCompact?: boolean;
 }
 
 export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
-    const hours = Array.from({ length: HOURS_PER_DAY }).map((_, i) => i);
-
     return (
         <Box
             sx={{
@@ -43,7 +41,7 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                 }}
             >
             </Paper>
-            {hours.map(hour => (
+            {HOUR_ARRAY.map(hour => (
                 <Box
                     key={hour}
                     sx={{

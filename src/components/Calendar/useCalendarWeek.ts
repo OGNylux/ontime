@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { INTERVAL_MINUTES, MINUTES_PER_DAY } from "./calendarUtility";
+import { clamp, MINUTES_PER_DAY, snap, generateEntryId, clampMinute } from "./calendarUtility";
 import type {
     EntryAttributes,
     EntryDragStartPayload,
@@ -15,19 +15,6 @@ export interface WeekDayInfo {
 }
 
 export type EntriesByDay = Record<number, TimeEntry[]>;
-
-// Utility helpers
-// Clamp a value to a given inclusive range
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-// Snap minutes to the configured interval (e.g. 15 minutes)
-const snapToInterval = (value: number) => Math.round(value / INTERVAL_MINUTES) * INTERVAL_MINUTES;
-
-// Generate a reasonably unique id for new entries. Not cryptographically strong;
-// used only for in-memory demo state.
-const generateEntryId = () => {
-    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
 // Find the nearest ancestor element under the pointer that is a day column
 // (marked with `data-day-index`). We use `elementsFromPoint` so we can hit
 // overlays and still discover the underlying day column.
@@ -97,7 +84,7 @@ export function useCalendarWeekState() {
             const dayEntries = next[dayIndex] ? [...next[dayIndex]] : [];
             const idx = dayEntries.findIndex(e => e.id === entryId);
             if (idx === -1) return prev;
-            const updated = { ...dayEntries[idx], startMinute: clamp(startMinute, 0, MINUTES_PER_DAY), endMinute: clamp(endMinute, 0, MINUTES_PER_DAY) };
+            const updated = { ...dayEntries[idx], startMinute: clampMinute(startMinute), endMinute: clampMinute(endMinute) };
             dayEntries.splice(idx, 1, updated);
             dayEntries.sort((a, b) => a.startMinute - b.startMinute);
             next[dayIndex] = dayEntries;
@@ -107,7 +94,7 @@ export function useCalendarWeekState() {
 
     // Given a pointer position and an active MoveState, calculate the
     // target day index and the snapped start/end minutes for the moving entry.
-    // This function clamps values to the day bounds and accounts for the
+    // This function s values to the day bounds and accounts for the
     // pointer offset inside the dragged entry.
     const calculateMovePosition = useCallback((clientX: number, clientY: number, state: MoveState) => {
         const dayElement = findDayElement(clientX, clientY);
@@ -125,10 +112,10 @@ export function useCalendarWeekState() {
         const offsetY = clamp(clientY - rect.top, 0, rect.height);
         const fractionOfDay = offsetY / rect.height;
         const minutesFromTop = fractionOfDay * MINUTES_PER_DAY;
-        const pointerMinute = clamp(snapToInterval(minutesFromTop), 0, MINUTES_PER_DAY);
+        const pointerMinute = clampMinute(snap(minutesFromTop));
 
         let startMinute = pointerMinute - state.pointerOffset;
-        startMinute = snapToInterval(startMinute);
+        startMinute = snap(startMinute);
         startMinute = clamp(startMinute, 0, MINUTES_PER_DAY - state.duration);
         const endMinute = startMinute + state.duration;
         return { targetDayIndex, startMinute, endMinute };

@@ -1,7 +1,7 @@
 import { Box, Paper, Typography } from "@mui/material";
 import CalendarEntryOverlay from "./CalendarEntry";
 import CreateEntryDialog from "./CreateEntryDialog";
-import { HOURS_PER_DAY } from "./calendarUtility";
+import { HOUR_ARRAY, HOURS_PER_DAY } from "./calendarUtility";
 import {
     EntryAttributes,
     EntryDragStartPayload,
@@ -22,8 +22,6 @@ interface CalendarDayProps {
     isCompact?: boolean;
     totalDays: number;
 }
-
-const HOURS = Array.from({ length: HOURS_PER_DAY }, (_, hour) => hour);
 
 export default function CalendarDay({
     dayIndex,
@@ -116,7 +114,7 @@ export default function CalendarDay({
                     bgcolor: "background.paper",
                 }}
             >
-                {HOURS.map(hour => (
+                {HOUR_ARRAY.map(hour => (
                     <Box
                         key={hour}
                         data-hour={hour}

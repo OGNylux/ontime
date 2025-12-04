@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
-import { INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "./calendarUtility";
+import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "./calendarUtility";
 import { assignEntryLayout } from "./calendarUtility";
 import type {
     AssignedEntry,
@@ -34,6 +34,8 @@ export interface UseCalendarDayResult {
     pendingEntryAnchor: { left: number; top: number } | null;
 }
 
+// --- Helper Functions ---
+
 const resolveMinuteOffset = (y: number, rect: DOMRect) => {
     const minutesForDay = Math.floor((y / rect.height) * MINUTES_PER_DAY);
     return Math.round(minutesForDay / INTERVAL_MINUTES) * INTERVAL_MINUTES;
@@ -45,22 +47,21 @@ const resolveMinuteOffsetWithinHour = (y: number, rect: DOMRect, hour: number) =
     return Math.round(absoluteMinute / INTERVAL_MINUTES) * INTERVAL_MINUTES;
 };
 
-export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart }: UseCalendarDayParams): UseCalendarDayResult {
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const [drag, setDrag] = useState<DragState>(INITIAL_DRAG);
+const findMinuteOffset = (y: number, rect: DOMRect, hour?: number) => {
+    if (typeof hour === "number") {
+        return resolveMinuteOffsetWithinHour(y, rect, hour);
+    }
+    return resolveMinuteOffset(y, rect);
+};
+
+// --- Custom Hooks ---
+
+/**
+ * Manages the height of the hour rows, updating on window resize.
+ */
+function useHourHeight(containerRef: RefObject<HTMLDivElement | null>) {
     const [hourHeight, setHourHeight] = useState(40);
-    const isDragHandledRef = useRef(true);
-    const [pendingEntry, setPendingEntry] = useState<EntryAttributes | null>(null);
-    const [pendingEntryAnchor, setPendingEntryAnchor] = useState<{ left: number; top: number } | null>(null);
-    const dragRef = useRef<DragState>(INITIAL_DRAG);
 
-    useEffect(() => {
-        dragRef.current = drag;
-    }, [drag]);
-
-    // Measure the rendered hour row height so overlays (entries) can compute
-    // their pixel heights/positions. We recalc on window resize in case the
-    // row size changes when the container is resized.
     useEffect(() => {
         const updateHourHeight = () => {
             if (!containerRef.current) return;
@@ -73,19 +74,29 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         updateHourHeight();
         window.addEventListener("resize", updateHourHeight);
         return () => window.removeEventListener("resize", updateHourHeight);
-    }, []);
+    }, [containerRef]);
 
-    const findMinuteOffset = useCallback((y: number, rect: DOMRect, hour?: number) => {
-        if (typeof hour === "number") {
-            return resolveMinuteOffsetWithinHour(y, rect, hour);
-        }
-        return resolveMinuteOffset(y, rect);
-    }, []);
+    return hourHeight;
+}
 
-    // Begin a selection drag when user clicks/taps inside an hour. The
-    // resulting `drag` state is used to render a preview overlay until the
-    // user releases the pointer (mouseup) which will produce a pending entry
-    // dialog or directly create an entry depending on duration.
+/**
+ * Manages the drag-to-create interaction.
+ */
+function useDragSelection(
+    containerRef: RefObject<HTMLDivElement | null>,
+    moveState: MoveState | null
+) {
+    const [drag, setDrag] = useState<DragState>(INITIAL_DRAG);
+    const [pendingEntry, setPendingEntry] = useState<EntryAttributes | null>(null);
+    const [pendingEntryAnchor, setPendingEntryAnchor] = useState<{ left: number; top: number } | null>(null);
+    
+    const dragRef = useRef<DragState>(INITIAL_DRAG);
+    const isDragHandledRef = useRef(true);
+
+    useEffect(() => {
+        dragRef.current = drag;
+    }, [drag]);
+
     const beginDrag = useCallback((minute: number) => {
         isDragHandledRef.current = false;
         setDrag({ active: true, startMinute: minute, endMinute: minute });
@@ -95,13 +106,14 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         const offsetY = clientY - rect.top;
-        const clampedY = Math.max(0, Math.min(rect.height, offsetY));
+        const clampedY = clamp(offsetY, 0, rect.height);
         const minute = findMinuteOffset(clampedY, rect);
+        
         setDrag(prev => {
             if (!prev.active || prev.endMinute === minute) return prev;
             return { ...prev, endMinute: minute };
         });
-    }, [findMinuteOffset]);
+    }, [containerRef]);
 
     const finishDrag = useCallback((event?: MouseEvent | TouchEvent) => {
         const prev = dragRef.current;
@@ -149,35 +161,6 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         setPendingEntryAnchor(anchor);
     }, []);
 
-    const handleMouseDown = useCallback((hour: number) => (event: ReactMouseEvent<HTMLDivElement>) => {
-        if (moveState) return;
-        if (event.cancelable) event.preventDefault();
-
-        const rect = event.currentTarget.getBoundingClientRect();
-        const y = event.clientY - rect.top;
-        const minute = findMinuteOffset(y, rect, hour);
-        beginDrag(minute);
-    }, [beginDrag, findMinuteOffset, moveState]);
-
-    const handleEntryDragStart = useCallback((entry: AssignedEntry, clientX: number, clientY: number) => {
-        if (moveState) return;
-        const container = containerRef.current;
-        if (!container) return;
-
-        const rect = container.getBoundingClientRect();
-        const y = clientY - rect.top;
-        const pointerMinute = findMinuteOffset(y, rect);
-        const pointerOffset = pointerMinute - entry.startMinute;
-
-        onEntryDragStart({
-            dayIndex,
-            entryId: entry.id,
-            pointerOffset,
-            clientX: clientX,
-            clientY: clientY,
-        });
-    }, [dayIndex, findMinuteOffset, moveState, onEntryDragStart]);
-
     useEffect(() => {
         if (!drag.active) return;
 
@@ -191,7 +174,36 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         };
     }, [drag.active, finishDrag, updateDrag]);
 
-    const assignedEntries = useMemo(() => assignEntryLayout(entries), [entries]);
+    const handleMouseDown = useCallback((hour: number) => (event: ReactMouseEvent<HTMLDivElement>) => {
+        if (moveState) return;
+        if (event.cancelable) event.preventDefault();
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        const y = event.clientY - rect.top;
+        const minute = findMinuteOffset(y, rect, hour);
+        beginDrag(minute);
+    }, [moveState, beginDrag]);
+
+    return {
+        drag,
+        pendingEntry,
+        setPendingEntry,
+        pendingEntryAnchor,
+        handleMouseDown
+    };
+}
+
+/**
+ * Manages the layout of entries, including the preview entry during a move operation.
+ */
+function useEntryLayout(
+    entries: TimeEntry[],
+    moveState: MoveState | null,
+    dayIndex: number,
+    hourHeight: number,
+    drag: DragState
+) {
+    const assignedEntries = useMemo(() => assignEntryLayout(entries, hourHeight), [entries, hourHeight]);
 
     const previewEntry = useMemo<AssignedEntry | null>(() => {
         if (!moveState) return null;
@@ -208,9 +220,9 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
             ? entries.filter(entry => entry.id !== moveState.entry.id)
             : entries;
 
-        const layout = assignEntryLayout([...comparisonEntries, preview]);
+        const layout = assignEntryLayout([...comparisonEntries, preview], hourHeight);
         return layout.find(item => item.id === preview.id) ?? null;
-    }, [entries, moveState, dayIndex]);
+    }, [entries, moveState, dayIndex, hourHeight]);
 
     const renderedEntries = useMemo((): Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }> => {
         const list = assignedEntries.map(entry => ({
@@ -239,6 +251,48 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
             title: "New Entry",
         };
     }, [drag, moveState]);
+
+    return { renderedEntries, dragOverlayEntry };
+}
+
+// --- Main Hook ---
+
+export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart }: UseCalendarDayParams): UseCalendarDayResult {
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    
+    const hourHeight = useHourHeight(containerRef);
+    
+    const { 
+        drag, 
+        pendingEntry, 
+        setPendingEntry, 
+        pendingEntryAnchor, 
+        handleMouseDown 
+    } = useDragSelection(containerRef, moveState);
+
+    const { 
+        renderedEntries, 
+        dragOverlayEntry 
+    } = useEntryLayout(entries, moveState, dayIndex, hourHeight, drag);
+
+    const handleEntryDragStart = useCallback((entry: AssignedEntry, clientX: number, clientY: number) => {
+        if (moveState) return;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const rect = container.getBoundingClientRect();
+        const y = clientY - rect.top;
+        const pointerMinute = findMinuteOffset(y, rect);
+        const pointerOffset = pointerMinute - entry.startMinute;
+
+        onEntryDragStart({
+            dayIndex,
+            entryId: entry.id,
+            pointerOffset,
+            clientX: clientX,
+            clientY: clientY,
+        });
+    }, [dayIndex, moveState, onEntryDragStart]);
 
     return {
         containerRef,
