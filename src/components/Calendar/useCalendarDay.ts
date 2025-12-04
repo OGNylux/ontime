@@ -58,6 +58,9 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         dragRef.current = drag;
     }, [drag]);
 
+    // Measure the rendered hour row height so overlays (entries) can compute
+    // their pixel heights/positions. We recalc on window resize in case the
+    // row size changes when the container is resized.
     useEffect(() => {
         const updateHourHeight = () => {
             if (!containerRef.current) return;
@@ -79,6 +82,10 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         return resolveMinuteOffset(y, rect);
     }, []);
 
+    // Begin a selection drag when user clicks/taps inside an hour. The
+    // resulting `drag` state is used to render a preview overlay until the
+    // user releases the pointer (mouseup) which will produce a pending entry
+    // dialog or directly create an entry depending on duration.
     const beginDrag = useCallback((minute: number) => {
         isDragHandledRef.current = false;
         setDrag({ active: true, startMinute: minute, endMinute: minute });
@@ -212,9 +219,7 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
             isDragging: Boolean(moveState && moveState.entry.id === entry.id && moveState.fromDayIndex === dayIndex),
         }));
 
-        if (previewEntry) {
-            list.push({ entry: previewEntry, isPreview: true, isDragging: false });
-        }
+        if (previewEntry) list.push({ entry: previewEntry, isPreview: true, isDragging: false });
 
         return list;
     }, [assignedEntries, previewEntry, moveState, dayIndex]);

@@ -18,6 +18,7 @@ interface CalendarDayProps {
     moveState: MoveState | null;
     onCreateEntry: (dayIndex: number, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
+    onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number) => void;
     isCompact?: boolean;
     totalDays: number;
 }
@@ -32,6 +33,7 @@ export default function CalendarDay({
     moveState,
     onCreateEntry,
     onEntryDragStart,
+    onUpdateEntry,
     isCompact = false,
     totalDays,
 }: CalendarDayProps) {
@@ -55,6 +57,11 @@ export default function CalendarDay({
 
     const compactWidthPercent = `${totalDays ? 100 / totalDays : 100}%`;
 
+    // Day column layout
+    // - outer box is a column flex container so the header stays sticky and
+    //   the hours container fills the remaining vertical space.
+    // - hour slots are rendered as flexible rows so they scale when the
+    //   parent height changes (while keeping a `minHeight` for usable touch targets).
     return (
         <Box
             data-day-index={dayIndex}
@@ -136,12 +143,17 @@ export default function CalendarDay({
                         hourHeight={hourHeight}
                         widthPercent={entry.widthPercent}
                         offsetPercent={entry.offsetPercent}
-                        zIndex={isPreview ? entry.zIndex + 50 : entry.zIndex}
+                        zIndex={isPreview ? entry.zIndex + 10 : entry.zIndex}
                         isPreview={isPreview}
                         isDragging={isDragging}
                         onDragStart={
                             !isPreview && !isDragging
                                 ? (clientX: number, clientY: number) => handleEntryDragStart(entry, clientX, clientY)
+                                : undefined
+                        }
+                        onResizeCommit={
+                            (!isPreview && !isDragging && onUpdateEntry)
+                                ? (entryId: string, newStart: number, newEnd: number) => onUpdateEntry(entryId, newStart, newEnd)
                                 : undefined
                         }
                     />

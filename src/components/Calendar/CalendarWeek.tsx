@@ -12,12 +12,19 @@ export default function Calendar() {
         moveState,
         handleCreateEntry,
         handleEntryDragStart,
+        handleUpdateEntry,
     } = useCalendarWeekState();
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Center the current time in the first scrollable ancestor only on initial load.
+    //
+    // Notes:
+    // - We look up the nearest scrollable ancestor so the calendar can be
+    //   embedded inside arbitrary containers. The scrollable ancestor is the
+    //   element that will receive the scrollTop adjustments. When the page
+    //   itself is the scroller we fall back to `document.scrollingElement`.
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -150,6 +157,7 @@ export default function Calendar() {
                             moveState={moveState}
                             onCreateEntry={handleCreateEntry}
                             onEntryDragStart={handleEntryDragStart}
+                            onUpdateEntry={(entryId, start, end) => handleUpdateEntry(day.id, entryId, start, end)}
                             isCompact={isCompact}
                             totalDays={weekDays.length}
                         />

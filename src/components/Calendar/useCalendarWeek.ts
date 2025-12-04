@@ -16,13 +16,21 @@ export interface WeekDayInfo {
 
 export type EntriesByDay = Record<number, TimeEntry[]>;
 
+// Utility helpers
+// Clamp a value to a given inclusive range
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+// Snap minutes to the configured interval (e.g. 15 minutes)
 const snapToInterval = (value: number) => Math.round(value / INTERVAL_MINUTES) * INTERVAL_MINUTES;
 
+// Generate a reasonably unique id for new entries. Not cryptographically strong;
+// used only for in-memory demo state.
 const generateEntryId = () => {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+// Find the nearest ancestor element under the pointer that is a day column
+// (marked with `data-day-index`). We use `elementsFromPoint` so we can hit
+// overlays and still discover the underlying day column.
 const findDayElement = (clientX: number, clientY: number) => {
     if (typeof document === "undefined") return null;
     const elements = document.elementsFromPoint(clientX, clientY);
@@ -50,6 +58,8 @@ export function useCalendarWeekState() {
     const [entriesByDay, setEntriesByDay] = useState<EntriesByDay>({});
     const [moveState, setMoveState] = useState<MoveState | null>(null);
 
+    // Add a new time entry to a day. If the entry crosses midnight we split it
+    // across two days so each `TimeEntry` stays within a single day's minute range.
     const addEntry = useCallback((dayIndex: number, attributes: EntryAttributes) => {
         setEntriesByDay(prev => {
             const next: EntriesByDay = { ...prev };
@@ -79,6 +89,26 @@ export function useCalendarWeekState() {
         });
     }, []);
 
+    // Update an existing entry's start/end minutes. Keeps the entry within
+    // 0..MINUTES_PER_DAY and sorts entries after update.
+    const updateEntry = useCallback((dayIndex: number, entryId: string, startMinute: number, endMinute: number) => {
+        setEntriesByDay(prev => {
+            const next: EntriesByDay = { ...prev };
+            const dayEntries = next[dayIndex] ? [...next[dayIndex]] : [];
+            const idx = dayEntries.findIndex(e => e.id === entryId);
+            if (idx === -1) return prev;
+            const updated = { ...dayEntries[idx], startMinute: clamp(startMinute, 0, MINUTES_PER_DAY), endMinute: clamp(endMinute, 0, MINUTES_PER_DAY) };
+            dayEntries.splice(idx, 1, updated);
+            dayEntries.sort((a, b) => a.startMinute - b.startMinute);
+            next[dayIndex] = dayEntries;
+            return next;
+        });
+    }, []);
+
+    // Given a pointer position and an active MoveState, calculate the
+    // target day index and the snapped start/end minutes for the moving entry.
+    // This function clamps values to the day bounds and accounts for the
+    // pointer offset inside the dragged entry.
     const calculateMovePosition = useCallback((clientX: number, clientY: number, state: MoveState) => {
         const dayElement = findDayElement(clientX, clientY);
         if (!dayElement) return null;
@@ -104,6 +134,10 @@ export function useCalendarWeekState() {
         return { targetDayIndex, startMinute, endMinute };
     }, []);
 
+    // Commit a move operation: remove the moving entry from the source day
+    // and insert it (with updated times) into the destination day. This
+    // mutates a shallow copy of the `entriesByDay` state and sorts entries
+    // by start time.
     const commitMove = useCallback((move: MoveState, target: { dayIndex: number; startMinute: number; endMinute: number }) => {
         setEntriesByDay(prev => {
             const next: EntriesByDay = { ...prev };
@@ -131,6 +165,10 @@ export function useCalendarWeekState() {
         });
     }, []);
 
+    // Start a move/drag operation for an existing entry. We capture the
+    // entry, its original day, pointer offset and compute the initial
+    // preview position using `calculateMovePosition` so drag previews appear
+    // in the correct spot immediately.
     const beginMove = useCallback((payload: EntryDragStartPayload) => {
         setMoveState(prev => {
             if (prev) return prev;
@@ -148,9 +186,7 @@ export function useCalendarWeekState() {
                 endMinute: entry.endMinute,
             };
 
-            if (typeof window === "undefined") {
-                return baseState;
-            }
+            if (typeof window === "undefined") return baseState;
 
             const nextPosition = calculateMovePosition(payload.clientX, payload.clientY, baseState);
             if (nextPosition) {
@@ -166,6 +202,12 @@ export function useCalendarWeekState() {
         });
     }, [calculateMovePosition, entriesByDay]);
 
+    // While a move operation is active we listen for pointer events at the
+    // window level so the user can drag outside the day column. For touch we
+    // throttle updates to animation frames and prevent the default scrolling
+    // behavior so the calendar drag feels smooth. We also temporarily lock
+    // body-level interactions (overflow / user-select) while dragging to
+    // prevent accidental page scroll/selection.
     useEffect(() => {
         if (!moveState) return;
 
@@ -177,9 +219,7 @@ export function useCalendarWeekState() {
                 if (
                     nextPosition.targetDayIndex === prev.currentDayIndex &&
                     nextPosition.startMinute === prev.startMinute
-                ) {
-                    return prev;
-                }
+                ) return prev;
 
                 return {
                     ...prev,
@@ -206,9 +246,7 @@ export function useCalendarWeekState() {
         let animationFrameId: number | null = null;
 
         const handleTouchMove = (event: globalThis.TouchEvent) => {
-            if (event.cancelable) {
-                event.preventDefault();
-            }
+            if (event.cancelable) event.preventDefault();
             const touch = event.touches[0];
             const clientX = touch.clientX;
             const clientY = touch.clientY;
@@ -266,6 +304,8 @@ export function useCalendarWeekState() {
         const originalTouchAction = document.body.style.touchAction;
         const originalUserSelect = document.body.style.userSelect;
         
+        // Lock common document interactions while dragging to avoid accidental
+        // scrolling/selection.
         document.body.style.overflow = "hidden";
         document.body.style.touchAction = "none";
         document.body.style.userSelect = "none";
@@ -285,9 +325,7 @@ export function useCalendarWeekState() {
             // @ts-ignore
             document.body.style.webkitUserSelect = "";
             
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-            }
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
     }, [moveState ? moveState.entry.id : null, calculateMovePosition, commitMove]);
 
@@ -297,5 +335,6 @@ export function useCalendarWeekState() {
         moveState,
         handleCreateEntry: addEntry,
         handleEntryDragStart: beginMove,
+        handleUpdateEntry: updateEntry,
     };
 }

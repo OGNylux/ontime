@@ -27,12 +27,15 @@ const INNER_SCALE = (100 - ENTRY_MARGIN_PERCENT * 2) / 100;
 export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
     if (!entries.length) return [];
 
-    // We'll assign columns using a greedy interval-partitioning algorithm
-    // so that entries that do not overlap at the same time can reuse the
-    // same column. For each entry we compute the maximum concurrency (the
-    // maximum number of simultaneous entries overlapping it) and use that
-    // to determine its width. The left offset is the assigned column index
-    // multiplied by the per-entry width.
+    // Layout algorithm summary:
+    // 1. Sort entries by start time.
+    // 2. Greedily assign each entry to the first free column (interval
+    //    partitioning). `columnEnds` tracks end times per column.
+    // 3. Build a list of timeline intervals and compute concurrency per
+    //    interval so we can determine the maximum concurrency that affects
+    //    each entry (this determines how many columns wide it should be).
+    // 4. Compute width and left offset in percent, apply inner margins and
+    //    minimum width constraints, and return annotated entries.
 
     const sorted = [...entries].sort((a, b) => (a.startMinute - b.startMinute) || (a.endMinute - b.endMinute));
 
@@ -99,6 +102,18 @@ export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
         let scaledOffset = ENTRY_MARGIN_PERCENT + offsetPercent * INNER_SCALE;
         let scaledWidth = widthPercent * INNER_SCALE;
 
+        // Apply overlap percentage so adjacent concurrent entries slightly
+        // overlap visually. We increase the width a bit and shift the offset
+        // left for later columns to create the overlap. Ensure we don't
+        // overflow the 0..100% range after adjustments.
+        if (concurrency > 1 && OVERLAP_PERCENT > 0) {
+            const extraWidth = OVERLAP_PERCENT; // percent points to add to each entry
+            const shiftPerCol = (OVERLAP_PERCENT * (col / Math.max(1, concurrency))) || 0;
+
+            scaledWidth = Math.min(100 - ENTRY_MARGIN_PERCENT - scaledOffset, scaledWidth + extraWidth);
+            scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, scaledOffset - shiftPerCol);
+        }
+
         if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_WIDTH, 100 - scaledOffset);
 
         if (scaledWidth < MIN_WIDTH) {
@@ -106,8 +121,7 @@ export function assignEntryLayout(entries: TimeEntry[]): AssignedEntry[] {
             if (scaledOffset + scaledWidth > 100) scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, 100 - scaledWidth);
         }
 
-        const zIndex = 200 + col;
-        annotated.push({ ...entry, widthPercent: scaledWidth, offsetPercent: scaledOffset, zIndex });
+        annotated.push({ ...entry, widthPercent: scaledWidth, offsetPercent: scaledOffset, zIndex: 2 });
     }
 
     return annotated;

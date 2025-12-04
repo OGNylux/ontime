@@ -18,6 +18,13 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                 flexShrink: 0,
             }}
         >
+            {/*
+                Time column:
+                - Renders a label row per hour.
+                - Each hour is a flex item so it grows/shrinks with the day
+                  column's available height. `minHeight` keeps the rows usable
+                  on small viewports.
+            */}
             <Paper
                 elevation={0}
                 square

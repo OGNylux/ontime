@@ -13,10 +13,12 @@ export default function Timer() {
     }, []);
 
     return (
-        <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column" }}>
             <h1 className="text-2xl font-bold mb-4">Timer Page</h1>
-            <div className="scrollbar-hide" style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-                <Calendar />
+            <div className="scrollbar-hide" style={{ flex: 1, overflow: "hidden" }}>
+                <div style={{ height: "100%" }}>
+                    <Calendar />
+                </div>
             </div>
         </div>
     );
