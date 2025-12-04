@@ -13,6 +13,7 @@ interface UseCalendarEntryProps {
     isDragging?: boolean;
     onDragStart?: (clientX: number, clientY: number) => void;
     onResizeCommit?: (entryId: string, startMinute: number, endMinute: number) => void;
+    onEntryClick?: (event: MouseEvent | globalThis.MouseEvent) => void;
 }
 
 export function useCalendarEntry({
@@ -23,10 +24,13 @@ export function useCalendarEntry({
     isPreview = false,
     isDragging = false,
     onDragStart,
-    onResizeCommit
+    onResizeCommit,
+    onEntryClick
 }: UseCalendarEntryProps) {
     const paperRef = useRef<HTMLDivElement>(null);
     const [hovered, setHovered] = useState(false);
+    const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+    const isDraggingRef = useRef(false);
 
     // Handle touch interactions (long press to drag)
     useEntryTouch({
@@ -47,7 +51,40 @@ export function useCalendarEntry({
     });
 
     const handleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
-        if (onDragStart) onDragStart(event.clientX, event.clientY);
+        if (event.button !== 0) return; // Only left click
+        
+        dragStartPosRef.current = { x: event.clientX, y: event.clientY };
+        isDraggingRef.current = false;
+
+        const handleWindowMouseMove = (e: globalThis.MouseEvent) => {
+            if (!dragStartPosRef.current) return;
+            const dx = e.clientX - dragStartPosRef.current.x;
+            const dy = e.clientY - dragStartPosRef.current.y;
+
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                isDraggingRef.current = true;
+                if (onDragStart) {
+                    onDragStart(dragStartPosRef.current.x, dragStartPosRef.current.y);
+                }
+                cleanup();
+            }
+        };
+
+        const handleWindowMouseUp = (e: globalThis.MouseEvent) => {
+            cleanup();
+            if (!isDraggingRef.current && onEntryClick) {
+                onEntryClick(e);
+            }
+        };
+
+        const cleanup = () => {
+            window.removeEventListener("mousemove", handleWindowMouseMove);
+            window.removeEventListener("mouseup", handleWindowMouseUp);
+            dragStartPosRef.current = null;
+        };
+
+        window.addEventListener("mousemove", handleWindowMouseMove);
+        window.addEventListener("mouseup", handleWindowMouseUp);
     };
 
     let renderOffset = clampPercent(offsetPercent);

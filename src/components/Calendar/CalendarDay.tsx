@@ -1,6 +1,8 @@
 import { Box, Paper, Typography } from "@mui/material";
+import { useState } from "react";
 import CalendarEntryOverlay from "./CalendarEntry";
 import CreateEntryDialog from "./CreateEntryDialog";
+import EditEntryDialog from "./EditEntryDialog";
 import { HOUR_ARRAY, HOURS_PER_DAY } from "./calendarUtility";
 import {
     EntryAttributes,
@@ -19,6 +21,9 @@ interface CalendarDayProps {
     onCreateEntry: (dayIndex: number, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
     onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number) => void;
+    onDeleteEntry?: (entryId: string) => void;
+    onDuplicateEntry?: (entryId: string) => void;
+    onUpdateEntryTitle?: (entryId: string, title: string) => void;
     isCompact?: boolean;
     totalDays: number;
 }
@@ -32,6 +37,9 @@ export default function CalendarDay({
     onCreateEntry,
     onEntryDragStart,
     onUpdateEntry,
+    onDeleteEntry,
+    onDuplicateEntry,
+    onUpdateEntryTitle,
     isCompact = false,
     totalDays,
 }: CalendarDayProps) {
@@ -52,6 +60,9 @@ export default function CalendarDay({
         onCreateEntry,
         onEntryDragStart,
     });
+
+    const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+    const [editAnchor, setEditAnchor] = useState<{ top: number; left: number } | null>(null);
 
     const compactWidthPercent = `${totalDays ? 100 / totalDays : 100}%`;
 
@@ -154,6 +165,10 @@ export default function CalendarDay({
                                 ? (entryId: string, newStart: number, newEnd: number) => onUpdateEntry(entryId, newStart, newEnd)
                                 : undefined
                         }
+                        onEntryClick={(event, entry) => {
+                            setEditingEntry(entry);
+                            setEditAnchor({ top: event.clientY, left: event.clientX });
+                        }}
                     />
                 ))}
                 {dragOverlayEntry && (
@@ -194,6 +209,24 @@ export default function CalendarDay({
                     }}
                     initialStartMinute={pendingEntry.startMinute}
                     initialEndMinute={pendingEntry.endMinute}
+                />
+            )}
+            {editingEntry && (
+                <EditEntryDialog
+                    open={true}
+                    entry={editingEntry}
+                    anchorPosition={editAnchor}
+                    onClose={() => setEditingEntry(null)}
+                    onSave={(entryId, title, startMinute, endMinute) => {
+                        if (onUpdateEntryTitle) onUpdateEntryTitle(entryId, title);
+                        if (onUpdateEntry) onUpdateEntry(entryId, startMinute, endMinute);
+                    }}
+                    onDelete={(entryId) => {
+                        if (onDeleteEntry) onDeleteEntry(entryId);
+                    }}
+                    onDuplicate={(entryId) => {
+                        if (onDuplicateEntry) onDuplicateEntry(entryId);
+                    }}
                 />
             )}
         </Box>

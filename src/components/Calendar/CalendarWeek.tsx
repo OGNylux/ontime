@@ -13,6 +13,9 @@ export default function Calendar() {
         handleCreateEntry,
         handleEntryDragStart,
         handleUpdateEntry,
+        handleDeleteEntry,
+        handleDuplicateEntry,
+        handleUpdateEntryTitle,
     } = useCalendarWeekState();
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
@@ -158,6 +161,9 @@ export default function Calendar() {
                             onCreateEntry={handleCreateEntry}
                             onEntryDragStart={handleEntryDragStart}
                             onUpdateEntry={(entryId, start, end) => handleUpdateEntry(day.id, entryId, start, end)}
+                            onDeleteEntry={(entryId) => handleDeleteEntry(day.id, entryId)}
+                            onDuplicateEntry={(entryId) => handleDuplicateEntry(day.id, entryId)}
+                            onUpdateEntryTitle={(entryId, title) => handleUpdateEntryTitle(day.id, entryId, title)}
                             isCompact={isCompact}
                             totalDays={weekDays.length}
                         />

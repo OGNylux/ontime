@@ -316,6 +316,47 @@ export function useCalendarWeekState() {
         };
     }, [moveState ? moveState.entry.id : null, calculateMovePosition, commitMove]);
 
+    const deleteEntry = useCallback((dayIndex: number, entryId: string) => {
+        setEntriesByDay(prev => {
+            const next = { ...prev };
+            if (next[dayIndex]) {
+                next[dayIndex] = next[dayIndex].filter(e => e.id !== entryId);
+            }
+            return next;
+        });
+    }, []);
+
+    const duplicateEntry = useCallback((dayIndex: number, entryId: string) => {
+        setEntriesByDay(prev => {
+            const next = { ...prev };
+            const dayEntries = next[dayIndex] || [];
+            const entry = dayEntries.find(e => e.id === entryId);
+            if (!entry) return prev;
+
+            const newEntry = {
+                ...entry,
+                id: generateEntryId(),
+            };
+            
+            next[dayIndex] = [...dayEntries, newEntry].sort((a, b) => a.startMinute - b.startMinute);
+            return next;
+        });
+    }, []);
+
+    const updateEntryTitle = useCallback((dayIndex: number, entryId: string, title: string) => {
+        setEntriesByDay(prev => {
+            const next = { ...prev };
+            const dayEntries = next[dayIndex] || [];
+            const idx = dayEntries.findIndex(e => e.id === entryId);
+            if (idx === -1) return prev;
+            
+            const updated = { ...dayEntries[idx], title };
+            dayEntries[idx] = updated;
+            next[dayIndex] = [...dayEntries];
+            return next;
+        });
+    }, []);
+
     return {
         weekDays,
         entriesByDay,
@@ -323,5 +364,8 @@ export function useCalendarWeekState() {
         handleCreateEntry: addEntry,
         handleEntryDragStart: beginMove,
         handleUpdateEntry: updateEntry,
+        handleDeleteEntry: deleteEntry,
+        handleDuplicateEntry: duplicateEntry,
+        handleUpdateEntryTitle: updateEntryTitle,
     };
 }

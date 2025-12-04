@@ -14,11 +14,23 @@ interface CalendarEntryOverlayProps {
     isDragging?: boolean;
     onDragStart?: (clientX: number, clientY: number) => void;
     onResizeCommit?: (entryId: string, startMinute: number, endMinute: number) => void;
+    onEntryClick?: (event: React.MouseEvent, entry: TimeEntry) => void;
 }
 
 
 
-export default function CalendarEntryOverlay({ entry, hourHeight, widthPercent = 100, offsetPercent = 0, zIndex = 100, isPreview = false, isDragging = false, onDragStart, onResizeCommit }: CalendarEntryOverlayProps) {
+export default function CalendarEntryOverlay({ 
+    entry, 
+    hourHeight, 
+    widthPercent = 100, 
+    offsetPercent = 0, 
+    zIndex = 100, 
+    isPreview = false, 
+    isDragging = false, 
+    onDragStart, 
+    onResizeCommit,
+    onEntryClick
+}: CalendarEntryOverlayProps) {
     const theme = useTheme();
     const pxPerMinute = pixelPerMinute(hourHeight);
     
@@ -40,7 +52,13 @@ export default function CalendarEntryOverlay({ entry, hourHeight, widthPercent =
         isPreview,
         isDragging,
         onDragStart,
-        onResizeCommit
+        onResizeCommit,
+        onEntryClick: (e) => {
+            if (onEntryClick) {
+                // @ts-ignore
+                onEntryClick(e, entry);
+            }
+        }
     });
 
 
