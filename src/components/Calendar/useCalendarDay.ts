@@ -15,10 +15,10 @@ const INITIAL_DRAG: DragState = { active: false, startMinute: null, endMinute: n
 interface DragOverlayEntry extends TimeEntry {}
 
 export interface UseCalendarDayParams {
-    dayIndex: number;
+    dateStr: string;
     entries: TimeEntry[];
     moveState: MoveState | null;
-    onCreateEntry: (dayIndex: number, attributes: EntryAttributes) => void;
+    onCreateEntry: (dateStr: string, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
 }
 
@@ -199,7 +199,7 @@ function useDragSelection(
 function useEntryLayout(
     entries: TimeEntry[],
     moveState: MoveState | null,
-    dayIndex: number,
+    dateStr: string,
     hourHeight: number,
     drag: DragState
 ) {
@@ -207,7 +207,7 @@ function useEntryLayout(
 
     const previewEntry = useMemo<AssignedEntry | null>(() => {
         if (!moveState) return null;
-        if (moveState.currentDayIndex !== dayIndex) return null;
+        if (moveState.currentDateStr !== dateStr) return null;
 
         const preview: TimeEntry = {
             ...moveState.entry,
@@ -216,25 +216,25 @@ function useEntryLayout(
             endMinute: moveState.endMinute,
         };
 
-        const comparisonEntries = moveState.fromDayIndex === dayIndex
+        const comparisonEntries = moveState.fromDateStr === dateStr
             ? entries.filter(entry => entry.id !== moveState.entry.id)
             : entries;
 
         const layout = assignEntryLayout([...comparisonEntries, preview], hourHeight);
         return layout.find(item => item.id === preview.id) ?? null;
-    }, [entries, moveState, dayIndex, hourHeight]);
+    }, [entries, moveState, dateStr, hourHeight]);
 
     const renderedEntries = useMemo((): Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }> => {
         const list = assignedEntries.map(entry => ({
             entry,
             isPreview: false,
-            isDragging: Boolean(moveState && moveState.entry.id === entry.id && moveState.fromDayIndex === dayIndex),
+            isDragging: Boolean(moveState && moveState.entry.id === entry.id && moveState.fromDateStr === dateStr),
         }));
 
         if (previewEntry) list.push({ entry: previewEntry, isPreview: true, isDragging: false });
 
         return list;
-    }, [assignedEntries, previewEntry, moveState, dayIndex]);
+    }, [assignedEntries, previewEntry, moveState, dateStr]);
 
     const dragOverlayEntry = useMemo<DragOverlayEntry | null>(() => {
         if (moveState) return null;
@@ -257,7 +257,7 @@ function useEntryLayout(
 
 // --- Main Hook ---
 
-export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart }: UseCalendarDayParams): UseCalendarDayResult {
+export function useCalendarDay({ dateStr, entries, moveState, onEntryDragStart }: UseCalendarDayParams): UseCalendarDayResult {
     const containerRef = useRef<HTMLDivElement | null>(null);
     
     const hourHeight = useHourHeight(containerRef);
@@ -273,7 +273,7 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
     const { 
         renderedEntries, 
         dragOverlayEntry 
-    } = useEntryLayout(entries, moveState, dayIndex, hourHeight, drag);
+    } = useEntryLayout(entries, moveState, dateStr, hourHeight, drag);
 
     const handleEntryDragStart = useCallback((entry: AssignedEntry, clientX: number, clientY: number) => {
         if (moveState) return;
@@ -286,13 +286,13 @@ export function useCalendarDay({ dayIndex, entries, moveState, onEntryDragStart 
         const pointerOffset = pointerMinute - entry.startMinute;
 
         onEntryDragStart({
-            dayIndex,
+            dateStr,
             entryId: entry.id,
             pointerOffset,
             clientX: clientX,
             clientY: clientY,
         });
-    }, [dayIndex, moveState, onEntryDragStart]);
+    }, [dateStr, moveState, onEntryDragStart]);
 
     return {
         containerRef,

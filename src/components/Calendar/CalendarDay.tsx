@@ -13,12 +13,12 @@ import {
 import { useCalendarDay } from "./useCalendarDay";
 
 interface CalendarDayProps {
-    dayIndex: number;
+    dateStr: string;
     dayOfTheMonth: string;
     dayOfTheWeek: string;
     entries: TimeEntry[];
     moveState: MoveState | null;
-    onCreateEntry: (dayIndex: number, attributes: EntryAttributes) => void;
+    onCreateEntry: (dateStr: string, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
     onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number) => void;
     onDeleteEntry?: (entryId: string) => void;
@@ -29,7 +29,7 @@ interface CalendarDayProps {
 }
 
 export default function CalendarDay({
-    dayIndex,
+    dateStr,
     dayOfTheMonth,
     dayOfTheWeek,
     entries,
@@ -54,7 +54,7 @@ export default function CalendarDay({
         setPendingEntry,
         pendingEntryAnchor,
     } = useCalendarDay({
-        dayIndex,
+        dateStr,
         entries,
         moveState,
         onCreateEntry,
@@ -73,7 +73,7 @@ export default function CalendarDay({
     //   parent height changes (while keeping a `minHeight` for usable touch targets).
     return (
         <Box
-            data-day-index={dayIndex}
+            data-date={dateStr}
             sx={{
                 flex: 1,
                 bgcolor: "grey.50",
@@ -119,7 +119,7 @@ export default function CalendarDay({
             </Paper>
             <Box
                 ref={containerRef}
-                data-day-index={dayIndex}
+                data-date={dateStr}
                 sx={{
                     position: "relative",
                     bgcolor: "background.paper",
@@ -200,7 +200,7 @@ export default function CalendarDay({
                     anchorPosition={pendingEntryAnchor}
                     onClose={() => setPendingEntry(null)}
                     onSave={(title, startMinute, endMinute) => {
-                        onCreateEntry(dayIndex, {
+                        onCreateEntry(dateStr, {
                             startMinute,
                             endMinute,
                             title,

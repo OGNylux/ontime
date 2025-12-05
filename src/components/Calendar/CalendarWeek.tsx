@@ -1,5 +1,6 @@
-import { Box, Container, Stack, useMediaQuery } from "@mui/material";
+import { Box, Container, Stack, useMediaQuery, IconButton, Typography, Button } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { useEffect, useRef } from "react";
 import CalendarDay from "./CalendarDay";
 import CalendarTime from "./CalendarTime";
@@ -16,6 +17,10 @@ export default function Calendar() {
         handleDeleteEntry,
         handleDuplicateEntry,
         handleUpdateEntryTitle,
+        nextWeek,
+        prevWeek,
+        goToToday,
+        currentDate,
     } = useCalendarWeekState();
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
@@ -28,9 +33,8 @@ export default function Calendar() {
     //   embedded inside arbitrary containers. The scrollable ancestor is the
     //   element that will receive the scrollTop adjustments. When the page
     //   itself is the scroller we fall back to `document.scrollingElement`.
-    useEffect(() => {
+    const centerNow = (smooth = true) => {
         if (!containerRef.current) return;
-
         const root = containerRef.current;
 
         const findScrollableAncestor = (el: HTMLElement | null): HTMLElement | null => {
@@ -43,41 +47,36 @@ export default function Calendar() {
                 }
                 current = current.parentElement;
             }
-            // fallback to document.scrollingElement
             return document.scrollingElement as HTMLElement | null;
         };
 
         const scrollable = findScrollableAncestor(root);
         if (!scrollable) return;
 
-        const findDayColumn = () => root.querySelector<HTMLElement>('[data-day-index]');
+        const dayColumn = root.querySelector<HTMLElement>('[data-date]');
+        if (!dayColumn) return;
 
-        const centerNow = (smooth = true) => {
-            const dayColumn = findDayColumn();
-            if (!dayColumn) return;
+        const now = new Date();
+        const hour = now.getHours();
+        const minutes = now.getMinutes();
 
-            const now = new Date();
-            const hour = now.getHours();
-            const minutes = now.getMinutes();
+        const hourElem = dayColumn.querySelector<HTMLElement>(`[data-hour="${hour}"]`) || dayColumn.querySelector<HTMLElement>('[data-hour]');
+        if (!hourElem) return;
 
-            const hourElem = dayColumn.querySelector<HTMLElement>(`[data-hour="${hour}"]`) || dayColumn.querySelector<HTMLElement>('[data-hour]');
-            if (!hourElem) return;
+        const containerRect = scrollable.getBoundingClientRect();
+        const hourRect = hourElem.getBoundingClientRect();
 
-            const containerRect = scrollable.getBoundingClientRect();
-            const hourRect = hourElem.getBoundingClientRect();
+        const hourTop = hourRect.top - containerRect.top + scrollable.scrollTop;
+        const hourHeight = hourRect.height || 1;
+        const minuteOffset = (minutes / 60) * hourHeight;
 
-            // top of hour relative to scrollable content
-            const hourTop = hourRect.top - containerRect.top + scrollable.scrollTop;
+        let targetScrollTop = hourTop + minuteOffset - scrollable.clientHeight / 2;
+        targetScrollTop = Math.max(0, Math.min(targetScrollTop, scrollable.scrollHeight - scrollable.clientHeight));
 
-            const hourHeight = hourRect.height || 1;
-            const minuteOffset = (minutes / 60) * hourHeight;
+        scrollable.scrollTo({ top: targetScrollTop, behavior: smooth ? 'smooth' : 'auto' });
+    };
 
-            let targetScrollTop = hourTop + minuteOffset - scrollable.clientHeight / 2;
-            targetScrollTop = Math.max(0, Math.min(targetScrollTop, scrollable.scrollHeight - scrollable.clientHeight));
-
-            scrollable.scrollTo({ top: targetScrollTop, behavior: smooth ? 'smooth' : 'auto' });
-        };
-
+    useEffect(() => {
         // Retry a couple times if layout isn't ready yet
         let rafId: number | null = null;
         let attempts = 0;
@@ -85,9 +84,12 @@ export default function Calendar() {
             rafId = requestAnimationFrame(() => {
                 attempts += 1;
                 centerNow(false);
-                // If scrollHeight is still small and attempts < 3, try again shortly
-                if (scrollable.scrollHeight <= scrollable.clientHeight && attempts < 3) {
-                    setTimeout(tryCenter, 50);
+                // Check if we need to retry (e.g. if scrollHeight is small)
+                if (containerRef.current) {
+                    // Simple check: just retry a few times to be safe
+                    if (attempts < 3) {
+                        setTimeout(tryCenter, 50);
+                    }
                 }
             });
         };
@@ -119,27 +121,50 @@ export default function Calendar() {
     }, [moveState]);
 
     return (
-        <Container
-            className="scrollbar-hide"
-            ref={containerRef}
-            disableGutters
-            maxWidth={false}
-            sx={{
-                height: "100%",
-                bgcolor: "background.default",
-                overflowX: "auto",
-                overflowY: "auto",
-                px: { xs: 1, md: 2 },
-                pt: 0,
-                pb: { xs: 1, md: 2 },
-                WebkitOverflowScrolling: "touch",
-                ...(moveState && {
-                    overflow: "hidden",
-                    touchAction: "none",
-                }),
-            }}
-        >
-            <Stack direction="row" sx={{ minHeight: "100%" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default" }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 2, px: { xs: 2, md: 3 } }}>
+                 <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                        {currentDate.format("MMMM YYYY")}
+                    </Typography>
+                 </Stack>
+                 <Stack direction="row" spacing={1}>
+                    <IconButton onClick={prevWeek} size="small"><ChevronLeft /></IconButton>
+                    <Button 
+                        onClick={() => {
+                            goToToday();
+                            // Wait for render to update to current week, then scroll
+                            setTimeout(() => centerNow(true), 50);
+                        }} 
+                        variant="outlined" 
+                        size="small" 
+                        sx={{ minWidth: 'auto', px: 2 }}
+                    >
+                        Today
+                    </Button>
+                    <IconButton onClick={nextWeek} size="small"><ChevronRight /></IconButton>
+                 </Stack>
+            </Stack>
+
+            <Container
+                className="scrollbar-hide"
+                ref={containerRef}
+                disableGutters
+                maxWidth={false}
+                sx={{
+                    flex: 1,
+                    overflowX: "auto",
+                    overflowY: "auto",
+                    px: { xs: 1, md: 2 },
+                    pb: { xs: 1, md: 2 },
+                    WebkitOverflowScrolling: "touch",
+                    ...(moveState && {
+                        overflow: "hidden",
+                        touchAction: "none",
+                    }),
+                }}
+            >
+                <Stack direction="row" sx={{ minHeight: "100%" }}>
                 <CalendarTime isCompact={isCompact} />
                 <Box
                     sx={{
@@ -153,17 +178,17 @@ export default function Calendar() {
                     {weekDays.map(day => (
                         <CalendarDay
                             key={day.id}
-                            dayIndex={day.id}
+                            dateStr={day.dateStr}
                             dayOfTheMonth={day.dayOfTheMonth}
                             dayOfTheWeek={day.dayOfTheWeek}
-                            entries={entriesByDay[day.id] ?? []}
+                            entries={entriesByDay[day.dateStr] ?? []}
                             moveState={moveState}
                             onCreateEntry={handleCreateEntry}
                             onEntryDragStart={handleEntryDragStart}
-                            onUpdateEntry={(entryId, start, end) => handleUpdateEntry(day.id, entryId, start, end)}
-                            onDeleteEntry={(entryId) => handleDeleteEntry(day.id, entryId)}
-                            onDuplicateEntry={(entryId) => handleDuplicateEntry(day.id, entryId)}
-                            onUpdateEntryTitle={(entryId, title) => handleUpdateEntryTitle(day.id, entryId, title)}
+                            onUpdateEntry={(entryId, start, end) => handleUpdateEntry(day.dateStr, entryId, start, end)}
+                            onDeleteEntry={(entryId) => handleDeleteEntry(day.dateStr, entryId)}
+                            onDuplicateEntry={(entryId) => handleDuplicateEntry(day.dateStr, entryId)}
+                            onUpdateEntryTitle={(entryId, title) => handleUpdateEntryTitle(day.dateStr, entryId, title)}
                             isCompact={isCompact}
                             totalDays={weekDays.length}
                         />
@@ -171,5 +196,6 @@ export default function Calendar() {
                 </Box>
             </Stack>
         </Container>
+        </Box>
     );
 }

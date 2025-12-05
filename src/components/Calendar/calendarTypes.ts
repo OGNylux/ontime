@@ -23,16 +23,16 @@ export interface DragState {
 
 export interface MoveState {
     entry: TimeEntry;
-    fromDayIndex: number;
+    fromDateStr: string;
     pointerOffset: number;
     duration: number;
-    currentDayIndex: number;
+    currentDateStr: string;
     startMinute: number;
     endMinute: number;
 }
 
 export interface EntryDragStartPayload {
-    dayIndex: number;
+    dateStr: string;
     entryId: string;
     pointerOffset: number;
     clientX: number;

@@ -10,49 +10,58 @@ import type {
 
 export interface WeekDayInfo {
     id: number;
+    dateStr: string;
     dayOfTheMonth: string;
     dayOfTheWeek: string;
 }
 
-export type EntriesByDay = Record<number, TimeEntry[]>;
+export type EntriesByDay = Record<string, TimeEntry[]>;
+
 // Find the nearest ancestor element under the pointer that is a day column
-// (marked with `data-day-index`). We use `elementsFromPoint` so we can hit
+// (marked with `data-date`). We use `elementsFromPoint` so we can hit
 // overlays and still discover the underlying day column.
 const findDayElement = (clientX: number, clientY: number) => {
     if (typeof document === "undefined") return null;
     const elements = document.elementsFromPoint(clientX, clientY);
     for (const element of elements) {
-        const dayElement = element.closest<HTMLElement>("[data-day-index]");
+        const dayElement = element.closest<HTMLElement>("[data-date]");
         if (dayElement) return dayElement;
     }
     return null;
 };
 
-const buildWeekDays = (): WeekDayInfo[] => {
-    const start = dayjs().startOf("week");
-    return Array.from({ length: 7 }).map((_, index) => {
-        const day = start.add(index, "day");
-        return {
-            id: index,
-            dayOfTheMonth: day.format("DD"),
-            dayOfTheWeek: day.format("ddd"),
-        };
-    });
-};
-
 export function useCalendarWeekState() {
-    const weekDays = useMemo(buildWeekDays, []);
+    const [currentDate, setCurrentDate] = useState(dayjs());
+
+    const weekDays = useMemo(() => {
+        // Ensure the calendar week starts on Monday.
+        const start = currentDate.startOf("week").add(1, "day");
+        return Array.from({ length: 7 }).map((_, index) => {
+            const day = start.add(index, "day");
+            return {
+                id: index,
+                dateStr: day.format("YYYY-MM-DD"),
+                dayOfTheMonth: day.format("DD"),
+                dayOfTheWeek: day.format("ddd"),
+            };
+        });
+    }, [currentDate]);
+
     const [entriesByDay, setEntriesByDay] = useState<EntriesByDay>({});
     const [moveState, setMoveState] = useState<MoveState | null>(null);
 
+    const nextWeek = useCallback(() => setCurrentDate(d => d.add(1, "week")), []);
+    const prevWeek = useCallback(() => setCurrentDate(d => d.subtract(1, "week")), []);
+    const goToToday = useCallback(() => setCurrentDate(dayjs()), []);
+
     // Add a new time entry to a day. If the entry crosses midnight we split it
     // across two days so each `TimeEntry` stays within a single day's minute range.
-    const addEntry = useCallback((dayIndex: number, attributes: EntryAttributes) => {
+    const addEntry = useCallback((dateStr: string, attributes: EntryAttributes) => {
         setEntriesByDay(prev => {
             const next: EntriesByDay = { ...prev };
 
-            const pushEntry = (dIndex: number, start: number, end: number) => {
-                const nextEntries = next[dIndex] ? [...next[dIndex]] : [];
+            const pushEntry = (dStr: string, start: number, end: number) => {
+                const nextEntries = next[dStr] ? [...next[dStr]] : [];
                 nextEntries.push({
                     id: generateEntryId(),
                     startMinute: start,
@@ -61,15 +70,17 @@ export function useCalendarWeekState() {
                     color: attributes.color,
                 });
                 nextEntries.sort((a, b) => a.startMinute - b.startMinute);
-                next[dIndex] = nextEntries;
+                next[dStr] = nextEntries;
             };
 
             if (attributes.endMinute > MINUTES_PER_DAY) {
                 // Split entry across midnight
-                pushEntry(dayIndex, attributes.startMinute, MINUTES_PER_DAY);
-                pushEntry(dayIndex + 1, 0, attributes.endMinute - MINUTES_PER_DAY);
+                pushEntry(dateStr, attributes.startMinute, MINUTES_PER_DAY);
+                
+                const nextDay = dayjs(dateStr).add(1, "day").format("YYYY-MM-DD");
+                pushEntry(nextDay, 0, attributes.endMinute - MINUTES_PER_DAY);
             } else {
-                pushEntry(dayIndex, attributes.startMinute, attributes.endMinute);
+                pushEntry(dateStr, attributes.startMinute, attributes.endMinute);
             }
 
             return next;
@@ -78,16 +89,16 @@ export function useCalendarWeekState() {
 
     // Update an existing entry's start/end minutes. Keeps the entry within
     // 0..MINUTES_PER_DAY and sorts entries after update.
-    const updateEntry = useCallback((dayIndex: number, entryId: string, startMinute: number, endMinute: number) => {
+    const updateEntry = useCallback((dateStr: string, entryId: string, startMinute: number, endMinute: number) => {
         setEntriesByDay(prev => {
             const next: EntriesByDay = { ...prev };
-            const dayEntries = next[dayIndex] ? [...next[dayIndex]] : [];
+            const dayEntries = next[dateStr] ? [...next[dateStr]] : [];
             const idx = dayEntries.findIndex(e => e.id === entryId);
             if (idx === -1) return prev;
             const updated = { ...dayEntries[idx], startMinute: clampMinute(startMinute), endMinute: clampMinute(endMinute) };
             dayEntries.splice(idx, 1, updated);
             dayEntries.sort((a, b) => a.startMinute - b.startMinute);
-            next[dayIndex] = dayEntries;
+            next[dateStr] = dayEntries;
             return next;
         });
     }, []);
@@ -100,11 +111,8 @@ export function useCalendarWeekState() {
         const dayElement = findDayElement(clientX, clientY);
         if (!dayElement) return null;
 
-        const dayIndexAttr = dayElement.getAttribute("data-day-index");
-        if (dayIndexAttr === null) return null;
-
-        const targetDayIndex = Number(dayIndexAttr);
-        if (Number.isNaN(targetDayIndex)) return null;
+        const dateStr = dayElement.getAttribute("data-date");
+        if (!dateStr) return null;
 
         const rect = dayElement.getBoundingClientRect();
         if (rect.height <= 0) return null;
@@ -118,22 +126,22 @@ export function useCalendarWeekState() {
         startMinute = snap(startMinute);
         startMinute = clamp(startMinute, 0, MINUTES_PER_DAY - state.duration);
         const endMinute = startMinute + state.duration;
-        return { targetDayIndex, startMinute, endMinute };
+        return { targetDateStr: dateStr, startMinute, endMinute };
     }, []);
 
     // Commit a move operation: remove the moving entry from the source day
     // and insert it (with updated times) into the destination day. This
     // mutates a shallow copy of the `entriesByDay` state and sorts entries
     // by start time.
-    const commitMove = useCallback((move: MoveState, target: { dayIndex: number; startMinute: number; endMinute: number }) => {
+    const commitMove = useCallback((move: MoveState, target: { dateStr: string; startMinute: number; endMinute: number }) => {
         setEntriesByDay(prev => {
             const next: EntriesByDay = { ...prev };
 
-            const sourceEntries = (next[move.fromDayIndex] ?? []).filter(entry => entry.id !== move.entry.id);
+            const sourceEntries = (next[move.fromDateStr] ?? []).filter(entry => entry.id !== move.entry.id);
             if (sourceEntries.length) {
-                next[move.fromDayIndex] = sourceEntries;
+                next[move.fromDateStr] = sourceEntries;
             } else {
-                delete next[move.fromDayIndex];
+                delete next[move.fromDateStr];
             }
 
             const updatedEntry: TimeEntry = {
@@ -142,11 +150,11 @@ export function useCalendarWeekState() {
                 endMinute: target.endMinute,
             };
 
-            const destinationEntries = next[target.dayIndex] ? [...next[target.dayIndex]] : [];
+            const destinationEntries = next[target.dateStr] ? [...next[target.dateStr]] : [];
             const filteredDestination = destinationEntries.filter(entry => entry.id !== move.entry.id);
             filteredDestination.push(updatedEntry);
             filteredDestination.sort((a, b) => a.startMinute - b.startMinute);
-            next[target.dayIndex] = filteredDestination;
+            next[target.dateStr] = filteredDestination;
 
             return next;
         });
@@ -159,16 +167,16 @@ export function useCalendarWeekState() {
     const beginMove = useCallback((payload: EntryDragStartPayload) => {
         setMoveState(prev => {
             if (prev) return prev;
-            const dayEntries = entriesByDay[payload.dayIndex] ?? [];
+            const dayEntries = entriesByDay[payload.dateStr] ?? [];
             const entry = dayEntries.find(item => item.id === payload.entryId);
             if (!entry) return prev;
 
             const baseState: MoveState = {
                 entry,
-                fromDayIndex: payload.dayIndex,
+                fromDateStr: payload.dateStr,
                 pointerOffset: payload.pointerOffset,
                 duration: entry.endMinute - entry.startMinute,
-                currentDayIndex: payload.dayIndex,
+                currentDateStr: payload.dateStr,
                 startMinute: entry.startMinute,
                 endMinute: entry.endMinute,
             };
@@ -179,7 +187,7 @@ export function useCalendarWeekState() {
             if (nextPosition) {
                 return {
                     ...baseState,
-                    currentDayIndex: nextPosition.targetDayIndex,
+                    currentDateStr: nextPosition.targetDateStr,
                     startMinute: nextPosition.startMinute,
                     endMinute: nextPosition.endMinute,
                 };
@@ -204,13 +212,13 @@ export function useCalendarWeekState() {
                 const nextPosition = calculateMovePosition(event.clientX, event.clientY, prev);
                 if (!nextPosition) return prev;
                 if (
-                    nextPosition.targetDayIndex === prev.currentDayIndex &&
+                    nextPosition.targetDateStr === prev.currentDateStr &&
                     nextPosition.startMinute === prev.startMinute
                 ) return prev;
 
                 return {
                     ...prev,
-                    currentDayIndex: nextPosition.targetDayIndex,
+                    currentDateStr: nextPosition.targetDateStr,
                     startMinute: nextPosition.startMinute,
                     endMinute: nextPosition.endMinute,
                 };
@@ -221,11 +229,11 @@ export function useCalendarWeekState() {
             setMoveState(prev => {
                 if (!prev) return prev;
                 const nextPosition = calculateMovePosition(event.clientX, event.clientY, prev);
-                const targetDayIndex = nextPosition?.targetDayIndex ?? prev.currentDayIndex;
+                const targetDateStr = nextPosition?.targetDateStr ?? prev.currentDateStr;
                 const startMinute = nextPosition?.startMinute ?? prev.startMinute;
                 const endMinute = nextPosition?.endMinute ?? prev.endMinute;
 
-                commitMove(prev, { dayIndex: targetDayIndex, startMinute, endMinute });
+                commitMove(prev, { dateStr: targetDateStr, startMinute, endMinute });
                 return null;
             });
         };
@@ -246,7 +254,7 @@ export function useCalendarWeekState() {
                     const nextPosition = calculateMovePosition(clientX, clientY, prev);
                     if (!nextPosition) return prev;
                     if (
-                        nextPosition.targetDayIndex === prev.currentDayIndex &&
+                        nextPosition.targetDateStr === prev.currentDateStr &&
                         nextPosition.startMinute === prev.startMinute
                     ) {
                         return prev;
@@ -254,7 +262,7 @@ export function useCalendarWeekState() {
 
                     return {
                         ...prev,
-                        currentDayIndex: nextPosition.targetDayIndex,
+                        currentDateStr: nextPosition.targetDateStr,
                         startMinute: nextPosition.startMinute,
                         endMinute: nextPosition.endMinute,
                     };
@@ -272,11 +280,11 @@ export function useCalendarWeekState() {
             setMoveState(prev => {
                 if (!prev) return prev;
                 const nextPosition = calculateMovePosition(touch.clientX, touch.clientY, prev);
-                const targetDayIndex = nextPosition?.targetDayIndex ?? prev.currentDayIndex;
+                const targetDateStr = nextPosition?.targetDateStr ?? prev.currentDateStr;
                 const startMinute = nextPosition?.startMinute ?? prev.startMinute;
                 const endMinute = nextPosition?.endMinute ?? prev.endMinute;
 
-                commitMove(prev, { dayIndex: targetDayIndex, startMinute, endMinute });
+                commitMove(prev, { dateStr: targetDateStr, startMinute, endMinute });
                 return null;
             });
         };
@@ -316,20 +324,20 @@ export function useCalendarWeekState() {
         };
     }, [moveState ? moveState.entry.id : null, calculateMovePosition, commitMove]);
 
-    const deleteEntry = useCallback((dayIndex: number, entryId: string) => {
+    const deleteEntry = useCallback((dateStr: string, entryId: string) => {
         setEntriesByDay(prev => {
             const next = { ...prev };
-            if (next[dayIndex]) {
-                next[dayIndex] = next[dayIndex].filter(e => e.id !== entryId);
+            if (next[dateStr]) {
+                next[dateStr] = next[dateStr].filter(e => e.id !== entryId);
             }
             return next;
         });
     }, []);
 
-    const duplicateEntry = useCallback((dayIndex: number, entryId: string) => {
+    const duplicateEntry = useCallback((dateStr: string, entryId: string) => {
         setEntriesByDay(prev => {
             const next = { ...prev };
-            const dayEntries = next[dayIndex] || [];
+            const dayEntries = next[dateStr] || [];
             const entry = dayEntries.find(e => e.id === entryId);
             if (!entry) return prev;
 
@@ -338,21 +346,21 @@ export function useCalendarWeekState() {
                 id: generateEntryId(),
             };
             
-            next[dayIndex] = [...dayEntries, newEntry].sort((a, b) => a.startMinute - b.startMinute);
+            next[dateStr] = [...dayEntries, newEntry].sort((a, b) => a.startMinute - b.startMinute);
             return next;
         });
     }, []);
 
-    const updateEntryTitle = useCallback((dayIndex: number, entryId: string, title: string) => {
+    const updateEntryTitle = useCallback((dateStr: string, entryId: string, title: string) => {
         setEntriesByDay(prev => {
             const next = { ...prev };
-            const dayEntries = next[dayIndex] || [];
+            const dayEntries = next[dateStr] || [];
             const idx = dayEntries.findIndex(e => e.id === entryId);
             if (idx === -1) return prev;
             
             const updated = { ...dayEntries[idx], title };
             dayEntries[idx] = updated;
-            next[dayIndex] = [...dayEntries];
+            next[dateStr] = [...dayEntries];
             return next;
         });
     }, []);
@@ -367,5 +375,9 @@ export function useCalendarWeekState() {
         handleDeleteEntry: deleteEntry,
         handleDuplicateEntry: duplicateEntry,
         handleUpdateEntryTitle: updateEntryTitle,
+        nextWeek,
+        prevWeek,
+        goToToday,
+        currentDate,
     };
 }
