@@ -1,10 +1,11 @@
-import { Box, Container, Stack, useMediaQuery, IconButton, Typography, Button } from "@mui/material";
+import { Box, Container, Stack, useMediaQuery, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { useEffect, useRef } from "react";
 import CalendarDay from "./CalendarDay";
 import CalendarTime from "./CalendarTime";
 import { useCalendarWeekState } from "./useCalendarWeek";
+import CalendarViewSelector from "./TopBar/CalendarViewSelector";
+import CalendarNavigation from "./TopBar/CalendarNavigation";
 
 export default function Calendar() {
     const {
@@ -21,6 +22,8 @@ export default function Calendar() {
         prevWeek,
         goToToday,
         currentDate,
+        viewMode,
+        setViewMode,
     } = useCalendarWeekState();
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
@@ -122,27 +125,23 @@ export default function Calendar() {
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default" }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 2, px: { xs: 2, md: 3 } }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" paddingY={2} paddingX={{ xs: 2, md: 3 }}>
                  <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography variant="h6" fontWeight="bold">
                         {currentDate.format("MMMM YYYY")}
                     </Typography>
                  </Stack>
-                 <Stack direction="row" spacing={1}>
-                    <IconButton onClick={prevWeek} size="small"><ChevronLeft /></IconButton>
-                    <Button 
-                        onClick={() => {
+                 <Stack direction="row" spacing={1} alignItems="center">
+                    <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
+                    <CalendarNavigation 
+                        onPrev={prevWeek}
+                        onNext={nextWeek}
+                        onToday={() => {
                             goToToday();
                             // Wait for render to update to current week, then scroll
                             setTimeout(() => centerNow(true), 50);
-                        }} 
-                        variant="outlined" 
-                        size="small" 
-                        sx={{ minWidth: 'auto', px: 2 }}
-                    >
-                        Today
-                    </Button>
-                    <IconButton onClick={nextWeek} size="small"><ChevronRight /></IconButton>
+                        }}
+                    />
                  </Stack>
             </Stack>
 

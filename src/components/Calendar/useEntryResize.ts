@@ -1,6 +1,6 @@
 import { useRef, useState, type MouseEvent } from "react";
-import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, pixelPerMinute, snap } from "./calendarUtility";
-import { TimeEntry } from "./calendarTypes";
+import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, pixelPerMinute, snap } from "./util/calendarUtility";
+import { TimeEntry } from "./util/calendarTypes";
 
 interface UseEntryResizeProps {
     entry: TimeEntry;

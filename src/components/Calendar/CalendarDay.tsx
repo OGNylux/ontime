@@ -1,15 +1,15 @@
 import { Box, Paper, Typography } from "@mui/material";
 import { useState } from "react";
 import CalendarEntryOverlay from "./CalendarEntry";
-import CreateEntryDialog from "./CreateEntryDialog";
-import EditEntryDialog from "./EditEntryDialog";
-import { HOUR_ARRAY, HOURS_PER_DAY } from "./calendarUtility";
+import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
+import EditEntryDialog from "./EntryDialog/EditEntryDialog";
+import { HOUR_ARRAY, HOURS_PER_DAY } from "./util/calendarUtility";
 import {
     EntryAttributes,
     EntryDragStartPayload,
     MoveState,
     TimeEntry,
-} from "./calendarTypes";
+} from "./util/calendarTypes";
 import { useCalendarDay } from "./useCalendarDay";
 
 interface CalendarDayProps {

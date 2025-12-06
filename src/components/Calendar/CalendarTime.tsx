@@ -1,5 +1,5 @@
 import { Box, Paper, Typography } from "@mui/material";
-import { formatTime, HOUR_ARRAY, HOURS_PER_DAY } from "./calendarUtility";
+import { formatTime, HOUR_ARRAY, HOURS_PER_DAY } from "./util/calendarUtility";
 
 interface CalendarTimeProps {
     isCompact?: boolean;

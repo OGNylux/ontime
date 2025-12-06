@@ -24,11 +24,22 @@ export const snap = (value: number) => Math.round(value / INTERVAL_MINUTES) * IN
 
 export function formatTime(hourOrMinute: number, useMinutes: boolean = false) {
     if (useMinutes) {
-        const hour = Math.floor(hourOrMinute / 60);
-        const minute = hourOrMinute % 60;
+        const hour = Math.floor(hourOrMinute / MINUTES_PER_HOUR);
+        const minute = hourOrMinute % MINUTES_PER_HOUR;
         return dayjs().hour(hour).minute(minute).format("h:mm A");
     }
     return dayjs().hour(hourOrMinute).format("h:00 A");
+}
+
+export function minutesToTime(minutes: number): string {
+    const h = Math.floor(minutes / MINUTES_PER_HOUR);
+    const m = minutes % MINUTES_PER_HOUR;
+    return dayjs().hour(h).minute(m).format("HH:mm");
+}
+
+export function timeToMinutes(time: string): number {
+    const [h, m] = time.split(":").map(Number);
+    return h * MINUTES_PER_HOUR + m;
 }
 
 export function roundTo15Minutes(minute: number) {

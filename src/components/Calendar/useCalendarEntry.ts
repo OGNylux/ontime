@@ -1,6 +1,6 @@
 import { useRef, useState, type MouseEvent } from "react";
-import { clampPercent, ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, clamp } from "./calendarUtility";
-import { TimeEntry } from "./calendarTypes";
+import { clampPercent, ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, clamp } from "./util/calendarUtility";
+import { TimeEntry } from "./util/calendarTypes";
 import { useEntryTouch } from "./useEntryTouch";
 import { useEntryResize } from "./useEntryResize";
 

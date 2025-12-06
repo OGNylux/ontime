@@ -1,7 +1,7 @@
 import { Paper, Stack, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { formatTime, pixelPerMinute } from "./calendarUtility";
-import { TimeEntry } from "./calendarTypes";
+import { formatTime, pixelPerMinute } from "./util/calendarUtility";
+import { TimeEntry } from "./util/calendarTypes";
 import { useCalendarEntry } from "./useCalendarEntry";
 
 interface CalendarEntryOverlayProps {
@@ -127,7 +127,7 @@ export default function CalendarEntryOverlay({
             )}
 
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                <Typography variant="caption" sx={{ fontSize: { xs: "0.65rem", md: "0.85rem" } }} paddingTop={0.5}>
+                <Typography variant="caption" fontSize={{ xs: "0.65rem", md: "0.85rem" }} paddingTop={0.5}>
                     {entry.title || "New Entry"}
                 </Typography>
                 <Typography variant="subtitle2" noWrap sx={{ fontSize: { xs: "0.55rem", md: "0.75rem" }, opacity: 0.9 }}>

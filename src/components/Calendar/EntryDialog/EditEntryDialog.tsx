@@ -15,10 +15,9 @@ import {
     ListItemIcon,
     ListItemText
 } from "@mui/material";
-import { ContentCopy, MoreVert, Delete, Save } from "@mui/icons-material";
-import dayjs from "dayjs";
-import { TimeEntry } from "./calendarTypes";
-import { HOURS_PER_DAY, MINUTES_PER_HOUR } from "./calendarUtility";
+import { ContentCopy, MoreVert, Delete } from "@mui/icons-material";
+import { TimeEntry } from "../util/calendarTypes";
+import { HOURS_PER_DAY, MINUTES_PER_HOUR, minutesToTime, timeToMinutes } from "../util/calendarUtility";
 
 interface EditEntryDialogProps {
     open: boolean;
@@ -28,17 +27,6 @@ interface EditEntryDialogProps {
     onDelete: (entryId: string) => void;
     onDuplicate: (entryId: string) => void;
     anchorPosition: { top: number; left: number } | null;
-}
-
-function minutesToTime(minutes: number): string {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return dayjs().hour(h).minute(m).format("HH:mm");
-}
-
-function timeToMinutes(time: string): number {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
 }
 
 export default function EditEntryDialog({
@@ -147,15 +135,14 @@ export default function EditEntryDialog({
                         slotProps={{ inputLabel: { shrink: true } }}
                         size="small"
                     />
+                    <Button
+                        onClick={handleSave}
+                        variant="contained"
+                        size="small"
+                    >
+                        Save
+                    </Button>
                 </Stack>
-                <Button
-                    onClick={handleSave}
-                    variant="contained"
-                    size="small"
-                    startIcon={<Save />}
-                >
-                    Save
-                </Button>
             </Stack>
         </Stack>
     );

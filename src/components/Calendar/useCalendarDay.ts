@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
-import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "./calendarUtility";
-import { assignEntryLayout } from "./calendarUtility";
+import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "./util/calendarUtility";
+import { assignEntryLayout } from "./util/calendarUtility";
 import type {
     AssignedEntry,
     DragState,
@@ -8,7 +8,7 @@ import type {
     EntryDragStartPayload,
     MoveState,
     TimeEntry,
-} from "./calendarTypes";
+} from "./util/calendarTypes";
 
 const INITIAL_DRAG: DragState = { active: false, startMinute: null, endMinute: null };
 

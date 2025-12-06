@@ -14,9 +14,6 @@ function App() {
 
   return (
     <main className="container">
-      <h1 className="bg-slate-900 text-white p-4 rounded-lg">Welcome to Tauri + React</h1>
-
-      
       <div className="row">
         <a href="https://vite.dev" target="_blank">
           <img src="/vite.svg" className="logo vite" alt="Vite logo" />
@@ -49,6 +46,21 @@ function App() {
       <div className="mt-4">
         <Link to="/timer" className="text-blue-500 hover:underline">
           Go to Timer
+        </Link>
+        <Link to="/login" className="text-blue-500 hover:underline ml-4">
+          Login
+        </Link>
+        <Link to="/register" className="text-blue-500 hover:underline ml-4">
+          Register
+        </Link>
+        <Link to="/projects/create" className="text-blue-500 hover:underline ml-4">
+          Create Project
+        </Link>
+        <Link to="/tasks/create" className="text-blue-500 hover:underline ml-4">
+          Create Task
+        </Link>
+        <Link to="/clients/create" className="text-blue-500 hover:underline ml-4">
+          Create Client
         </Link>
       </div>
     </main>
