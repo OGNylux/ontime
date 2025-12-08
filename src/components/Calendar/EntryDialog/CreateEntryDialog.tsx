@@ -9,13 +9,16 @@ import {
     SwipeableDrawer,
     Box,
     Typography,
+    Autocomplete,
 } from "@mui/material";
 import dayjs from "dayjs";
+import { taskService } from "../../../services/taskService";
+import { TaskResponseDTO } from "../../../dtos/response/Task.response.dto";
 
 interface CreateEntryDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (title: string, startMinute: number, endMinute: number) => void;
+    onSave: (title: string, startMinute: number, endMinute: number, taskId?: string, task?: TaskResponseDTO) => void;
     initialStartMinute: number;
     initialEndMinute: number;
     anchorPosition: { top: number; left: number } | null;
@@ -41,6 +44,9 @@ export default function CreateEntryDialog({
     anchorPosition,
 }: CreateEntryDialogProps) {
     const [title, setTitle] = useState("");
+    const [taskId, setTaskId] = useState<string | undefined>(undefined);
+    const [selectedTask, setSelectedTask] = useState<TaskResponseDTO | null>(null);
+    const [options, setOptions] = useState<TaskResponseDTO[]>([]);
     const [startTime, setStartTime] = useState(minutesToTime(initialStartMinute));
     const [endTime, setEndTime] = useState(minutesToTime(initialEndMinute));
     const theme = useTheme();
@@ -49,10 +55,23 @@ export default function CreateEntryDialog({
     useEffect(() => {
         if (open) {
             setTitle("");
+            setTaskId(undefined);
+            setOptions([]);
             setStartTime(minutesToTime(initialStartMinute));
             setEndTime(minutesToTime(initialEndMinute));
         }
     }, [open, initialStartMinute, initialEndMinute]);
+
+    useEffect(() => {
+        if (title.length >= 3) {
+            const delayDebounceFn = setTimeout(() => {
+                taskService.searchTasks(title).then(setOptions).catch(console.error);
+            }, 300);
+            return () => clearTimeout(delayDebounceFn);
+        } else {
+            setOptions([]);
+        }
+    }, [title]);
 
     const handleSave = () => {
         const start = timeToMinutes(startTime);
@@ -62,19 +81,44 @@ export default function CreateEntryDialog({
             end += 24 * 60;
         }
 
-        onSave(title || "New Entry", start, end);
+        onSave(title || "New Entry", start, end, taskId, selectedTask || undefined);
     };
 
     const content = (
         <Stack spacing={2} sx={{ p: 2, minWidth: 300 }}>
             {!isMobile && <Typography variant="h6">Create New Entry</Typography>}
-            <TextField
-                autoFocus
-                label="Title"
-                fullWidth
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                size="small"
+            <Autocomplete
+                freeSolo
+                options={options}
+                getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                renderInput={(params) => (
+                    <TextField
+                        {...params}
+                        autoFocus
+                        label="Task"
+                        fullWidth
+                        size="small"
+                    />
+                )}
+                onInputChange={(_, newInputValue) => {
+                    setTitle(newInputValue);
+                }}
+                onChange={(_, newValue) => {
+                    if (typeof newValue === 'string') {
+                        setTitle(newValue);
+                        setTaskId(undefined);
+                        setSelectedTask(null);
+                    } else if (newValue) {
+                        setTitle(newValue.name);
+                        setTaskId(newValue.id);
+                        setSelectedTask(newValue);
+                    } else {
+                        setTitle("");
+                        setTaskId(undefined);
+                        setSelectedTask(null);
+                    }
+                }}
+                inputValue={title}
             />
             <Stack direction="row" spacing={2}>
                 <TextField

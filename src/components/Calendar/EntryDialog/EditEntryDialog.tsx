@@ -48,7 +48,7 @@ export default function EditEntryDialog({
 
     useEffect(() => {
         if (open && entry) {
-            setTitle(entry.title || "");
+            setTitle(entry.task?.name || "");
             setStartTime(minutesToTime(entry.startMinute));
             setEndTime(minutesToTime(entry.endMinute));
         }
@@ -61,7 +61,7 @@ export default function EditEntryDialog({
 
         if (end < start) end += HOURS_PER_DAY * MINUTES_PER_HOUR;
 
-        onSave(entry.id, title || "New Entry", start, end);
+        onSave(entry.id, title, start, end);
         onClose();
     };
 

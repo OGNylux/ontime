@@ -1,8 +1,11 @@
+import { TaskResponseDTO } from "../../../dtos/response/Task.response.dto";
+
 export interface EntryAttributes {
     startMinute: number;
     endMinute: number;
-    title?: string;
-    color?: string;
+    taskId?: string;
+    task?: TaskResponseDTO;
+    title?: string; // Used for creation/display if task is not yet resolved
 }
 
 export interface TimeEntry extends EntryAttributes {

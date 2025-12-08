@@ -20,10 +20,9 @@ interface CalendarDayProps {
     moveState: MoveState | null;
     onCreateEntry: (dateStr: string, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
-    onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number) => void;
+    onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number, title?: string) => void;
     onDeleteEntry?: (entryId: string) => void;
     onDuplicateEntry?: (entryId: string) => void;
-    onUpdateEntryTitle?: (entryId: string, title: string) => void;
     isCompact?: boolean;
     totalDays: number;
 }
@@ -39,7 +38,6 @@ export default function CalendarDay({
     onUpdateEntry,
     onDeleteEntry,
     onDuplicateEntry,
-    onUpdateEntryTitle,
     isCompact = false,
     totalDays,
 }: CalendarDayProps) {
@@ -199,11 +197,13 @@ export default function CalendarDay({
                     open={true}
                     anchorPosition={pendingEntryAnchor}
                     onClose={() => setPendingEntry(null)}
-                    onSave={(title, startMinute, endMinute) => {
+                    onSave={(title, startMinute, endMinute, taskId, task) => {
                         onCreateEntry(dateStr, {
                             startMinute,
                             endMinute,
+                            taskId,
                             title,
+                            task
                         });
                         setPendingEntry(null);
                     }}
@@ -218,8 +218,7 @@ export default function CalendarDay({
                     anchorPosition={editAnchor}
                     onClose={() => setEditingEntry(null)}
                     onSave={(entryId, title, startMinute, endMinute) => {
-                        if (onUpdateEntryTitle) onUpdateEntryTitle(entryId, title);
-                        if (onUpdateEntry) onUpdateEntry(entryId, startMinute, endMinute);
+                        if (onUpdateEntry) onUpdateEntry(entryId, startMinute, endMinute, title);
                     }}
                     onDelete={(entryId) => {
                         if (onDeleteEntry) onDeleteEntry(entryId);

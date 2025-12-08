@@ -54,5 +54,28 @@ export const taskService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async searchTasks(query: string): Promise<TaskResponseDTO[]> {
+        const { data, error } = await supabase
+            .from('ontime_task')
+            .select('*')
+            .ilike('name', `%${query}%`)
+            .limit(10);
+
+        if (error) throw error;
+
+        return data as TaskResponseDTO[];
+    },
+
+    async getTaskByName(name: string): Promise<TaskResponseDTO | null> {
+        const { data, error } = await supabase
+            .from('ontime_task')
+            .select('*')
+            .eq('name', name)
+            .maybeSingle();
+        
+        if (error) throw error;
+        return data as TaskResponseDTO | null;
     }
 };

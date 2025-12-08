@@ -17,7 +17,6 @@ export default function Calendar() {
         handleUpdateEntry,
         handleDeleteEntry,
         handleDuplicateEntry,
-        handleUpdateEntryTitle,
         nextWeek,
         prevWeek,
         goToToday,
@@ -184,10 +183,9 @@ export default function Calendar() {
                             moveState={moveState}
                             onCreateEntry={handleCreateEntry}
                             onEntryDragStart={handleEntryDragStart}
-                            onUpdateEntry={(entryId, start, end) => handleUpdateEntry(day.dateStr, entryId, start, end)}
+                            onUpdateEntry={(entryId, start, end, title) => handleUpdateEntry(day.dateStr, entryId, start, end, title)}
                             onDeleteEntry={(entryId) => handleDeleteEntry(day.dateStr, entryId)}
                             onDuplicateEntry={(entryId) => handleDuplicateEntry(day.dateStr, entryId)}
-                            onUpdateEntryTitle={(entryId, title) => handleUpdateEntryTitle(day.dateStr, entryId, title)}
                             isCompact={isCompact}
                             totalDays={weekDays.length}
                         />

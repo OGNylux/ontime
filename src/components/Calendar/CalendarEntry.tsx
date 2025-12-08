@@ -63,7 +63,7 @@ export default function CalendarEntryOverlay({
 
 
 
-    const baseColor = entry.color ?? theme.palette.primary.main;
+    const baseColor = entry.task?.color ?? theme.palette.primary.main;
     const backgroundColor = isPreview ? alpha(baseColor, 0.85) : baseColor;
     const textColor = theme.palette.getContrastText(backgroundColor);
 
@@ -128,7 +128,7 @@ export default function CalendarEntryOverlay({
 
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                 <Typography variant="caption" fontSize={{ xs: "0.65rem", md: "0.85rem" }} paddingTop={0.5}>
-                    {entry.title || "New Entry"}
+                    {entry.task?.name || "New Entry"}
                 </Typography>
                 <Typography variant="subtitle2" noWrap sx={{ fontSize: { xs: "0.55rem", md: "0.75rem" }, opacity: 0.9 }}>
                     {formatTime(displayStart, true)} - {formatTime(displayEnd, true)}
