@@ -10,15 +10,20 @@ import {
     Box,
     Typography,
     Autocomplete,
+    IconButton,
+    Tooltip,
 } from "@mui/material";
+import { AttachMoney } from "@mui/icons-material";
 import dayjs from "dayjs";
 import { taskService } from "../../../services/taskService";
 import { TaskResponseDTO } from "../../../dtos/response/Task.response.dto";
+import { ProjectResponseDTO } from "../../../dtos/response/Project.response.dto";
+import ProjectSelector from "./ProjectSelector";
 
 interface CreateEntryDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (title: string, startMinute: number, endMinute: number, taskId?: string, task?: TaskResponseDTO) => void;
+    onSave: (title: string, startMinute: number, endMinute: number, taskId?: string, task?: TaskResponseDTO, projectId?: string, isBillable?: boolean) => void;
     initialStartMinute: number;
     initialEndMinute: number;
     anchorPosition: { top: number; left: number } | null;
@@ -47,6 +52,8 @@ export default function CreateEntryDialog({
     const [taskId, setTaskId] = useState<string | undefined>(undefined);
     const [selectedTask, setSelectedTask] = useState<TaskResponseDTO | null>(null);
     const [options, setOptions] = useState<TaskResponseDTO[]>([]);
+    const [selectedProject, setSelectedProject] = useState<ProjectResponseDTO | null>(null);
+    const [isBillable, setIsBillable] = useState(true);
     const [startTime, setStartTime] = useState(minutesToTime(initialStartMinute));
     const [endTime, setEndTime] = useState(minutesToTime(initialEndMinute));
     const theme = useTheme();
@@ -57,6 +64,8 @@ export default function CreateEntryDialog({
             setTitle("");
             setTaskId(undefined);
             setOptions([]);
+            setSelectedProject(null);
+            setIsBillable(true);
             setStartTime(minutesToTime(initialStartMinute));
             setEndTime(minutesToTime(initialEndMinute));
         }
@@ -81,7 +90,7 @@ export default function CreateEntryDialog({
             end += 24 * 60;
         }
 
-        onSave(title || "New Entry", start, end, taskId, selectedTask || undefined);
+        onSave(title, start, end, taskId, selectedTask || undefined, selectedProject?.id, isBillable);
     };
 
     const content = (
@@ -120,6 +129,21 @@ export default function CreateEntryDialog({
                 }}
                 inputValue={title}
             />
+            <Stack direction="row" spacing={1} alignItems="center">
+                <ProjectSelector 
+                    selectedProjectId={selectedProject?.id} 
+                    onSelect={setSelectedProject} 
+                />
+
+                <Tooltip title="Billable">
+                    <IconButton
+                        onClick={() => setIsBillable(!isBillable)}
+                        color={isBillable ? "success" : "default"}
+                    >
+                        <AttachMoney />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
             <Stack direction="row" spacing={2}>
                 <TextField
                     label="Start"

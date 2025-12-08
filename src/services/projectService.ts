@@ -7,7 +7,10 @@ export const projectService = {
     async getProjects(): Promise<ProjectResponseDTO[]> {
         const { data, error } = await supabase
             .from('ontime_project')
-            .select('*')
+            .select(`
+                *,
+                client:ontime_client(*)
+            `)
             .order('created_at', { ascending: false });
 
         if (error) throw error;

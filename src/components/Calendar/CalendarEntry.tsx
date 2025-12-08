@@ -3,6 +3,7 @@ import { alpha, useTheme } from "@mui/material/styles";
 import { formatTime, pixelPerMinute } from "./util/calendarUtility";
 import { TimeEntry } from "./util/calendarTypes";
 import { useCalendarEntry } from "./useCalendarEntry";
+import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
 
 interface CalendarEntryOverlayProps {
     entry: TimeEntry;
@@ -104,31 +105,17 @@ export default function CalendarEntryOverlay({
         >
             {/* Top resize handle */}
             {showHandles && (
-                <div
+                <CalendarEntryResizeHandle
+                    position="top"
+                    zIndex={zIndex}
                     onMouseDown={(e) => { e.stopPropagation(); startResize("top", e.clientY); }}
                     onTouchStart={(e) => { e.stopPropagation(); startResize("top", e.touches[0].clientY); }}
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "ns-resize",
-                        zIndex: zIndex,
-                        pointerEvents: "auto",
-                        userSelect: "none",
-                    }}
-                >
-                    <span className="text-xs opacity-70">--</span>
-                </div>
+                />
             )}
 
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                 <Typography variant="caption" fontSize={{ xs: "0.65rem", md: "0.85rem" }} paddingTop={0.5}>
-                    {entry.task?.name || "New Entry"}
+                    {entry.task?.name || entry.title}
                 </Typography>
                 <Typography variant="subtitle2" noWrap sx={{ fontSize: { xs: "0.55rem", md: "0.75rem" }, opacity: 0.9 }}>
                     {formatTime(displayStart, true)} - {formatTime(displayEnd, true)}
@@ -137,26 +124,12 @@ export default function CalendarEntryOverlay({
 
             {/* Bottom resize handle */}
             {showHandles && (
-                <div
+                <CalendarEntryResizeHandle
+                    position="bottom"
+                    zIndex={zIndex}
                     onMouseDown={(e) => { e.stopPropagation(); startResize("bottom", e.clientY); }}
                     onTouchStart={(e) => { e.stopPropagation(); startResize("bottom", e.touches[0].clientY); }}
-                    style={{
-                        position: "absolute",
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 12,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "ns-resize",
-                        zIndex: zIndex,
-                        pointerEvents: "auto",
-                        userSelect: "none",
-                    }}
-                >
-                    <span className="text-xs opacity-70">--</span>
-                </div>
+                />
             )}
         </Paper>
     );

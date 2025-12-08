@@ -267,7 +267,7 @@ function useEntryLayout(
             id: "drag",
             startMinute,
             endMinute,
-            title: "New Entry",
+            title: "",
         };
     }, [drag, moveState]);
 

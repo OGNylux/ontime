@@ -8,6 +8,8 @@ export interface EntryAttributes {
     title?: string; // Used for creation/display if task is not yet resolved
     originalStartMinute?: number;
     originalEndMinute?: number;
+    projectId?: string;
+    isBillable?: boolean;
 }
 
 export interface TimeEntry extends EntryAttributes {
@@ -43,3 +45,13 @@ export interface EntryDragStartPayload {
     clientX: number;
     clientY: number;
 }
+
+export interface WeekDayInfo {
+    id: number;
+    dateStr: string;
+    dayOfTheMonth: string;
+    dayOfTheWeek: string;
+}
+
+export type EntriesByDay = Record<string, TimeEntry[]>;
+export type ViewMode = 'week' | 'work_week' | 'day';

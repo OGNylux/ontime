@@ -13,17 +13,19 @@ import {
     Menu,
     MenuItem,
     ListItemIcon,
-    ListItemText
+    ListItemText,
+    Tooltip,
 } from "@mui/material";
-import { ContentCopy, MoreVert, Delete } from "@mui/icons-material";
+import { ContentCopy, MoreVert, Delete, AttachMoney } from "@mui/icons-material";
 import { TimeEntry } from "../util/calendarTypes";
 import { HOURS_PER_DAY, MINUTES_PER_HOUR, minutesToTime, timeToMinutes } from "../util/calendarUtility";
+import ProjectSelector from "./ProjectSelector";
 
 interface EditEntryDialogProps {
     open: boolean;
     entry: TimeEntry | null;
     onClose: () => void;
-    onSave: (entryId: string, title: string, startMinute: number, endMinute: number) => void;
+    onSave: (entryId: string, title: string, startMinute: number, endMinute: number, projectId?: string, isBillable?: boolean) => void;
     onDelete: (entryId: string) => void;
     onDuplicate: (entryId: string) => void;
     anchorPosition: { top: number; left: number } | null;
@@ -41,6 +43,8 @@ export default function EditEntryDialog({
     const [title, setTitle] = useState("");
     const [startTime, setStartTime] = useState("00:00");
     const [endTime, setEndTime] = useState("00:00");
+    const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+    const [isBillable, setIsBillable] = useState(false);
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
     const theme = useTheme();
@@ -49,12 +53,14 @@ export default function EditEntryDialog({
     useEffect(() => {
         if (open && entry) {
             setTitle(entry.task?.name || "");
-            // Use original start/end if available (for split entries)
+            // use original start/end if available (for split entries)
             const start = entry.originalStartMinute !== undefined ? entry.originalStartMinute : entry.startMinute;
             const end = entry.originalEndMinute !== undefined ? entry.originalEndMinute : entry.endMinute;
             
             setStartTime(minutesToTime(start));
             setEndTime(minutesToTime(end));
+            setIsBillable(entry.isBillable || false);
+            setSelectedProjectId(entry.projectId);
         }
     }, [open, entry]);
 
@@ -65,7 +71,7 @@ export default function EditEntryDialog({
 
         if (end < start) end += HOURS_PER_DAY * MINUTES_PER_HOUR;
 
-        onSave(entry.id, title, start, end);
+        onSave(entry.id, title, start, end, selectedProjectId, isBillable);
         onClose();
     };
 
@@ -119,6 +125,21 @@ export default function EditEntryDialog({
                 onChange={(e) => setTitle(e.target.value)}
                 size="small"
             />
+            <Stack direction="row" spacing={1} alignItems="center">
+                <ProjectSelector 
+                    selectedProjectId={selectedProjectId} 
+                    onSelect={(project) => setSelectedProjectId(project?.id)} 
+                />
+
+                <Tooltip title="Billable">
+                    <IconButton
+                        onClick={() => setIsBillable(!isBillable)}
+                        color={isBillable ? "success" : "default"}
+                    >
+                        <AttachMoney />
+                    </IconButton>
+                </Tooltip>
+            </Stack>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Stack direction="row" spacing={2}>
                     <TextField

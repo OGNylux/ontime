@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import CalendarDay from "./CalendarDay";
 import CalendarTime from "./CalendarTime";
 import { useCalendarWeekState } from "./useCalendarWeek";
+import { useCalendarScroll } from "./useCalendarScroll";
 import CalendarViewSelector from "./TopBar/CalendarViewSelector";
 import CalendarNavigation from "./TopBar/CalendarNavigation";
 
@@ -23,85 +24,14 @@ export default function Calendar() {
         currentDate,
         viewMode,
         setViewMode,
+        isRecording,
+        startRecording,
+        stopRecording
     } = useCalendarWeekState();
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
     const containerRef = useRef<HTMLDivElement>(null);
-
-    // Center the current time in the first scrollable ancestor only on initial load.
-    //
-    // Notes:
-    // - We look up the nearest scrollable ancestor so the calendar can be
-    //   embedded inside arbitrary containers. The scrollable ancestor is the
-    //   element that will receive the scrollTop adjustments. When the page
-    //   itself is the scroller we fall back to `document.scrollingElement`.
-    const centerNow = (smooth = true) => {
-        if (!containerRef.current) return;
-        const root = containerRef.current;
-
-        const findScrollableAncestor = (el: HTMLElement | null): HTMLElement | null => {
-            let current: HTMLElement | null = el;
-            while (current) {
-                const style = window.getComputedStyle(current);
-                const overflowY = style.overflowY;
-                if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
-                    return current;
-                }
-                current = current.parentElement;
-            }
-            return document.scrollingElement as HTMLElement | null;
-        };
-
-        const scrollable = findScrollableAncestor(root);
-        if (!scrollable) return;
-
-        const dayColumn = root.querySelector<HTMLElement>('[data-date]');
-        if (!dayColumn) return;
-
-        const now = new Date();
-        const hour = now.getHours();
-        const minutes = now.getMinutes();
-
-        const hourElem = dayColumn.querySelector<HTMLElement>(`[data-hour="${hour}"]`) || dayColumn.querySelector<HTMLElement>('[data-hour]');
-        if (!hourElem) return;
-
-        const containerRect = scrollable.getBoundingClientRect();
-        const hourRect = hourElem.getBoundingClientRect();
-
-        const hourTop = hourRect.top - containerRect.top + scrollable.scrollTop;
-        const hourHeight = hourRect.height || 1;
-        const minuteOffset = (minutes / 60) * hourHeight;
-
-        let targetScrollTop = hourTop + minuteOffset - scrollable.clientHeight / 2;
-        targetScrollTop = Math.max(0, Math.min(targetScrollTop, scrollable.scrollHeight - scrollable.clientHeight));
-
-        scrollable.scrollTo({ top: targetScrollTop, behavior: smooth ? 'smooth' : 'auto' });
-    };
-
-    useEffect(() => {
-        // Retry a couple times if layout isn't ready yet
-        let rafId: number | null = null;
-        let attempts = 0;
-        const tryCenter = () => {
-            rafId = requestAnimationFrame(() => {
-                attempts += 1;
-                centerNow(false);
-                // Check if we need to retry (e.g. if scrollHeight is small)
-                if (containerRef.current) {
-                    // Simple check: just retry a few times to be safe
-                    if (attempts < 3) {
-                        setTimeout(tryCenter, 50);
-                    }
-                }
-            });
-        };
-
-        tryCenter();
-
-        return () => {
-            if (rafId) cancelAnimationFrame(rafId);
-        };
-    }, [containerRef]);
+    const { centerNow } = useCalendarScroll(containerRef);
 
     useEffect(() => {
         if (moveState) {
@@ -140,6 +70,8 @@ export default function Calendar() {
                             // Wait for render to update to current week, then scroll
                             setTimeout(() => centerNow(true), 50);
                         }}
+                        isRecording={isRecording}
+                        onToggleRecording={isRecording ? stopRecording : startRecording}
                     />
                  </Stack>
             </Stack>
@@ -183,7 +115,7 @@ export default function Calendar() {
                             moveState={moveState}
                             onCreateEntry={handleCreateEntry}
                             onEntryDragStart={handleEntryDragStart}
-                            onUpdateEntry={(entryId, start, end, title) => handleUpdateEntry(day.dateStr, entryId, start, end, title)}
+                            onUpdateEntry={(entryId, start, end, title, projectId, isBillable) => handleUpdateEntry(day.dateStr, entryId, start, end, title, projectId, isBillable)}
                             onDeleteEntry={(entryId) => handleDeleteEntry(day.dateStr, entryId)}
                             onDuplicateEntry={(entryId) => handleDuplicateEntry(day.dateStr, entryId)}
                             isCompact={isCompact}

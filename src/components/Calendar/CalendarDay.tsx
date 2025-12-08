@@ -1,9 +1,10 @@
-import { Box, Paper, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import { useState } from "react";
 import CalendarEntryOverlay from "./CalendarEntry";
 import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
 import EditEntryDialog from "./EntryDialog/EditEntryDialog";
-import { HOUR_ARRAY, HOURS_PER_DAY } from "./util/calendarUtility";
+import CalendarDayHeader from "./CalendarDayHeader";
+import CalendarDayGrid from "./CalendarDayGrid";
 import {
     EntryAttributes,
     EntryDragStartPayload,
@@ -20,7 +21,7 @@ interface CalendarDayProps {
     moveState: MoveState | null;
     onCreateEntry: (dateStr: string, attributes: EntryAttributes) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
-    onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number, title?: string) => void;
+    onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number, title?: string, projectId?: string, isBillable?: boolean) => void;
     onDeleteEntry?: (entryId: string) => void;
     onDuplicateEntry?: (entryId: string) => void;
     isCompact?: boolean;
@@ -91,30 +92,7 @@ export default function CalendarDay({
                     }),
             }}
         >
-            <Paper
-                elevation={0}
-                square
-                sx={{
-                    height: 64,
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 50,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 0.5,
-                    bgcolor: "grey.50",
-                    borderBottom: theme => `1px solid ${theme.palette.divider}`,
-                }}
-            >
-                <Typography variant="subtitle2" noWrap>
-                    {dayOfTheWeek}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                    {dayOfTheMonth}
-                </Typography>
-            </Paper>
+            <CalendarDayHeader dayOfTheWeek={dayOfTheWeek} dayOfTheMonth={dayOfTheMonth} />
             <Box
                 ref={containerRef}
                 data-date={dateStr}
@@ -123,26 +101,7 @@ export default function CalendarDay({
                     bgcolor: "background.paper",
                 }}
             >
-                {HOUR_ARRAY.map(hour => (
-                    <Box
-                        key={hour}
-                        data-hour={hour}
-                        onMouseDown={handleMouseDown(hour)}
-                        sx={{
-                            height: { xs: 40, md: 48 },
-                            borderBottom: theme => hour === HOURS_PER_DAY - 1 ? "none" : `1px solid ${theme.palette.divider}`,
-                            cursor: moveState ? "default" : "crosshair",
-                            bgcolor: "background.paper",
-                            transition: theme =>
-                                theme.transitions.create("background-color", {
-                                    duration: theme.transitions.duration.shortest,
-                                }),
-                            "&:hover": {
-                                bgcolor: moveState ? "background.paper" : "action.hover",
-                            },
-                        }}
-                    />
-                ))}
+                <CalendarDayGrid moveState={moveState} onMouseDown={handleMouseDown} />
                 {renderedEntries.map(({ entry, isPreview, isDragging }) => (
                     <CalendarEntryOverlay
                         key={entry.id}
@@ -197,13 +156,15 @@ export default function CalendarDay({
                     open={true}
                     anchorPosition={pendingEntryAnchor}
                     onClose={() => setPendingEntry(null)}
-                    onSave={(title, startMinute, endMinute, taskId, task) => {
+                    onSave={(title, startMinute, endMinute, taskId, task, projectId, isBillable) => {
                         onCreateEntry(dateStr, {
                             startMinute,
                             endMinute,
                             taskId,
                             title,
-                            task
+                            task,
+                            projectId,
+                            isBillable
                         });
                         setPendingEntry(null);
                     }}
@@ -217,8 +178,8 @@ export default function CalendarDay({
                     entry={editingEntry}
                     anchorPosition={editAnchor}
                     onClose={() => setEditingEntry(null)}
-                    onSave={(entryId, title, startMinute, endMinute) => {
-                        if (onUpdateEntry) onUpdateEntry(entryId, startMinute, endMinute, title);
+                    onSave={(entryId, title, startMinute, endMinute, projectId, isBillable) => {
+                        if (onUpdateEntry) onUpdateEntry(entryId, startMinute, endMinute, title, projectId, isBillable);
                     }}
                     onDelete={(entryId) => {
                         if (onDeleteEntry) onDeleteEntry(entryId);
