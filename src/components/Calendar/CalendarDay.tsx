@@ -98,7 +98,7 @@ export default function CalendarDay({
                     height: 64,
                     position: "sticky",
                     top: 0,
-                    zIndex: 3,
+                    zIndex: 50,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -176,7 +176,7 @@ export default function CalendarDay({
                         hourHeight={hourHeight}
                         widthPercent={100}
                         offsetPercent={0}
-                        zIndex={250}
+                        zIndex={3}
                         isPreview
                     />
                 )}
@@ -187,7 +187,7 @@ export default function CalendarDay({
                         hourHeight={hourHeight}
                         widthPercent={100}
                         offsetPercent={0}
-                        zIndex={250}
+                        zIndex={3}
                         isPreview
                     />
                 )}

@@ -49,8 +49,12 @@ export default function EditEntryDialog({
     useEffect(() => {
         if (open && entry) {
             setTitle(entry.task?.name || "");
-            setStartTime(minutesToTime(entry.startMinute));
-            setEndTime(minutesToTime(entry.endMinute));
+            // Use original start/end if available (for split entries)
+            const start = entry.originalStartMinute !== undefined ? entry.originalStartMinute : entry.startMinute;
+            const end = entry.originalEndMinute !== undefined ? entry.originalEndMinute : entry.endMinute;
+            
+            setStartTime(minutesToTime(start));
+            setEndTime(minutesToTime(end));
         }
     }, [open, entry]);
 

@@ -24,7 +24,7 @@ export default function CalendarEntryOverlay({
     hourHeight, 
     widthPercent = 100, 
     offsetPercent = 0, 
-    zIndex = 100, 
+    zIndex, 
     isPreview = false, 
     isDragging = false, 
     onDragStart, 
@@ -117,7 +117,7 @@ export default function CalendarEntryOverlay({
                         alignItems: "center",
                         justifyContent: "center",
                         cursor: "ns-resize",
-                        zIndex: 260,
+                        zIndex: zIndex,
                         pointerEvents: "auto",
                         userSelect: "none",
                     }}
@@ -150,7 +150,7 @@ export default function CalendarEntryOverlay({
                         alignItems: "center",
                         justifyContent: "center",
                         cursor: "ns-resize",
-                        zIndex: 250,
+                        zIndex: zIndex,
                         pointerEvents: "auto",
                         userSelect: "none",
                     }}

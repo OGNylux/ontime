@@ -30,7 +30,7 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                     height: 64,
                     position: "sticky",
                     top: 0,
-                    zIndex: 3,
+                    zIndex: 50,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",

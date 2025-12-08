@@ -91,7 +91,9 @@ export function useCalendarWeekState() {
                             endMinute: firstPartEnd,
                             title: dbEntry.task?.name,
                             taskId: dbEntry.task_id,
-                            task: dbEntry.task
+                            task: dbEntry.task,
+                            originalStartMinute: dbEntry.start_minute,
+                            originalEndMinute: dbEntry.end_minute
                         });
 
                         if (!newEntriesByDay[nextDay]) newEntriesByDay[nextDay] = [];
@@ -101,7 +103,9 @@ export function useCalendarWeekState() {
                             endMinute: secondPartEnd,
                             title: dbEntry.task?.name,
                             taskId: dbEntry.task_id,
-                            task: dbEntry.task
+                            task: dbEntry.task,
+                            originalStartMinute: dbEntry.start_minute,
+                            originalEndMinute: dbEntry.end_minute
                         });
                     } else {
                         if (!newEntriesByDay[dbEntry.date]) newEntriesByDay[dbEntry.date] = [];
@@ -111,7 +115,9 @@ export function useCalendarWeekState() {
                             endMinute: dbEntry.end_minute,
                             title: dbEntry.task?.name,
                             taskId: dbEntry.task_id,
-                            task: dbEntry.task
+                            task: dbEntry.task,
+                            originalStartMinute: dbEntry.start_minute,
+                            originalEndMinute: dbEntry.end_minute
                         });
                     }
                 });
@@ -178,7 +184,9 @@ export function useCalendarWeekState() {
                     endMinute: firstPartEnd,
                     title: attributes.title,
                     taskId: attributes.taskId,
-                    task: task
+                    task: task,
+                    originalStartMinute: attributes.startMinute,
+                    originalEndMinute: attributes.endMinute
                 });
                 dayEntries.sort((a, b) => a.startMinute - b.startMinute);
                 next[dateStr] = dayEntries;
@@ -190,7 +198,9 @@ export function useCalendarWeekState() {
                     endMinute: secondPartEnd,
                     title: attributes.title,
                     taskId: attributes.taskId,
-                    task: task
+                    task: task,
+                    originalStartMinute: attributes.startMinute,
+                    originalEndMinute: attributes.endMinute
                 });
                 nextDayEntries.sort((a, b) => a.startMinute - b.startMinute);
                 next[nextDay] = nextDayEntries;
@@ -202,7 +212,9 @@ export function useCalendarWeekState() {
                     endMinute: attributes.endMinute,
                     title: attributes.title,
                     taskId: attributes.taskId,
-                    task: task
+                    task: task,
+                    originalStartMinute: attributes.startMinute,
+                    originalEndMinute: attributes.endMinute
                 });
                 dayEntries.sort((a, b) => a.startMinute - b.startMinute);
                 next[dateStr] = dayEntries;
@@ -252,7 +264,9 @@ export function useCalendarWeekState() {
                         endMinute: firstPartEnd,
                         title: entry.task?.name,
                         taskId: entry.task_id,
-                        task: entry.task
+                        task: entry.task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[entry.date].sort((a, b) => a.startMinute - b.startMinute);
 
@@ -263,7 +277,9 @@ export function useCalendarWeekState() {
                         endMinute: secondPartEnd,
                         title: entry.task?.name,
                         taskId: entry.task_id,
-                        task: entry.task
+                        task: entry.task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[nextDay].sort((a, b) => a.startMinute - b.startMinute);
                 } else {
@@ -275,7 +291,9 @@ export function useCalendarWeekState() {
                         endMinute: entry.end_minute,
                         title: entry.task?.name,
                         taskId: entry.task_id,
-                        task: entry.task
+                        task: entry.task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[dStr].sort((a, b) => a.startMinute - b.startMinute);
                 }
@@ -369,7 +387,9 @@ export function useCalendarWeekState() {
                         endMinute: firstPartEnd,
                         title: taskName,
                         taskId: entry.task_id,
-                        task: task
+                        task: task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[entry.date].sort((a, b) => a.startMinute - b.startMinute);
 
@@ -380,7 +400,9 @@ export function useCalendarWeekState() {
                         endMinute: secondPartEnd,
                         title: taskName,
                         taskId: entry.task_id,
-                        task: task
+                        task: task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[nextDay].sort((a, b) => a.startMinute - b.startMinute);
                 } else {
@@ -392,7 +414,9 @@ export function useCalendarWeekState() {
                         endMinute: entry.end_minute,
                         title: taskName,
                         taskId: entry.task_id,
-                        task: task
+                        task: task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[dStr].sort((a, b) => a.startMinute - b.startMinute);
                 }
@@ -425,7 +449,8 @@ export function useCalendarWeekState() {
 
         let startMinute = pointerMinute - state.pointerOffset;
         startMinute = snap(startMinute);
-        startMinute = clamp(startMinute, 0, MINUTES_PER_DAY - state.duration);
+        // Allow startMinute to go up to MINUTES_PER_DAY (crossing midnight)
+        startMinute = clamp(startMinute, 0, MINUTES_PER_DAY);
         const endMinute = startMinute + state.duration;
         return { targetDateStr: dateStr, startMinute, endMinute };
     }, []);
@@ -435,39 +460,73 @@ export function useCalendarWeekState() {
     // mutates a shallow copy of the `entriesByDay` state and sorts entries
     // by start time.
     const commitMove = useCallback(async (move: MoveState, target: { dateStr: string; startMinute: number; endMinute: number }) => {
+        // Normalize target date/time if startMinute is out of bounds (e.g. negative)
+        let finalDateStr = target.dateStr;
+        let finalStartMinute = target.startMinute;
+        let finalEndMinute = target.endMinute;
+
+        if (finalStartMinute < 0) {
+            finalDateStr = dayjs(finalDateStr).subtract(1, 'day').format('YYYY-MM-DD');
+            finalStartMinute += MINUTES_PER_DAY;
+            finalEndMinute += MINUTES_PER_DAY;
+        } else if (finalStartMinute >= MINUTES_PER_DAY) {
+            finalDateStr = dayjs(finalDateStr).add(1, 'day').format('YYYY-MM-DD');
+            finalStartMinute -= MINUTES_PER_DAY;
+            finalEndMinute -= MINUTES_PER_DAY;
+        }
+
         // Optimistic update
         const previousEntries = { ...entriesByDay };
         
         setEntriesByDay(prev => {
             const next = { ...prev };
 
-            const sourceEntries = (next[move.fromDateStr] ?? []).filter(entry => entry.id !== move.entry.id);
-            if (sourceEntries.length) {
-                next[move.fromDateStr] = sourceEntries;
-            } else {
-                delete next[move.fromDateStr];
-            }
+            // Remove old entry from ALL days (since it might have been split)
+            Object.keys(next).forEach(key => {
+                next[key] = next[key].filter(e => e.id !== move.entry.id);
+            });
 
             const updatedEntry: TimeEntry = {
                 ...move.entry,
-                startMinute: target.startMinute,
-                endMinute: target.endMinute,
+                startMinute: finalStartMinute,
+                endMinute: finalEndMinute,
             };
 
-            const destinationEntries = next[target.dateStr] ? [...next[target.dateStr]] : [];
-            const filteredDestination = destinationEntries.filter(entry => entry.id !== move.entry.id);
-            filteredDestination.push(updatedEntry);
-            filteredDestination.sort((a, b) => a.startMinute - b.startMinute);
-            next[target.dateStr] = filteredDestination;
+            // Add to destination (handling split if needed)
+            if (updatedEntry.endMinute > MINUTES_PER_DAY) {
+                const firstPartEnd = MINUTES_PER_DAY;
+                const secondPartStart = 0;
+                const secondPartEnd = updatedEntry.endMinute - MINUTES_PER_DAY;
+                const nextDay = dayjs(finalDateStr).add(1, "day").format("YYYY-MM-DD");
+
+                if (!next[finalDateStr]) next[finalDateStr] = [];
+                next[finalDateStr].push({
+                    ...updatedEntry,
+                    endMinute: firstPartEnd
+                });
+                next[finalDateStr].sort((a, b) => a.startMinute - b.startMinute);
+
+                if (!next[nextDay]) next[nextDay] = [];
+                next[nextDay].push({
+                    ...updatedEntry,
+                    startMinute: secondPartStart,
+                    endMinute: secondPartEnd
+                });
+                next[nextDay].sort((a, b) => a.startMinute - b.startMinute);
+            } else {
+                if (!next[finalDateStr]) next[finalDateStr] = [];
+                next[finalDateStr].push(updatedEntry);
+                next[finalDateStr].sort((a, b) => a.startMinute - b.startMinute);
+            }
 
             return next;
         });
 
         try {
             const updatedEntry = await calendarService.updateEntry(move.entry.id, {
-                date: target.dateStr,
-                start_minute: target.startMinute,
-                end_minute: target.endMinute
+                date: finalDateStr,
+                start_minute: finalStartMinute,
+                end_minute: finalEndMinute
             });
 
             setEntriesByDay(prev => {
@@ -492,7 +551,9 @@ export function useCalendarWeekState() {
                         endMinute: firstPartEnd,
                         title: entry.task?.name,
                         taskId: entry.task_id,
-                        task: entry.task
+                        task: entry.task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[entry.date].sort((a, b) => a.startMinute - b.startMinute);
 
@@ -503,7 +564,9 @@ export function useCalendarWeekState() {
                         endMinute: secondPartEnd,
                         title: entry.task?.name,
                         taskId: entry.task_id,
-                        task: entry.task
+                        task: entry.task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[nextDay].sort((a, b) => a.startMinute - b.startMinute);
                 } else {
@@ -515,7 +578,9 @@ export function useCalendarWeekState() {
                         endMinute: entry.end_minute,
                         title: entry.task?.name,
                         taskId: entry.task_id,
-                        task: entry.task
+                        task: entry.task,
+                        originalStartMinute: entry.start_minute,
+                        originalEndMinute: entry.end_minute
                     });
                     next[dStr].sort((a, b) => a.startMinute - b.startMinute);
                 }
@@ -534,18 +599,54 @@ export function useCalendarWeekState() {
     const beginMove = useCallback((payload: EntryDragStartPayload) => {
         setMoveState(prev => {
             if (prev) return prev;
-            const dayEntries = entriesByDay[payload.dateStr] ?? [];
-            const entry = dayEntries.find(item => item.id === payload.entryId);
-            if (!entry) return prev;
+            
+            // Find all parts of this entry across all days to calculate total duration
+            const allParts: { date: string, entry: TimeEntry }[] = [];
+            Object.entries(entriesByDay).forEach(([date, dayEntries]) => {
+                const found = dayEntries.find(e => e.id === payload.entryId);
+                if (found) {
+                    allParts.push({ date, entry: found });
+                }
+            });
+
+            if (allParts.length === 0) return prev;
+
+            // Sort by date/time to find true start/end
+            allParts.sort((a, b) => {
+                if (a.date !== b.date) return dayjs(a.date).diff(dayjs(b.date));
+                return a.entry.startMinute - b.entry.startMinute;
+            });
+
+            const clickedEntry = allParts.find(p => p.date === payload.dateStr && p.entry.id === payload.entryId)?.entry;
+            if (!clickedEntry) return prev;
+
+            let totalDuration = 0;
+            let addedOffset = 0;
+            
+            for (const part of allParts) {
+                const partDuration = part.entry.endMinute - part.entry.startMinute;
+                totalDuration += partDuration;
+                
+                // If this part is strictly before the clicked entry, add its duration to the pointer offset
+                const isBefore = 
+                    dayjs(part.date).isBefore(dayjs(payload.dateStr)) || 
+                    (part.date === payload.dateStr && part.entry.startMinute < clickedEntry.startMinute);
+                
+                if (isBefore) {
+                    addedOffset += partDuration;
+                }
+            }
+
+            const effectivePointerOffset = payload.pointerOffset + addedOffset;
 
             const baseState: MoveState = {
-                entry,
+                entry: clickedEntry,
                 fromDateStr: payload.dateStr,
-                pointerOffset: payload.pointerOffset,
-                duration: entry.endMinute - entry.startMinute,
+                pointerOffset: effectivePointerOffset,
+                duration: totalDuration,
                 currentDateStr: payload.dateStr,
-                startMinute: entry.startMinute,
-                endMinute: entry.endMinute,
+                startMinute: clickedEntry.startMinute - addedOffset,
+                endMinute: clickedEntry.startMinute - addedOffset + totalDuration,
             };
 
             if (typeof window === "undefined") return baseState;

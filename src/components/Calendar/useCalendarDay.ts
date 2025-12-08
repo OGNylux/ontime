@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
+import dayjs from "dayjs";
 import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "./util/calendarUtility";
 import { assignEntryLayout } from "./util/calendarUtility";
 import type {
@@ -207,14 +208,32 @@ function useEntryLayout(
 
     const previewEntry = useMemo<AssignedEntry | null>(() => {
         if (!moveState) return null;
-        if (moveState.currentDateStr !== dateStr) return null;
+        
+        let preview: TimeEntry | null = null;
 
-        const preview: TimeEntry = {
-            ...moveState.entry,
-            id: `${moveState.entry.id}-preview`,
-            startMinute: moveState.startMinute,
-            endMinute: moveState.endMinute,
-        };
+        // Case 1: Dragging on the current day
+        if (moveState.currentDateStr === dateStr) {
+            preview = {
+                ...moveState.entry,
+                id: `${moveState.entry.id}-preview`,
+                startMinute: moveState.startMinute,
+                endMinute: Math.min(moveState.endMinute, MINUTES_PER_DAY),
+            };
+        } 
+        // Case 2: Dragging on the previous day, but it spills over to this day
+        else if (moveState.endMinute > MINUTES_PER_DAY) {
+            const nextDay = dayjs(moveState.currentDateStr).add(1, 'day').format('YYYY-MM-DD');
+            if (nextDay === dateStr) {
+                preview = {
+                    ...moveState.entry,
+                    id: `${moveState.entry.id}-preview-next`,
+                    startMinute: 0,
+                    endMinute: moveState.endMinute - MINUTES_PER_DAY,
+                };
+            }
+        }
+
+        if (!preview) return null;
 
         const comparisonEntries = moveState.fromDateStr === dateStr
             ? entries.filter(entry => entry.id !== moveState.entry.id)

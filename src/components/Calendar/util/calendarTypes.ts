@@ -6,6 +6,8 @@ export interface EntryAttributes {
     taskId?: string;
     task?: TaskResponseDTO;
     title?: string; // Used for creation/display if task is not yet resolved
+    originalStartMinute?: number;
+    originalEndMinute?: number;
 }
 
 export interface TimeEntry extends EntryAttributes {
