@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import dayjs from "dayjs";
-import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "./util/calendarUtility";
-import { assignEntryLayout } from "./util/calendarUtility";
+import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, MINUTES_PER_HOUR } from "../util/calendarUtility";
+import { assignEntryLayout } from "../util/calendarUtility";
 import type {
     AssignedEntry,
     DragState,
-    EntryAttributes,
     EntryDragStartPayload,
     MoveState,
     TimeEntry,
-} from "./util/calendarTypes";
+} from "../util/calendarTypes";
 
 const INITIAL_DRAG: DragState = { active: false, startMinute: null, endMinute: null };
 
@@ -19,7 +18,7 @@ export interface UseCalendarDayParams {
     dateStr: string;
     entries: TimeEntry[];
     moveState: MoveState | null;
-    onCreateEntry: (dateStr: string, attributes: EntryAttributes) => void;
+    onCreateEntry: (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
 }
 
@@ -30,8 +29,8 @@ export interface UseCalendarDayResult {
     handleEntryDragStart: (entry: AssignedEntry, clientX: number, clientY: number) => void;
     renderedEntries: Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }>;
     dragOverlayEntry: DragOverlayEntry | null;
-    pendingEntry: EntryAttributes | null;
-    setPendingEntry: (entry: EntryAttributes | null) => void;
+    pendingEntry: Omit<TimeEntry, 'id'> | null;
+    setPendingEntry: (entry: Omit<TimeEntry, 'id'> | null) => void;
     pendingEntryAnchor: { left: number; top: number } | null;
 }
 
@@ -88,7 +87,7 @@ function useDragSelection(
     moveState: MoveState | null
 ) {
     const [drag, setDrag] = useState<DragState>(INITIAL_DRAG);
-    const [pendingEntry, setPendingEntry] = useState<EntryAttributes | null>(null);
+    const [pendingEntry, setPendingEntry] = useState<Omit<TimeEntry, 'id'> | null>(null);
     const [pendingEntryAnchor, setPendingEntryAnchor] = useState<{ left: number; top: number } | null>(null);
     
     const dragRef = useRef<DragState>(INITIAL_DRAG);

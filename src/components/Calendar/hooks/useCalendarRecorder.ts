@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import dayjs from "dayjs";
-import { EntryAttributes } from "../util/calendarTypes";
+import { TimeEntry } from "../util/calendarTypes";
 import { CalendarEntryResponseDTO } from "../../../dtos/response/CalendarEntry.response.dto";
 
 export function useCalendarRecorder(
-    addEntry: (dateStr: string, attributes: EntryAttributes) => Promise<CalendarEntryResponseDTO | null>,
+    addEntry: (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => Promise<CalendarEntryResponseDTO | null>,
     updateEntry: (dateStr: string, entryId: string, startMinute: number, endMinute: number) => Promise<void>
 ) {
     const [isRecording, setIsRecording] = useState(false);
@@ -22,7 +22,7 @@ export function useCalendarRecorder(
         const now = dayjs();
         const dateStr = now.format("YYYY-MM-DD");
         const startMinute = now.hour() * 60 + now.minute();
-        const endMinute = startMinute + 15; // Initial block
+        const endMinute = startMinute; // Initial block
 
         const newEntry = await addEntry(dateStr, {
             startMinute,

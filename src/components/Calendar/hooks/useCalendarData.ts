@@ -1,73 +1,153 @@
-import { useState, useEffect, useCallback } from "react";
-import { EntriesByDay, EntryAttributes, WeekDayInfo } from "../util/calendarTypes";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { EntriesByDay, TimeEntry, WeekDayInfo } from "../util/calendarTypes";
 import { calendarService } from "../../../services/calendarService";
 import { taskService } from "../../../services/taskService";
 import { clampMinute } from "../util/calendarUtility";
 import { addTimeEntryToMap, convertDtoToTimeEntry } from "../util/entryUtils";
+import { supabase } from "../../../lib/supabase";
+import dayjs from "dayjs";
+
+// Helper: Remove an entry from all days
+const removeEntryFromMap = (entries: EntriesByDay, entryId: string): EntriesByDay => {
+    const next = { ...entries };
+    Object.keys(next).forEach(key => {
+        next[key] = next[key].filter(e => e.id !== entryId);
+    });
+    return next;
+};
+
+// Helper: Find an entry across all days
+const findEntryInMap = (entries: EntriesByDay, entryId: string): TimeEntry | null => {
+    for (const dayEntries of Object.values(entries)) {
+        const found = dayEntries.find(e => e.id === entryId);
+        if (found) return found;
+    }
+    return null;
+};
+
+// Helper: Get or create a task by title
+const getOrCreateTask = async (title: string, projectId?: string): Promise<string> => {
+    const existingTask = await taskService.getTaskByName(title);
+    if (existingTask) return existingTask.id;
+    const newTask = await taskService.createTask({ name: title, project_id: projectId });
+    return newTask.id;
+};
 
 export function useCalendarData(weekDays: WeekDayInfo[]) {
     const [entriesByDay, setEntriesByDay] = useState<EntriesByDay>({});
+    const weekRangeRef = useRef<{ start: string; end: string } | null>(null);
+    const pendingLocalChangesRef = useRef<Record<string, number>>({});
 
-    // Fetch entries from Supabase
+    // Mark entry as pending local change (skip realtime for it)
+    const markPending = (id: string) => {
+        pendingLocalChangesRef.current[id] = Date.now();
+    };
+
+    const clearPending = (id: string) => {
+        delete pendingLocalChangesRef.current[id];
+    };
+
+    const isPending = (id: string): boolean => {
+        const timestamp = pendingLocalChangesRef.current[id];
+        if (!timestamp) return false;
+        
+        // If entry has been pending for more than 5 seconds, consider it stale and clear it
+        if (Date.now() - timestamp > 5000) {
+            clearPending(id);
+            return false;
+        }
+        return true;
+    };
+
+    // Fetch entries when week changes
     useEffect(() => {
-        const fetchWeekData = async () => {
-            if (weekDays.length === 0) return;
-            const start = weekDays[0].dateStr;
-            const end = weekDays[weekDays.length - 1].dateStr;
+        if (weekDays.length === 0) return;
+        
+        const start = weekDays[0].dateStr;
+        const end = weekDays[weekDays.length - 1].dateStr;
+        weekRangeRef.current = { start, end };
 
-            try {
-                const dbEntries = await calendarService.getEntries(start, end);
-                
+        calendarService.getEntries(start, end)
+            .then(dbEntries => {
                 const newEntriesByDay: EntriesByDay = {};
                 dbEntries.forEach(dbEntry => {
-                    const timeEntry = convertDtoToTimeEntry(dbEntry);
-                    // We need to pass the date from the DTO because TimeEntry doesn't have it
-                    addTimeEntryToMap(newEntriesByDay, dbEntry.date, timeEntry);
+                    addTimeEntryToMap(newEntriesByDay, dbEntry.date, convertDtoToTimeEntry(dbEntry));
                 });
-                
                 setEntriesByDay(newEntriesByDay);
-            } catch (error) {
-                console.error("Failed to fetch entries", error);
+            })
+            .catch(err => console.error("Failed to fetch entries", err));
+    }, [weekDays]);
+
+    // Realtime subscription
+    useEffect(() => {
+        const handleRealtimeChange = async (payload: any) => {
+            const weekRange = weekRangeRef.current;
+            if (!weekRange) return;
+
+            const eventType = payload.eventType;
+            const record = payload.new || payload.old;
+            const entryId = record?.id?.toString();
+
+            if (!entryId) return;
+
+            // Skip realtime events for entries with pending local changes
+            if (isPending(entryId)) {
+                return;
+            }
+
+            if (eventType === 'DELETE') {
+                setEntriesByDay(prev => removeEntryFromMap(prev, entryId));
+                return;
+            }
+
+            // For INSERT/UPDATE: fetch the full entry first, then update state
+            // This avoids removing the entry and causing a brief flicker
+            const entryDate = dayjs(record.start_time).format('YYYY-MM-DD');
+            if (entryDate < weekRange.start || entryDate > weekRange.end) return;
+
+            try {
+                const fullEntry = await calendarService.getEntryById(entryId);
+                if (fullEntry) {
+                    setEntriesByDay(prev => {
+                        const next = removeEntryFromMap(prev, entryId);
+                        addTimeEntryToMap(next, fullEntry.date, convertDtoToTimeEntry(fullEntry));
+                        return next;
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to fetch updated entry:', e);
             }
         };
 
-        fetchWeekData();
+        if (!weekRangeRef.current) return;
+
+        const channel = supabase
+            .channel(`calendar-entries-realtime-${Date.now()}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'ontime_calendar_entry' }, handleRealtimeChange)
+            .subscribe((_status, err) => {
+                if (err) console.error('Realtime subscription error:', err);
+            });
+
+        return () => { supabase.removeChannel(channel); };
     }, [weekDays]);
 
-    const addEntry = useCallback(async (dateStr: string, attributes: EntryAttributes) => {
+    const addEntry = useCallback(async (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => {
         const tempId = `temp-${Date.now()}`;
         
-        // Optimistic update
+        // Optimistic update with temp entry
+        const tempTask = attributes.task || (attributes.title ? {
+            id: 'temp-task', name: attributes.title, color: '#1976d2',
+            created_at: new Date().toISOString(), created_by: 'temp', project_id: ''
+        } : undefined);
+
         setEntriesByDay(prev => {
             const next = { ...prev };
-            const task = attributes.task || (attributes.title ? { 
-                id: 'temp-task', 
-                name: attributes.title, 
-                color: '#1976d2', 
-                created_at: new Date().toISOString(), 
-                created_by: 'temp',
-                project_id: ''
-            } : undefined);
-
-            addTimeEntryToMap(next, dateStr, {
-                id: tempId,
-                ...attributes,
-                task
-            });
+            addTimeEntryToMap(next, dateStr, { id: tempId, ...attributes, task: tempTask });
             return next;
         });
 
         try {
-            let taskId = attributes.taskId;
-            if (!taskId && attributes.title) {
-                 const existingTask = await taskService.getTaskByName(attributes.title);
-                 if (existingTask) {
-                     taskId = existingTask.id;
-                 } else {
-                     const newTask = await taskService.createTask({ name: attributes.title });
-                     taskId = newTask.id;
-                 }
-            }
+            const taskId = attributes.taskId || (attributes.title ? await getOrCreateTask(attributes.title) : undefined);
 
             const newEntry = await calendarService.createEntry({
                 date: dateStr,
@@ -78,83 +158,68 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
                 is_billable: attributes.isBillable
             });
 
+            markPending(newEntry.id);
+
+            // Replace temp entry with real one
             setEntriesByDay(prev => {
                 const next = { ...prev };
-                
-                // Remove temp entry from all days
                 Object.keys(next).forEach(key => {
-                    next[key] = next[key].filter(e => e.id !== tempId);
+                    next[key] = next[key].map(e => e.id === tempId ? {
+                        ...e, id: newEntry.id, taskId: newEntry.task_id,
+                        task: newEntry.task, projectId: newEntry.project_id, isBillable: newEntry.is_billable
+                    } : e);
                 });
-
-                const timeEntry = convertDtoToTimeEntry(newEntry);
-                addTimeEntryToMap(next, newEntry.date, timeEntry);
-                
                 return next;
             });
+            
+            // Wait a bit for realtime events to arrive, then clear pending
+            setTimeout(() => clearPending(newEntry.id), 1500);
             return newEntry;
         } catch (e) {
             console.error("Failed to create entry", e);
-            // Revert optimistic update
-            setEntriesByDay(prev => {
-                const next = { ...prev };
-                Object.keys(next).forEach(key => {
-                    next[key] = next[key].filter(e => e.id !== tempId);
-                });
-                return next;
-            });
+            setEntriesByDay(prev => removeEntryFromMap(prev, tempId));
             return null;
         }
     }, []);
 
-    const updateEntry = useCallback(async (dateStr: string, entryId: string, startMinute: number, endMinute: number, title?: string, projectId?: string, isBillable?: boolean) => {
-        // Optimistic update
+    const updateEntry = useCallback(async (
+        dateStr: string, entryId: string, startMinute: number, endMinute: number,
+        title?: string, projectId?: string, isBillable?: boolean
+    ) => {
         const previousEntries = { ...entriesByDay };
-        
+        const foundEntry = findEntryInMap(entriesByDay, entryId);
+        if (!foundEntry) return;
+
+        markPending(entryId);
+
+        // Optimistic update
         setEntriesByDay(prev => {
-            const next = { ...prev };
-            const dayEntries = next[dateStr] ? [...next[dateStr]] : [];
-            const idx = dayEntries.findIndex(e => e.id === entryId);
-            if (idx === -1) return prev;
-            
-            const updated = { 
-                ...dayEntries[idx], 
-                startMinute: clampMinute(startMinute), 
+            const next = removeEntryFromMap(prev, entryId);
+            const updated: TimeEntry = {
+                ...foundEntry,
+                startMinute: clampMinute(startMinute),
                 endMinute: clampMinute(endMinute),
-                title: title !== undefined ? title : dayEntries[idx].title,
-                task: title ? (dayEntries[idx].task ? { ...dayEntries[idx].task!, name: title } : undefined) : dayEntries[idx].task,
-                projectId: projectId !== undefined ? projectId : dayEntries[idx].projectId,
-                isBillable: isBillable !== undefined ? isBillable : dayEntries[idx].isBillable
+                title: title ?? foundEntry.title,
+                task: title && foundEntry.task ? { ...foundEntry.task, name: title } : foundEntry.task,
+                projectId: projectId ?? foundEntry.projectId,
+                isBillable: isBillable ?? foundEntry.isBillable
             };
-            dayEntries.splice(idx, 1, updated);
-            dayEntries.sort((a, b) => a.startMinute - b.startMinute);
-            next[dateStr] = dayEntries;
+            addTimeEntryToMap(next, dateStr, updated);
             return next;
         });
 
         try {
-            const dayEntries = entriesByDay[dateStr] || [];
-            const entryToUpdate = dayEntries.find(e => e.id === entryId);
+            let taskId = foundEntry.taskId;
 
-            let taskId = entryToUpdate?.taskId;
-
-            if (title && title.trim() !== "") {
-                if (taskId) {
-                    if (title !== entryToUpdate?.title) {
-                        await taskService.updateTask({
-                            id: taskId,
-                            name: title
-                        });
-                    }
-                } else {
-                    const newTask = await taskService.createTask({
-                        name: title,
-                        project_id: projectId || entryToUpdate?.projectId
-                    });
-                    taskId = newTask.id;
+            if (title?.trim()) {
+                if (taskId && title !== foundEntry.title) {
+                    await taskService.updateTask({ id: taskId, name: title });
+                } else if (!taskId) {
+                    taskId = await getOrCreateTask(title, projectId || foundEntry.projectId);
                 }
             }
 
-            const updatedEntry = await calendarService.updateEntry(entryId, {
+            await calendarService.updateEntry(entryId, {
                 date: dateStr,
                 start_minute: clampMinute(startMinute),
                 end_minute: clampMinute(endMinute),
@@ -162,67 +227,39 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
                 is_billable: isBillable,
                 task_id: taskId
             });
-
-            setEntriesByDay(prev => {
-                const next = { ...prev };
-                
-                // Remove old entry from all days
-                Object.keys(next).forEach(key => {
-                    next[key] = next[key].filter(e => e.id !== entryId);
-                });
-
-                const timeEntry = convertDtoToTimeEntry(updatedEntry);
-                // Override task name if we updated it locally but backend didn't return it yet (race condition safety)
-                if (title) {
-                    timeEntry.title = title;
-                    if (timeEntry.task) timeEntry.task.name = title;
-                }
-
-                addTimeEntryToMap(next, updatedEntry.date, timeEntry);
-                return next;
-            });
+            
+            // Wait a bit for realtime events to arrive, then clear pending
+            setTimeout(() => clearPending(entryId), 1500);
         } catch (e) {
             console.error("Failed to update entry", e);
+            clearPending(entryId);
             setEntriesByDay(previousEntries);
         }
     }, [entriesByDay]);
 
     const deleteEntry = useCallback(async (_dateStr: string, entryId: string) => {
         const previousEntries = { ...entriesByDay };
-        
-        setEntriesByDay(prev => {
-            const next = { ...prev };
-            Object.keys(next).forEach(key => {
-                next[key] = next[key].filter(e => e.id !== entryId);
-            });
-            return next;
-        });
+        markPending(entryId);
+        setEntriesByDay(prev => removeEntryFromMap(prev, entryId));
 
         try {
             await calendarService.deleteEntry(entryId);
+            // Wait a bit for realtime events to arrive, then clear pending
+            setTimeout(() => clearPending(entryId), 1500);
         } catch (e) {
             console.error("Failed to delete entry", e);
+            clearPending(entryId);
             setEntriesByDay(previousEntries);
         }
     }, [entriesByDay]);
 
     const duplicateEntry = useCallback(async (dateStr: string, entryId: string) => {
-        const dayEntries = entriesByDay[dateStr] || [];
-        const entryToDuplicate = dayEntries.find(e => e.id === entryId);
-        
+        const entryToDuplicate = findEntryInMap(entriesByDay, entryId);
         if (!entryToDuplicate) return;
 
         try {
-            let taskId = entryToDuplicate.taskId;
-            if (!taskId && entryToDuplicate.title) {
-                 const existingTask = await taskService.getTaskByName(entryToDuplicate.title);
-                 if (existingTask) {
-                     taskId = existingTask.id;
-                 } else {
-                     const newTask = await taskService.createTask({ name: entryToDuplicate.title });
-                     taskId = newTask.id;
-                 }
-            }
+            const taskId = entryToDuplicate.taskId || 
+                (entryToDuplicate.title ? await getOrCreateTask(entryToDuplicate.title) : undefined);
 
             const newEntry = await calendarService.createEntry({
                 date: dateStr,
@@ -233,8 +270,7 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
 
             setEntriesByDay(prev => {
                 const next = { ...prev };
-                const timeEntry = convertDtoToTimeEntry(newEntry);
-                addTimeEntryToMap(next, dateStr, timeEntry);
+                addTimeEntryToMap(next, dateStr, convertDtoToTimeEntry(newEntry));
                 return next;
             });
         } catch (e) {
@@ -242,12 +278,5 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
         }
     }, [entriesByDay]);
 
-    return {
-        entriesByDay,
-        setEntriesByDay,
-        addEntry,
-        updateEntry,
-        deleteEntry,
-        duplicateEntry
-    };
+    return { entriesByDay, setEntriesByDay, addEntry, updateEntry, deleteEntry, duplicateEntry };
 }

@@ -2,7 +2,7 @@ import { Paper, Stack, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { formatTime, pixelPerMinute } from "./util/calendarUtility";
 import { TimeEntry } from "./util/calendarTypes";
-import { useCalendarEntry } from "./useCalendarEntry";
+import { useCalendarEntry } from "./hooks/useCalendarEntry";
 import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
 
 interface CalendarEntryOverlayProps {
@@ -108,8 +108,8 @@ export default function CalendarEntryOverlay({
                 <CalendarEntryResizeHandle
                     position="top"
                     zIndex={zIndex}
-                    onMouseDown={(e) => { e.stopPropagation(); startResize("top", e.clientY); }}
-                    onTouchStart={(e) => { e.stopPropagation(); startResize("top", e.touches[0].clientY); }}
+                    onMouseDown={(e) => { startResize("top", e.clientY); }}
+                    onTouchStart={(e) => { startResize("top", e.touches[0].clientY); }}
                 />
             )}
 
@@ -127,8 +127,8 @@ export default function CalendarEntryOverlay({
                 <CalendarEntryResizeHandle
                     position="bottom"
                     zIndex={zIndex}
-                    onMouseDown={(e) => { e.stopPropagation(); startResize("bottom", e.clientY); }}
-                    onTouchStart={(e) => { e.stopPropagation(); startResize("bottom", e.touches[0].clientY); }}
+                    onMouseDown={(e) => { startResize("bottom", e.clientY); }}
+                    onTouchStart={(e) => { startResize("bottom", e.touches[0].clientY); }}
                 />
             )}
         </Paper>

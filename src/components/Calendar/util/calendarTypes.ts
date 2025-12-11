@@ -1,6 +1,7 @@
 import { TaskResponseDTO } from "../../../dtos/response/Task.response.dto";
 
-export interface EntryAttributes {
+export interface TimeEntry {
+    id: string;
     startMinute: number;
     endMinute: number;
     taskId?: string;
@@ -10,10 +11,6 @@ export interface EntryAttributes {
     originalEndMinute?: number;
     projectId?: string;
     isBillable?: boolean;
-}
-
-export interface TimeEntry extends EntryAttributes {
-    id: string;
 }
 
 export interface AssignedEntry extends TimeEntry {

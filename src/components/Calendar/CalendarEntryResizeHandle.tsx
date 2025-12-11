@@ -1,5 +1,3 @@
-import { CSSProperties } from "react";
-
 interface CalendarEntryResizeHandleProps {
     position: "top" | "bottom";
     zIndex?: number;
@@ -8,26 +6,14 @@ interface CalendarEntryResizeHandleProps {
 }
 
 export default function CalendarEntryResizeHandle({ position, zIndex, onMouseDown, onTouchStart }: CalendarEntryResizeHandleProps) {
-    const style: CSSProperties = {
-        position: "absolute",
-        [position]: 0,
-        left: 0,
-        right: 0,
-        height: 12,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "ns-resize",
-        zIndex: zIndex,
-        pointerEvents: "auto",
-        userSelect: "none",
-    };
+    
 
     return (
         <div
             onMouseDown={onMouseDown}
             onTouchStart={onTouchStart}
-            style={style}
+            className={`absolute left-0 right-0 h-3 flex items-center justify-center cursor-ns-resize z-${zIndex} pointer-events-auto select-none`}
+            style={{ [position]: 0 }}
         >
             <span className="text-xs opacity-70">--</span>
         </div>

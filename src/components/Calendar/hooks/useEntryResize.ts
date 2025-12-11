@@ -1,17 +1,19 @@
 import { useRef, useState, type MouseEvent } from "react";
-import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, pixelPerMinute, snap } from "./util/calendarUtility";
-import { TimeEntry } from "./util/calendarTypes";
+import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, pixelPerMinute, snap } from "../util/calendarUtility";
+import { TimeEntry } from "../util/calendarTypes";
 
 interface UseEntryResizeProps {
     entry: TimeEntry;
     hourHeight: number;
     onResizeCommit?: (entryId: string, startMinute: number, endMinute: number) => void;
+    onResizeStart?: () => void;
+    onResizeEnd?: (moved: boolean) => void;
 }
 
 type edgeType = "top" | "bottom";
 type eventType = MouseEvent | TouchEvent;
 
-export function useEntryResize({ entry, hourHeight, onResizeCommit }: UseEntryResizeProps) {
+export function useEntryResize({ entry, hourHeight, onResizeCommit, onResizeStart, onResizeEnd }: UseEntryResizeProps) {
     const resizeRef = useRef<{
         edge: edgeType | null;
         startMinute: number;
@@ -26,6 +28,7 @@ export function useEntryResize({ entry, hourHeight, onResizeCommit }: UseEntryRe
     const pxPerMinute = pixelPerMinute(hourHeight);
 
     const startResize = (edge: edgeType, clientY: number) => {
+        if (typeof onResizeStart === "function") onResizeStart();
         resizeRef.current = {
             edge,
             startMinute: previewStart ?? entry.startMinute,
@@ -36,6 +39,7 @@ export function useEntryResize({ entry, hourHeight, onResizeCommit }: UseEntryRe
         setResizing(true);
 
         let raf: number | null = null;
+        let moved = false;
 
         const handleMove = (e: eventType) => {
             let clientYPos = 0;
@@ -66,6 +70,7 @@ export function useEntryResize({ entry, hourHeight, onResizeCommit }: UseEntryRe
 
                     r.startClientY = r.startClientY + usedDeltaPixels;
                     r.startMinute = newStart;
+                    moved = true;
                     setPreviewStart(newStart);
                     setPreviewEnd(null);
                 } else {
@@ -77,6 +82,7 @@ export function useEntryResize({ entry, hourHeight, onResizeCommit }: UseEntryRe
 
                     r.startClientY = r.startClientY + usedDeltaPixels;
                     r.endMinute = newEnd;
+                    moved = true;
                     setPreviewEnd(newEnd);
                     setPreviewStart(null);
                 }
@@ -94,18 +100,19 @@ export function useEntryResize({ entry, hourHeight, onResizeCommit }: UseEntryRe
             setPreviewEnd(null);
             resizeRef.current.edge = null;
             setResizing(false);
-            window.removeEventListener("mousemove", handleMove as any);
-            window.removeEventListener("mouseup", handleUp as any);
-            window.removeEventListener("touchmove", handleMove as any);
-            window.removeEventListener("touchend", handleUp as any);
+            if (typeof onResizeEnd === "function") onResizeEnd(moved);
+            window.removeEventListener("mousemove", handleMove as EventListener);
+            window.removeEventListener("mouseup", handleUp as EventListener);
+            window.removeEventListener("touchmove", handleMove as EventListener);
+            window.removeEventListener("touchend", handleUp as EventListener);
 
             if (raf) cancelAnimationFrame(raf);
         };
 
-        window.addEventListener("mousemove", handleMove as any);
-        window.addEventListener("mouseup", handleUp as any);
-        window.addEventListener("touchmove", handleMove as any, { passive: false } as any);
-        window.addEventListener("touchend", handleUp as any);
+        window.addEventListener("mousemove", handleMove as EventListener);
+        window.addEventListener("mouseup", handleUp as EventListener);
+        window.addEventListener("touchmove", handleMove as EventListener, { passive: false } as AddEventListenerOptions);
+        window.addEventListener("touchend", handleUp as EventListener);
     };
 
     return {

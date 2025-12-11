@@ -1,5 +1,5 @@
 import { FormControl, MenuItem, Select, SelectChangeEvent } from "@mui/material";
-import { ViewMode } from "../useCalendarWeek";
+import { ViewMode } from "../util/calendarTypes";
 
 interface CalendarViewSelectorProps {
     viewMode: ViewMode;

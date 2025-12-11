@@ -6,12 +6,11 @@ import EditEntryDialog from "./EntryDialog/EditEntryDialog";
 import CalendarDayHeader from "./CalendarDayHeader";
 import CalendarDayGrid from "./CalendarDayGrid";
 import {
-    EntryAttributes,
     EntryDragStartPayload,
     MoveState,
     TimeEntry,
 } from "./util/calendarTypes";
-import { useCalendarDay } from "./useCalendarDay";
+import { useCalendarDay } from "./hooks/useCalendarDay";
 
 interface CalendarDayProps {
     dateStr: string;
@@ -19,7 +18,7 @@ interface CalendarDayProps {
     dayOfTheWeek: string;
     entries: TimeEntry[];
     moveState: MoveState | null;
-    onCreateEntry: (dateStr: string, attributes: EntryAttributes) => void;
+    onCreateEntry: (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
     onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number, title?: string, projectId?: string, isBillable?: boolean) => void;
     onDeleteEntry?: (entryId: string) => void;

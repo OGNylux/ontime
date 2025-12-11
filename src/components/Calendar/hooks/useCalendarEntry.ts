@@ -1,8 +1,8 @@
 import { useRef, useState, type MouseEvent } from "react";
-import { clampPercent, ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, clamp } from "./util/calendarUtility";
-import { TimeEntry } from "./util/calendarTypes";
+import { clampPercent, ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, clamp } from "../util/calendarUtility";
+import { TimeEntry } from "../util/calendarTypes";
 import { useEntryTouch } from "./useEntryTouch";
-import { useEntryResize } from "./useEntryResize";
+import { useEntryResize } from "../useEntryResize";
 
 interface UseCalendarEntryProps {
     entry: TimeEntry;
@@ -31,6 +31,8 @@ export function useCalendarEntry({
     const [hovered, setHovered] = useState(false);
     const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
     const isDraggingRef = useRef(false);
+    const isResizingRef = useRef(false);
+    const lastResizeMovedAtRef = useRef<number | null>(null);
 
     // Handle touch interactions (long press to drag)
     useEntryTouch({
@@ -47,7 +49,12 @@ export function useCalendarEntry({
     } = useEntryResize({
         entry,
         hourHeight,
-        onResizeCommit
+        onResizeCommit,
+        onResizeStart: () => { isResizingRef.current = true; },
+        onResizeEnd: (moved: boolean) => { 
+            isResizingRef.current = false; 
+            if (moved) lastResizeMovedAtRef.current = Date.now();
+        }
     });
 
     const handleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
@@ -57,6 +64,8 @@ export function useCalendarEntry({
         isDraggingRef.current = false;
 
         const handleWindowMouseMove = (e: globalThis.MouseEvent) => {
+            // If a resize is in progress, don't treat movements as drag
+            if (isResizingRef.current) return;
             if (!dragStartPosRef.current) return;
             const dx = e.clientX - dragStartPosRef.current.x;
             const dy = e.clientY - dragStartPosRef.current.y;
@@ -72,8 +81,14 @@ export function useCalendarEntry({
 
         const handleWindowMouseUp = (e: globalThis.MouseEvent) => {
             cleanup();
+            // Defer click handling slightly so resize end callback can run first
             if (!isDraggingRef.current && onEntryClick) {
-                onEntryClick(e);
+                
+                    const lastMoved = lastResizeMovedAtRef.current;
+                    const now = Date.now();
+                    // If a resize moved ended very recently, do not open the edit dialog
+                    if (lastMoved && (now - lastMoved) < 250) return;
+                    if (!isResizingRef.current) onEntryClick(e);
             }
         };
 

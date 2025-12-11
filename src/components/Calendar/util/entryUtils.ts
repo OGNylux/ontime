@@ -4,9 +4,9 @@ import { MINUTES_PER_DAY } from "./calendarUtility";
 import { CalendarEntryResponseDTO } from "../../../dtos/response/CalendarEntry.response.dto";
 
 export function addEntryToMap(map: EntriesByDay, entry: TimeEntry, dateStr: string) {
-    if (!map[dateStr]) map[dateStr] = [];
-    map[dateStr].push(entry);
-    map[dateStr].sort((a, b) => a.startMinute - b.startMinute);
+    // Always create a new array to avoid mutating existing state
+    const existing = map[dateStr] || [];
+    map[dateStr] = [...existing, entry].sort((a, b) => a.startMinute - b.startMinute);
 }
 
 export function addTimeEntryToMap(

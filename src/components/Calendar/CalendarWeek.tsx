@@ -3,8 +3,8 @@ import { useTheme } from "@mui/material/styles";
 import { useEffect, useRef } from "react";
 import CalendarDay from "./CalendarDay";
 import CalendarTime from "./CalendarTime";
-import { useCalendarWeekState } from "./useCalendarWeek";
-import { useCalendarScroll } from "./useCalendarScroll";
+import { useCalendarWeekState } from "./hooks/useCalendarWeek";
+import { useCalendarScroll } from "./hooks/useCalendarScroll";
 import CalendarViewSelector from "./TopBar/CalendarViewSelector";
 import CalendarNavigation from "./TopBar/CalendarNavigation";
 

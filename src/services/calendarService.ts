@@ -141,5 +141,38 @@ export const calendarService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    async getEntryById(id: string): Promise<CalendarEntryResponseDTO | null> {
+        const { data, error } = await supabase
+            .from('ontime_calendar_entry')
+            .select(`
+                *,
+                task:ontime_task(*)
+            `)
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') return null; // Not found
+            throw error;
+        }
+        if (!data) return null;
+
+        const entry = data;
+        const startTime = dayjs(entry.start_time);
+        const endTime = dayjs(entry.end_time);
+        const startOfDay = startTime.startOf('day');
+
+        return {
+            id: entry.id.toString(),
+            date: startTime.format('YYYY-MM-DD'),
+            start_minute: startTime.diff(startOfDay, 'minute'),
+            end_minute: endTime.diff(startOfDay, 'minute'),
+            task_id: entry.task_id,
+            project_id: entry.project_id,
+            is_billable: entry.is_billable,
+            task: entry.task
+        };
     }
 };

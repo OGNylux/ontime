@@ -56,6 +56,7 @@ export default function CreateEntryDialog({
     const [isBillable, setIsBillable] = useState(true);
     const [startTime, setStartTime] = useState(minutesToTime(initialStartMinute));
     const [endTime, setEndTime] = useState(minutesToTime(initialEndMinute));
+    
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 

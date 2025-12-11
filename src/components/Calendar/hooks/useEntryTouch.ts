@@ -5,6 +5,8 @@ interface UseEntryTouchProps {
     onDragStart?: (clientX: number, clientY: number) => void;
 }
 
+const LONG_PRESS_DURATION = 400; // milliseconds
+
 export function useEntryTouch({ paperRef, onDragStart }: UseEntryTouchProps) {
     const longPressTimerRef = useRef<number | null>(null);
     const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -29,7 +31,7 @@ export function useEntryTouch({ paperRef, onDragStart }: UseEntryTouchProps) {
                     onDragStartRef.current(touch.clientX, touch.clientY);
                 }
                 longPressTimerRef.current = null;
-            }, 400);
+            }, LONG_PRESS_DURATION);
         };
 
         const handleTouchMove = (event: TouchEvent) => {

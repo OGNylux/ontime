@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { useCalendarNavigation } from "./hooks/useCalendarNavigation";
-import { useCalendarData } from "./hooks/useCalendarData";
-import { useCalendarDrag } from "./hooks/useCalendarDrag";
-import { useCalendarRecorder } from "./hooks/useCalendarRecorder";
+import { useCalendarNavigation } from "./useCalendarNavigation";
+import { useCalendarData } from "./useCalendarData";
+import { useCalendarDrag } from "./useCalendarDrag";
+import { useCalendarRecorder } from "./useCalendarRecorder";
 
 export function useCalendarWeekState() {
     const {
