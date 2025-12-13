@@ -1,11 +1,21 @@
-import { CalendarCreateEntryRequestDTO } from "../dtos/request/CalendarCreateEntry.request.dto";
-import { CalendarUpdateEntryRequestDTO } from "../dtos/request/CalendarUpdateEntry.request.dto";
-import { CalendarEntryResponseDTO } from "../dtos/response/CalendarEntry.response.dto";
 import { supabase } from "../lib/supabase";
 import dayjs from "dayjs";
+import { Task } from "./taskService";
+
+export interface CalendarEntry {
+    id: string;
+    user_id?: string;
+    project_id?: string;
+    task_id?: string;
+    start_time: string;
+    end_time: string;
+    is_billable?: boolean;
+    created_at?: string;
+    task?: Task;
+}
 
 export const calendarService = {
-    async getEntries(startDate: string, endDate: string): Promise<CalendarEntryResponseDTO[]> {
+    async getEntries(startDate: string, endDate: string): Promise<CalendarEntry[]> {
         // Convert YYYY-MM-DD to ISO timestamps for querying
         const start = dayjs(startDate).startOf('day').toISOString();
         const end = dayjs(endDate).endOf('day').toISOString();
@@ -21,31 +31,12 @@ export const calendarService = {
             
         if (error) throw error;
 
-        return (data || []).map((entry: any) => {
-            const startTime = dayjs(entry.start_time);
-            const endTime = dayjs(entry.end_time);
-            const startOfDay = startTime.startOf('day');
-
-            return {
-                id: entry.id.toString(),
-                date: startTime.format('YYYY-MM-DD'),
-                start_minute: startTime.diff(startOfDay, 'minute'),
-                end_minute: endTime.diff(startOfDay, 'minute'),
-                task_id: entry.task_id,
-                project_id: entry.project_id,
-                is_billable: entry.is_billable,
-                task: entry.task
-            };
-        });
+        return data as CalendarEntry[];
     },
 
-    async createEntry(request: CalendarCreateEntryRequestDTO): Promise<CalendarEntryResponseDTO> {
+    async createEntry(request: Omit<CalendarEntry, 'id' | 'created_at' | 'user_id' | 'task'>): Promise<CalendarEntry> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not authenticated");
-
-        const date = dayjs(request.date);
-        const startTime = date.startOf('day').add(request.start_minute, 'minute').toISOString();
-        const endTime = date.startOf('day').add(request.end_minute, 'minute').toISOString();
 
         const { data, error } = await supabase
             .from('ontime_calendar_entry')
@@ -54,8 +45,8 @@ export const calendarService = {
                 task_id: request.task_id,
                 project_id: request.project_id,
                 is_billable: request.is_billable,
-                start_time: startTime,
-                end_time: endTime,
+                start_time: request.start_time,
+                end_time: request.end_time,
             })
             .select(`
                 *,
@@ -65,44 +56,17 @@ export const calendarService = {
 
         if (error) throw error;
 
-        // Map response
-        const entry = data;
-        const entryStartTime = dayjs(entry.start_time);
-        const entryEndTime = dayjs(entry.end_time);
-        const startOfDay = entryStartTime.startOf('day');
-
-        return {
-            id: entry.id.toString(),
-            date: entryStartTime.format('YYYY-MM-DD'),
-            start_minute: entryStartTime.diff(startOfDay, 'minute'),
-            end_minute: entryEndTime.diff(startOfDay, 'minute'),
-            task_id: entry.task_id,
-            project_id: entry.project_id,
-            is_billable: entry.is_billable,
-            task: entry.task
-        };
+        return data as CalendarEntry;
     },
 
-    async updateEntry(id: string, request: CalendarUpdateEntryRequestDTO): Promise<CalendarEntryResponseDTO> {
+    async updateEntry(id: string, request: Partial<CalendarEntry>): Promise<CalendarEntry> {
         const updateData: any = {};
         
         if (request.task_id !== undefined) updateData.task_id = request.task_id;
         if (request.project_id !== undefined) updateData.project_id = request.project_id;
         if (request.is_billable !== undefined) updateData.is_billable = request.is_billable;
-        
-        // If date or times are updated, we need to recalculate timestamps
-        if (request.date && request.start_minute !== undefined && request.end_minute !== undefined) {
-            const date = dayjs(request.date);
-            updateData.start_time = date.startOf('day').add(request.start_minute, 'minute').toISOString();
-            updateData.end_time = date.startOf('day').add(request.end_minute, 'minute').toISOString();
-        } else if (request.start_minute !== undefined && request.end_minute !== undefined) {
-             // If only times are updated, we need to fetch the current date or assume it's passed?
-             // The current implementation of updateEntry in useCalendarWeek passes dateStr to updateEntry?
-             // No, useCalendarWeek calls updateEntry(entryId, { start_minute, end_minute }).
-             // But we need the date to calculate start_time/end_time.
-             // The current service implementation assumes `request.date` is present if `start_minute` is present?
-             // Let's check the read file of calendarService.ts again.
-        }
+        if (request.start_time !== undefined) updateData.start_time = request.start_time;
+        if (request.end_time !== undefined) updateData.end_time = request.end_time;
 
         const { data, error } = await supabase
             .from('ontime_calendar_entry')
@@ -117,21 +81,7 @@ export const calendarService = {
         if (error) throw error;
         if (!data) throw new Error("Entry not found after update");
 
-        const entry = data;
-        const entryStartTime = dayjs(entry.start_time);
-        const entryEndTime = dayjs(entry.end_time);
-        const startOfDay = entryStartTime.startOf('day');
-
-        return {
-            id: entry.id.toString(),
-            date: entryStartTime.format('YYYY-MM-DD'),
-            start_minute: entryStartTime.diff(startOfDay, 'minute'),
-            end_minute: entryEndTime.diff(startOfDay, 'minute'),
-            task_id: entry.task_id,
-            project_id: entry.project_id,
-            is_billable: entry.is_billable,
-            task: entry.task
-        };
+        return data as CalendarEntry;
     },
 
     async deleteEntry(id: string): Promise<void> {
@@ -143,7 +93,7 @@ export const calendarService = {
         if (error) throw error;
     },
 
-    async getEntryById(id: string): Promise<CalendarEntryResponseDTO | null> {
+    async getEntryById(id: string): Promise<CalendarEntry> {
         const { data, error } = await supabase
             .from('ontime_calendar_entry')
             .select(`
@@ -153,26 +103,8 @@ export const calendarService = {
             .eq('id', id)
             .single();
 
-        if (error) {
-            if (error.code === 'PGRST116') return null; // Not found
-            throw error;
-        }
-        if (!data) return null;
+        if (error) throw error;
 
-        const entry = data;
-        const startTime = dayjs(entry.start_time);
-        const endTime = dayjs(entry.end_time);
-        const startOfDay = startTime.startOf('day');
-
-        return {
-            id: entry.id.toString(),
-            date: startTime.format('YYYY-MM-DD'),
-            start_minute: startTime.diff(startOfDay, 'minute'),
-            end_minute: endTime.diff(startOfDay, 'minute'),
-            task_id: entry.task_id,
-            project_id: entry.project_id,
-            is_billable: entry.is_billable,
-            task: entry.task
-        };
+        return data as CalendarEntry;
     }
 };

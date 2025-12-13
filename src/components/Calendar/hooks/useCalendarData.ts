@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { EntriesByDay, TimeEntry, WeekDayInfo } from "../util/calendarTypes";
+import { EntriesByDay, CalendarEntry, WeekDayInfo } from "../util/calendarTypes";
 import { calendarService } from "../../../services/calendarService";
 import { taskService } from "../../../services/taskService";
-import { clampMinute } from "../util/calendarUtility";
-import { addTimeEntryToMap, convertDtoToTimeEntry } from "../util/entryUtils";
+import { addCalendarEntryToMap } from "../util/entryUtils";
 import { supabase } from "../../../lib/supabase";
 import dayjs from "dayjs";
 
@@ -17,7 +16,7 @@ const removeEntryFromMap = (entries: EntriesByDay, entryId: string): EntriesByDa
 };
 
 // Helper: Find an entry across all days
-const findEntryInMap = (entries: EntriesByDay, entryId: string): TimeEntry | null => {
+const findEntryInMap = (entries: EntriesByDay, entryId: string): CalendarEntry | null => {
     for (const dayEntries of Object.values(entries)) {
         const found = dayEntries.find(e => e.id === entryId);
         if (found) return found;
@@ -28,8 +27,9 @@ const findEntryInMap = (entries: EntriesByDay, entryId: string): TimeEntry | nul
 // Helper: Get or create a task by title
 const getOrCreateTask = async (title: string, projectId?: string): Promise<string> => {
     const existingTask = await taskService.getTaskByName(title);
-    if (existingTask) return existingTask.id;
+    if (existingTask?.id) return existingTask.id;
     const newTask = await taskService.createTask({ name: title, project_id: projectId });
+    if (!newTask.id) throw new Error("Failed to create task: ID missing");
     return newTask.id;
 };
 
@@ -71,7 +71,7 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
             .then(dbEntries => {
                 const newEntriesByDay: EntriesByDay = {};
                 dbEntries.forEach(dbEntry => {
-                    addTimeEntryToMap(newEntriesByDay, dbEntry.date, convertDtoToTimeEntry(dbEntry));
+                    addCalendarEntryToMap(newEntriesByDay, dbEntry);
                 });
                 setEntriesByDay(newEntriesByDay);
             })
@@ -101,16 +101,19 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
             }
 
             // For INSERT/UPDATE: fetch the full entry first, then update state
-            // This avoids removing the entry and causing a brief flicker
-            const entryDate = dayjs(record.start_time).format('YYYY-MM-DD');
-            if (entryDate < weekRange.start || entryDate > weekRange.end) return;
+            const entryStart = dayjs(record.start_time);
+            const entryEnd = dayjs(record.end_time);
+            const weekStart = dayjs(weekRange.start);
+            const weekEnd = dayjs(weekRange.end).endOf('day');
+
+            if (entryEnd.isBefore(weekStart) || entryStart.isAfter(weekEnd)) return;
 
             try {
                 const fullEntry = await calendarService.getEntryById(entryId);
                 if (fullEntry) {
                     setEntriesByDay(prev => {
                         const next = removeEntryFromMap(prev, entryId);
-                        addTimeEntryToMap(next, fullEntry.date, convertDtoToTimeEntry(fullEntry));
+                        addCalendarEntryToMap(next, fullEntry);
                         return next;
                     });
                 }
@@ -131,28 +134,46 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
         return () => { supabase.removeChannel(channel); };
     }, [weekDays]);
 
-    const addEntry = useCallback(async (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => {
+    const addEntry = useCallback(async (dateStr: string, attributes: { 
+        startMinute: number; 
+        endMinute: number; 
+        title?: string; 
+        projectId?: string; 
+        isBillable?: boolean;
+        taskId?: string;
+        task?: any;
+    }) => {
         const tempId = `temp-${Date.now()}`;
         
-        // Optimistic update with temp entry
-        const tempTask = attributes.task || (attributes.title ? {
-            id: 'temp-task', name: attributes.title, color: '#1976d2',
-            created_at: new Date().toISOString(), created_by: 'temp', project_id: ''
+        const startTime = dayjs(dateStr).startOf('day').add(attributes.startMinute, 'minute').toISOString();
+        const endTime = dayjs(dateStr).startOf('day').add(attributes.endMinute, 'minute').toISOString();
+
+        const tempTask = attributes.taskId ? undefined : (attributes.title ? {
+            id: 'temp-task', name: attributes.title, project_id: attributes.projectId
         } : undefined);
+
+        const tempEntry: CalendarEntry = {
+            id: tempId,
+            start_time: startTime,
+            end_time: endTime,
+            project_id: attributes.projectId,
+            is_billable: attributes.isBillable,
+            task_id: attributes.taskId,
+            task: tempTask as any
+        };
 
         setEntriesByDay(prev => {
             const next = { ...prev };
-            addTimeEntryToMap(next, dateStr, { id: tempId, ...attributes, task: tempTask });
+            addCalendarEntryToMap(next, tempEntry);
             return next;
         });
 
         try {
-            const taskId = attributes.taskId || (attributes.title ? await getOrCreateTask(attributes.title) : undefined);
+            const taskId = attributes.taskId || (attributes.title ? await getOrCreateTask(attributes.title, attributes.projectId) : undefined);
 
             const newEntry = await calendarService.createEntry({
-                date: dateStr,
-                start_minute: attributes.startMinute,
-                end_minute: attributes.endMinute,
+                start_time: startTime,
+                end_time: endTime,
                 task_id: taskId,
                 project_id: attributes.projectId,
                 is_billable: attributes.isBillable
@@ -162,13 +183,8 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
 
             // Replace temp entry with real one
             setEntriesByDay(prev => {
-                const next = { ...prev };
-                Object.keys(next).forEach(key => {
-                    next[key] = next[key].map(e => e.id === tempId ? {
-                        ...e, id: newEntry.id, taskId: newEntry.task_id,
-                        task: newEntry.task, projectId: newEntry.project_id, isBillable: newEntry.is_billable
-                    } : e);
-                });
+                const next = removeEntryFromMap(prev, tempId);
+                addCalendarEntryToMap(next, newEntry);
                 return next;
             });
             
@@ -192,37 +208,38 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
 
         markPending(entryId);
 
+        const startTime = dayjs(dateStr).startOf('day').add(startMinute, 'minute').toISOString();
+        const endTime = dayjs(dateStr).startOf('day').add(endMinute, 'minute').toISOString();
+
         // Optimistic update
         setEntriesByDay(prev => {
             const next = removeEntryFromMap(prev, entryId);
-            const updated: TimeEntry = {
+            const updated: CalendarEntry = {
                 ...foundEntry,
-                startMinute: clampMinute(startMinute),
-                endMinute: clampMinute(endMinute),
-                title: title ?? foundEntry.title,
-                task: title && foundEntry.task ? { ...foundEntry.task, name: title } : foundEntry.task,
-                projectId: projectId ?? foundEntry.projectId,
-                isBillable: isBillable ?? foundEntry.isBillable
+                start_time: startTime,
+                end_time: endTime,
+                project_id: projectId ?? foundEntry.project_id,
+                is_billable: isBillable ?? foundEntry.is_billable,
+                task: title && foundEntry.task ? { ...foundEntry.task, name: title } : foundEntry.task
             };
-            addTimeEntryToMap(next, dateStr, updated);
+            addCalendarEntryToMap(next, updated);
             return next;
         });
 
         try {
-            let taskId = foundEntry.taskId;
+            let taskId = foundEntry.task_id;
 
             if (title?.trim()) {
-                if (taskId && title !== foundEntry.title) {
-                    await taskService.updateTask({ id: taskId, name: title });
+                if (taskId && foundEntry.task && title !== foundEntry.task.name) {
+                    await taskService.updateTask(taskId, { name: title });
                 } else if (!taskId) {
-                    taskId = await getOrCreateTask(title, projectId || foundEntry.projectId);
+                    taskId = await getOrCreateTask(title, projectId || foundEntry.project_id);
                 }
             }
 
             await calendarService.updateEntry(entryId, {
-                date: dateStr,
-                start_minute: clampMinute(startMinute),
-                end_minute: clampMinute(endMinute),
+                start_time: startTime,
+                end_time: endTime,
                 project_id: projectId,
                 is_billable: isBillable,
                 task_id: taskId
@@ -258,19 +275,29 @@ export function useCalendarData(weekDays: WeekDayInfo[]) {
         if (!entryToDuplicate) return;
 
         try {
-            const taskId = entryToDuplicate.taskId || 
-                (entryToDuplicate.title ? await getOrCreateTask(entryToDuplicate.title) : undefined);
+            const taskId = entryToDuplicate.task_id || 
+                (entryToDuplicate.task?.name ? await getOrCreateTask(entryToDuplicate.task.name) : undefined);
+
+            // Calculate duration
+            const start = dayjs(entryToDuplicate.start_time);
+            const end = dayjs(entryToDuplicate.end_time);
+            const duration = end.diff(start, 'minute');
+
+            // New start time on the target date (keeping time of day)
+            const newStart = dayjs(dateStr).hour(start.hour()).minute(start.minute()).second(start.second());
+            const newEnd = newStart.add(duration, 'minute');
 
             const newEntry = await calendarService.createEntry({
-                date: dateStr,
-                start_minute: entryToDuplicate.startMinute,
-                end_minute: entryToDuplicate.endMinute,
-                task_id: taskId
+                start_time: newStart.toISOString(),
+                end_time: newEnd.toISOString(),
+                task_id: taskId,
+                project_id: entryToDuplicate.project_id,
+                is_billable: entryToDuplicate.is_billable
             });
 
             setEntriesByDay(prev => {
                 const next = { ...prev };
-                addTimeEntryToMap(next, dateStr, convertDtoToTimeEntry(newEntry));
+                addCalendarEntryToMap(next, newEntry);
                 return next;
             });
         } catch (e) {

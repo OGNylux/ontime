@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { AssignedEntry, TimeEntry } from "./calendarTypes";
+import { AssignedEntry, CalendarEntry } from "./calendarTypes";
 
 
 export const MINUTES_PER_HOUR = 60;
@@ -46,7 +46,7 @@ export function roundTo15Minutes(minute: number) {
     return Math.round(minute / 15) * 15;
 }
 
-export function assignEntryLayout(entries: TimeEntry[], hourHeight: number = 40): AssignedEntry[] {
+export function assignEntryLayout(entries: (CalendarEntry & { startMinute: number, endMinute: number })[], hourHeight: number = 40): AssignedEntry[] {
     if (!entries.length) return [];
 
     // Layout algorithm summary:

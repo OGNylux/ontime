@@ -8,7 +8,8 @@ import CalendarDayGrid from "./CalendarDayGrid";
 import {
     EntryDragStartPayload,
     MoveState,
-    TimeEntry,
+    CalendarEntry,
+    AssignedEntry,
 } from "./util/calendarTypes";
 import { useCalendarDay } from "./hooks/useCalendarDay";
 
@@ -16,9 +17,9 @@ interface CalendarDayProps {
     dateStr: string;
     dayOfTheMonth: string;
     dayOfTheWeek: string;
-    entries: TimeEntry[];
+    entries: CalendarEntry[];
     moveState: MoveState | null;
-    onCreateEntry: (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => void;
+    onCreateEntry: (dateStr: string, attributes: { startMinute: number, endMinute: number, title?: string, projectId?: string, isBillable?: boolean, taskId?: string, task?: any }) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
     onUpdateEntry?: (entryId: string, startMinute: number, endMinute: number, title?: string, projectId?: string, isBillable?: boolean) => void;
     onDeleteEntry?: (entryId: string) => void;
@@ -59,16 +60,11 @@ export default function CalendarDay({
         onEntryDragStart,
     });
 
-    const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+    const [editingEntry, setEditingEntry] = useState<AssignedEntry | null>(null);
     const [editAnchor, setEditAnchor] = useState<{ top: number; left: number } | null>(null);
 
     const compactWidthPercent = `${totalDays ? 100 / totalDays : 100}%`;
 
-    // Day column layout
-    // - outer box is a column flex container so the header stays sticky and
-    //   the hours container fills the remaining vertical space.
-    // - hour slots are rendered as flexible rows so they scale when the
-    //   parent height changes (while keeping a `minHeight` for usable touch targets).
     return (
         <Box
             data-date={dateStr}
@@ -130,7 +126,7 @@ export default function CalendarDay({
                 {dragOverlayEntry && (
                     <CalendarEntryOverlay
                         key="drag"
-                        entry={dragOverlayEntry}
+                        entry={dragOverlayEntry as any}
                         hourHeight={hourHeight}
                         widthPercent={100}
                         offsetPercent={0}
@@ -141,7 +137,7 @@ export default function CalendarDay({
                 {pendingEntry && (
                     <CalendarEntryOverlay
                         key="pending"
-                        entry={{ ...pendingEntry, id: "pending" }}
+                        entry={{ ...pendingEntry, id: "pending" } as any}
                         hourHeight={hourHeight}
                         widthPercent={100}
                         offsetPercent={0}
@@ -174,7 +170,7 @@ export default function CalendarDay({
             {editingEntry && (
                 <EditEntryDialog
                     open={true}
-                    entry={editingEntry}
+                    entry={editingEntry as any}
                     anchorPosition={editAnchor}
                     onClose={() => setEditingEntry(null)}
                     onSave={(entryId, title, startMinute, endMinute, projectId, isBillable) => {

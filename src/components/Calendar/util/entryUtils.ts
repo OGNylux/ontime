@@ -1,51 +1,54 @@
 import dayjs from "dayjs";
-import { EntriesByDay, TimeEntry } from "./calendarTypes";
-import { MINUTES_PER_DAY } from "./calendarUtility";
-import { CalendarEntryResponseDTO } from "../../../dtos/response/CalendarEntry.response.dto";
+import { EntriesByDay, CalendarEntry } from "./calendarTypes";
 
-export function addEntryToMap(map: EntriesByDay, entry: TimeEntry, dateStr: string) {
+export function addEntryToMap(map: EntriesByDay, entry: CalendarEntry, dateStr: string) {
     // Always create a new array to avoid mutating existing state
     const existing = map[dateStr] || [];
-    map[dateStr] = [...existing, entry].sort((a, b) => a.startMinute - b.startMinute);
+    map[dateStr] = [...existing, entry].sort((a, b) => a.start_time.localeCompare(b.start_time));
 }
 
-export function addTimeEntryToMap(
+export function addCalendarEntryToMap(
     map: EntriesByDay, 
-    dateStr: string, 
-    entry: TimeEntry
+    entry: CalendarEntry
 ) {
-    if (entry.endMinute > MINUTES_PER_DAY) {
-        const firstPartEnd = MINUTES_PER_DAY;
-        const secondPartStart = 0;
-        const secondPartEnd = entry.endMinute - MINUTES_PER_DAY;
-        const nextDay = dayjs(dateStr).add(1, "day").format("YYYY-MM-DD");
+    const start = dayjs(entry.start_time);
+    const end = dayjs(entry.end_time);
+    
+    const startDateStr = start.format("YYYY-MM-DD");
+    const endDateStr = end.format("YYYY-MM-DD");
 
-        addEntryToMap(map, {
-            ...entry,
-            endMinute: firstPartEnd
-        }, dateStr);
-
-        addEntryToMap(map, {
-            ...entry,
-            startMinute: secondPartStart,
-            endMinute: secondPartEnd
-        }, nextDay);
+    if (startDateStr === endDateStr) {
+        addEntryToMap(map, entry, startDateStr);
     } else {
-        addEntryToMap(map, entry, dateStr);
-    }
-}
+        // Split entry across days
+        let current = start.startOf('day');
+        const endDay = end.startOf('day');
 
-export function convertDtoToTimeEntry(dbEntry: CalendarEntryResponseDTO): TimeEntry {
-    return {
-        id: dbEntry.id,
-        startMinute: dbEntry.start_minute,
-        endMinute: dbEntry.end_minute,
-        title: dbEntry.task?.name,
-        taskId: dbEntry.task_id,
-        task: dbEntry.task,
-        projectId: dbEntry.project_id,
-        isBillable: dbEntry.is_billable,
-        originalStartMinute: dbEntry.start_minute,
-        originalEndMinute: dbEntry.end_minute
-    };
+        while (current.isBefore(endDay) || current.isSame(endDay, 'day')) {
+            const currentDateStr = current.format("YYYY-MM-DD");
+            
+            let entryStart = entry.start_time;
+            let entryEnd = entry.end_time;
+
+            if (currentDateStr === startDateStr) {
+                // First day: start at entry start, end at end of day
+                entryEnd = current.endOf('day').toISOString();
+            } else if (currentDateStr === endDateStr) {
+                // Last day: start at start of day, end at entry end
+                entryStart = current.startOf('day').toISOString();
+            } else {
+                // Middle day: full day
+                entryStart = current.startOf('day').toISOString();
+                entryEnd = current.endOf('day').toISOString();
+            }
+
+            addEntryToMap(map, {
+                ...entry,
+                start_time: entryStart,
+                end_time: entryEnd
+            }, currentDateStr);
+
+            current = current.add(1, 'day');
+        }
+    }
 }

@@ -1,19 +1,10 @@
-import { TaskResponseDTO } from "../../../dtos/response/Task.response.dto";
+import { CalendarEntry } from "../../../services/calendarService";
 
-export interface TimeEntry {
-    id: string;
+export type { CalendarEntry };
+
+export interface AssignedEntry extends CalendarEntry {
     startMinute: number;
     endMinute: number;
-    taskId?: string;
-    task?: TaskResponseDTO;
-    title?: string; // Used for creation/display if task is not yet resolved
-    originalStartMinute?: number;
-    originalEndMinute?: number;
-    projectId?: string;
-    isBillable?: boolean;
-}
-
-export interface AssignedEntry extends TimeEntry {
     widthPercent: number;
     offsetPercent: number;
     zIndex: number;
@@ -26,7 +17,7 @@ export interface DragState {
 }
 
 export interface MoveState {
-    entry: TimeEntry;
+    entry: CalendarEntry;
     fromDateStr: string;
     pointerOffset: number;
     duration: number;
@@ -50,5 +41,5 @@ export interface WeekDayInfo {
     dayOfTheWeek: string;
 }
 
-export type EntriesByDay = Record<string, TimeEntry[]>;
+export type EntriesByDay = Record<string, CalendarEntry[]>;
 export type ViewMode = 'week' | 'work_week' | 'day';

@@ -1,12 +1,12 @@
 import { Paper, Stack, Typography } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { formatTime, pixelPerMinute } from "./util/calendarUtility";
-import { TimeEntry } from "./util/calendarTypes";
+import { AssignedEntry } from "./util/calendarTypes";
 import { useCalendarEntry } from "./hooks/useCalendarEntry";
 import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
 
 interface CalendarEntryOverlayProps {
-    entry: TimeEntry;
+    entry: AssignedEntry;
     hourHeight: number;
     widthPercent?: number;
     offsetPercent?: number;
@@ -15,7 +15,7 @@ interface CalendarEntryOverlayProps {
     isDragging?: boolean;
     onDragStart?: (clientX: number, clientY: number) => void;
     onResizeCommit?: (entryId: string, startMinute: number, endMinute: number) => void;
-    onEntryClick?: (event: React.MouseEvent, entry: TimeEntry) => void;
+    onEntryClick?: (event: React.MouseEvent, entry: AssignedEntry) => void;
 }
 
 
@@ -115,7 +115,7 @@ export default function CalendarEntryOverlay({
 
             <Stack spacing={0.5} sx={{ minWidth: 0 }}>
                 <Typography variant="caption" fontSize={{ xs: "0.65rem", md: "0.85rem" }} paddingTop={0.5}>
-                    {entry.task?.name || entry.title}
+                    {entry.task?.name || "Untitled"}
                 </Typography>
                 <Typography variant="subtitle2" noWrap sx={{ fontSize: { xs: "0.55rem", md: "0.75rem" }, opacity: 0.9 }}>
                     {formatTime(displayStart, true)} - {formatTime(displayEnd, true)}

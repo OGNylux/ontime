@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import dayjs from "dayjs";
-import { TimeEntry } from "../util/calendarTypes";
-import { CalendarEntryResponseDTO } from "../../../dtos/response/CalendarEntry.response.dto";
+import { CalendarEntry } from "../util/calendarTypes";
 
 export function useCalendarRecorder(
-    addEntry: (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => Promise<CalendarEntryResponseDTO | null>,
+    addEntry: (dateStr: string, attributes: { startMinute: number; endMinute: number; title?: string; projectId?: string; isBillable?: boolean; taskId?: string; task?: any }) => Promise<CalendarEntry | null>,
     updateEntry: (dateStr: string, entryId: string, startMinute: number, endMinute: number) => Promise<void>
 ) {
     const [isRecording, setIsRecording] = useState(false);

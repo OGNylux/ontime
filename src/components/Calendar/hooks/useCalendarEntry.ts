@@ -1,11 +1,11 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { clampPercent, ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, clamp } from "../util/calendarUtility";
-import { TimeEntry } from "../util/calendarTypes";
+import { AssignedEntry } from "../util/calendarTypes";
 import { useEntryTouch } from "./useEntryTouch";
-import { useEntryResize } from "../useEntryResize";
+import { useEntryResize } from "./useEntryResize";
 
 interface UseCalendarEntryProps {
-    entry: TimeEntry;
+    entry: AssignedEntry;
     hourHeight: number;
     widthPercent?: number;
     offsetPercent?: number;

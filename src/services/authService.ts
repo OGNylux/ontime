@@ -1,6 +1,10 @@
 import { supabase } from "../lib/supabase";
-import { UserLoginRequestDto } from "../dtos/request/UserLogin.request.dto";
-import { UserRegisterRequestDto } from "../dtos/request/UserRegister.request.dto";
+
+interface User {
+    email: string;
+    password: string;
+    name: string;
+}
 
 export const authService = {
     async checkAvailability(email: string, name: string) {
@@ -13,7 +17,7 @@ export const authService = {
         return data as { emailExists: boolean, nameExists: boolean };
     },
 
-    async register(request: UserRegisterRequestDto) {
+    async register(request: User) {
         // 0. Check if user already exists (name or email)
         const existsData = await this.checkAvailability(request.email, request.name);
 
@@ -43,7 +47,7 @@ export const authService = {
         return authData.user;
     },
 
-    async login(request: UserLoginRequestDto) {
+    async login(request: User) {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
             email: request.email,
             password: request.password,

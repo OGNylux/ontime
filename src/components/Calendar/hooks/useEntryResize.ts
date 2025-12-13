@@ -1,9 +1,9 @@
 import { useRef, useState, type MouseEvent } from "react";
 import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, pixelPerMinute, snap } from "../util/calendarUtility";
-import { TimeEntry } from "../util/calendarTypes";
+import { AssignedEntry } from "../util/calendarTypes";
 
 interface UseEntryResizeProps {
-    entry: TimeEntry;
+    entry: AssignedEntry;
     hourHeight: number;
     onResizeCommit?: (entryId: string, startMinute: number, endMinute: number) => void;
     onResizeStart?: () => void;

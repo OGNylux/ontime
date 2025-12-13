@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
-import { EntriesByDay, EntryDragStartPayload, MoveState, TimeEntry } from "../util/calendarTypes";
+import { EntriesByDay, EntryDragStartPayload, MoveState, CalendarEntry } from "../util/calendarTypes";
 import { clamp, clampMinute, MINUTES_PER_DAY, snap } from "../util/calendarUtility";
 
 // Find the nearest ancestor element under the pointer that is a day column
@@ -66,7 +66,7 @@ export function useCalendarDrag(
             if (prev) return prev;
             
             // Find all parts of this entry across all days to calculate total duration
-            const allParts: { date: string, entry: TimeEntry }[] = [];
+            const allParts: { date: string, entry: CalendarEntry }[] = [];
             Object.entries(entriesByDay).forEach(([date, dayEntries]) => {
                 const found = dayEntries.find(e => e.id === payload.entryId);
                 if (found) {
@@ -79,7 +79,7 @@ export function useCalendarDrag(
             // Sort by date/time to find true start/end
             allParts.sort((a, b) => {
                 if (a.date !== b.date) return dayjs(a.date).diff(dayjs(b.date));
-                return a.entry.startMinute - b.entry.startMinute;
+                return dayjs(a.entry.start_time).diff(dayjs(b.entry.start_time));
             });
 
             const clickedEntry = allParts.find(p => p.date === payload.dateStr && p.entry.id === payload.entryId)?.entry;
@@ -89,13 +89,15 @@ export function useCalendarDrag(
             let addedOffset = 0;
             
             for (const part of allParts) {
-                const partDuration = part.entry.endMinute - part.entry.startMinute;
+                const start = dayjs(part.entry.start_time);
+                const end = dayjs(part.entry.end_time);
+                const partDuration = end.diff(start, 'minute');
                 totalDuration += partDuration;
                 
                 // If this part is strictly before the clicked entry, add its duration to the pointer offset
                 const isBefore = 
                     dayjs(part.date).isBefore(dayjs(payload.dateStr)) || 
-                    (part.date === payload.dateStr && part.entry.startMinute < clickedEntry.startMinute);
+                    (part.date === payload.dateStr && start.isBefore(dayjs(clickedEntry.start_time)));
                 
                 if (isBefore) {
                     addedOffset += partDuration;
@@ -103,6 +105,7 @@ export function useCalendarDrag(
             }
 
             const effectivePointerOffset = payload.pointerOffset + addedOffset;
+            const clickedEntryStartMinute = dayjs(clickedEntry.start_time).diff(dayjs(clickedEntry.start_time).startOf('day'), 'minute');
 
             const baseState: MoveState = {
                 entry: clickedEntry,
@@ -110,8 +113,8 @@ export function useCalendarDrag(
                 pointerOffset: effectivePointerOffset,
                 duration: totalDuration,
                 currentDateStr: payload.dateStr,
-                startMinute: clickedEntry.startMinute - addedOffset,
-                endMinute: clickedEntry.startMinute - addedOffset + totalDuration,
+                startMinute: clickedEntryStartMinute - addedOffset,
+                endMinute: clickedEntryStartMinute - addedOffset + totalDuration,
             };
 
             if (typeof window === "undefined") return baseState;

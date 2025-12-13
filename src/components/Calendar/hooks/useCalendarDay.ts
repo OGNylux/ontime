@@ -7,18 +7,21 @@ import type {
     DragState,
     EntryDragStartPayload,
     MoveState,
-    TimeEntry,
+    CalendarEntry,
 } from "../util/calendarTypes";
 
 const INITIAL_DRAG: DragState = { active: false, startMinute: null, endMinute: null };
 
-interface DragOverlayEntry extends TimeEntry {}
+interface DragOverlayEntry extends CalendarEntry {
+    startMinute: number;
+    endMinute: number;
+}
 
 export interface UseCalendarDayParams {
     dateStr: string;
-    entries: TimeEntry[];
+    entries: CalendarEntry[];
     moveState: MoveState | null;
-    onCreateEntry: (dateStr: string, attributes: Omit<TimeEntry, 'id'>) => void;
+    onCreateEntry: (dateStr: string, attributes: { startMinute: number, endMinute: number, title?: string, projectId?: string, isBillable?: boolean, taskId?: string, task?: any }) => void;
     onEntryDragStart: (payload: EntryDragStartPayload) => void;
 }
 
@@ -29,8 +32,8 @@ export interface UseCalendarDayResult {
     handleEntryDragStart: (entry: AssignedEntry, clientX: number, clientY: number) => void;
     renderedEntries: Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }>;
     dragOverlayEntry: DragOverlayEntry | null;
-    pendingEntry: Omit<TimeEntry, 'id'> | null;
-    setPendingEntry: (entry: Omit<TimeEntry, 'id'> | null) => void;
+    pendingEntry: { startMinute: number, endMinute: number, title?: string } | null;
+    setPendingEntry: (entry: { startMinute: number, endMinute: number, title?: string } | null) => void;
     pendingEntryAnchor: { left: number; top: number } | null;
 }
 
@@ -87,7 +90,7 @@ function useDragSelection(
     moveState: MoveState | null
 ) {
     const [drag, setDrag] = useState<DragState>(INITIAL_DRAG);
-    const [pendingEntry, setPendingEntry] = useState<Omit<TimeEntry, 'id'> | null>(null);
+    const [pendingEntry, setPendingEntry] = useState<{ startMinute: number, endMinute: number, title?: string } | null>(null);
     const [pendingEntryAnchor, setPendingEntryAnchor] = useState<{ left: number; top: number } | null>(null);
     
     const dragRef = useRef<DragState>(INITIAL_DRAG);
@@ -197,20 +200,34 @@ function useDragSelection(
  * Manages the layout of entries, including the preview entry during a move operation.
  */
 function useEntryLayout(
-    entries: TimeEntry[],
+    entries: CalendarEntry[],
     moveState: MoveState | null,
     dateStr: string,
     hourHeight: number,
     drag: DragState
 ) {
-    const assignedEntries = useMemo(() => assignEntryLayout(entries, hourHeight), [entries, hourHeight]);
+    // Convert CalendarEntry to AssignedEntry (with minutes)
+    const entriesWithMinutes = useMemo(() => entries.map(entry => {
+        const start = dayjs(entry.start_time);
+        const end = dayjs(entry.end_time);
+        const dayStart = dayjs(dateStr).startOf('day');
+        
+        let startMinute = start.diff(dayStart, 'minute');
+        let endMinute = end.diff(dayStart, 'minute');
+        
+        startMinute = Math.max(0, startMinute);
+        endMinute = Math.min(MINUTES_PER_DAY, endMinute);
+
+        return { ...entry, startMinute, endMinute };
+    }), [entries, dateStr]);
+
+    const assignedEntries = useMemo(() => assignEntryLayout(entriesWithMinutes, hourHeight), [entriesWithMinutes, hourHeight]);
 
     const previewEntry = useMemo<AssignedEntry | null>(() => {
         if (!moveState) return null;
         
-        let preview: TimeEntry | null = null;
+        let preview: any = null;
 
-        // Case 1: Dragging on the current day
         if (moveState.currentDateStr === dateStr) {
             preview = {
                 ...moveState.entry,
@@ -219,7 +236,6 @@ function useEntryLayout(
                 endMinute: Math.min(moveState.endMinute, MINUTES_PER_DAY),
             };
         } 
-        // Case 2: Dragging on the previous day, but it spills over to this day
         else if (moveState.endMinute > MINUTES_PER_DAY) {
             const nextDay = dayjs(moveState.currentDateStr).add(1, 'day').format('YYYY-MM-DD');
             if (nextDay === dateStr) {
@@ -235,12 +251,12 @@ function useEntryLayout(
         if (!preview) return null;
 
         const comparisonEntries = moveState.fromDateStr === dateStr
-            ? entries.filter(entry => entry.id !== moveState.entry.id)
-            : entries;
+            ? entriesWithMinutes.filter(entry => entry.id !== moveState.entry.id)
+            : entriesWithMinutes;
 
         const layout = assignEntryLayout([...comparisonEntries, preview], hourHeight);
         return layout.find(item => item.id === preview.id) ?? null;
-    }, [entries, moveState, dateStr, hourHeight]);
+    }, [entriesWithMinutes, moveState, dateStr, hourHeight]);
 
     const renderedEntries = useMemo((): Array<{ entry: AssignedEntry; isPreview: boolean; isDragging: boolean }> => {
         const list = assignedEntries.map(entry => ({
@@ -266,9 +282,11 @@ function useEntryLayout(
             id: "drag",
             startMinute,
             endMinute,
-            title: "",
+            start_time: dayjs(dateStr).startOf('day').add(startMinute, 'minute').toISOString(),
+            end_time: dayjs(dateStr).startOf('day').add(endMinute, 'minute').toISOString(),
+            user_id: 'current-user'
         };
-    }, [drag, moveState]);
+    }, [drag, moveState, dateStr]);
 
     return { renderedEntries, dragOverlayEntry };
 }

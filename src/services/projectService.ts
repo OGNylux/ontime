@@ -1,10 +1,15 @@
 import { supabase } from "../lib/supabase";
-import { ProjectResponseDTO } from "../dtos/response/Project.response.dto";
-import { ProjectCreateRequestDTO } from "../dtos/request/ProjectCreate.request.dto";
-import { ProjectUpdateRequestDTO } from "../dtos/request/ProjectUpdate.request.dto";
+
+export interface Project {
+    id: string;
+    client_id?: string;
+    name: string;
+    description?: string;
+    color?: string;
+}
 
 export const projectService = {
-    async getProjects(): Promise<ProjectResponseDTO[]> {
+    async getProjects(): Promise<Project[]> {
         const { data, error } = await supabase
             .from('ontime_project')
             .select(`
@@ -12,42 +17,43 @@ export const projectService = {
                 client:ontime_client(*)
             `)
             .order('created_at', { ascending: false });
-
         if (error) throw error;
 
-        return data as ProjectResponseDTO[];
+        return data as Project[];
     },
 
-    async createProject(request: ProjectCreateRequestDTO): Promise<ProjectResponseDTO> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not authenticated");
-
+    async createProject(request: Project): Promise<Project> {
         const { data, error } = await supabase
             .from('ontime_project')
-            .insert({
-                ...request,
-                created_by: user.id
+            .insert(request)
+            .select(`
+                *,
+                client:ontime_client(*)
+            `)
+            .single();
+        if (error) throw error;
+
+        return data as Project;
+    },
+
+    async updateProject(id: string, request: Project): Promise<Project> {
+        const { data, error } = await supabase
+            .from('ontime_project')
+            .update({
+                client_id: request.client_id,
+                name: request.name,
+                description: request.description,
+                color: request.color,
             })
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        return data as ProjectResponseDTO;
-    },
-
-    async updateProject(request: ProjectUpdateRequestDTO): Promise<ProjectResponseDTO> {
-        const { id, ...updates } = request;
-        const { data, error } = await supabase
-            .from('ontime_project')
-            .update(updates)
             .eq('id', id)
-            .select()
+            .select(`
+                *,
+                client:ontime_client(*)
+            `)
             .single();
 
         if (error) throw error;
-
-        return data as ProjectResponseDTO;
+        return data as Project;
     },
 
     async deleteProject(id: string): Promise<void> {

@@ -1,50 +1,46 @@
 import { supabase } from "../lib/supabase";
-import { TaskResponseDTO } from "../dtos/response/Task.response.dto";
-import { TaskCreateRequestDTO } from "../dtos/request/TaskCreate.request.dto";
-import { TaskUpdateRequestDTO } from "../dtos/request/TaskUpdate.request.dto";
+
+export interface Task {
+    id?: string;
+    project_id?: string;
+    name: string;
+    color?: string;
+}
 
 export const taskService = {
-    async getTasks(): Promise<TaskResponseDTO[]> {
+    async getTasks(): Promise<Task[]> {
         const { data, error } = await supabase
             .from('ontime_task')
             .select('*')
             .order('created_at', { ascending: false });
-
         if (error) throw error;
 
-        return data as TaskResponseDTO[];
+        return data as Task[];
     },
 
-    async createTask(request: TaskCreateRequestDTO): Promise<TaskResponseDTO> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not authenticated");
-
+    async createTask(request: Task): Promise<Task> {
         const { data, error } = await supabase
             .from('ontime_task')
-            .insert({
-                ...request,
-                created_by: user.id
-            })
+            .insert(request)
             .select()
             .single();
-
         if (error) throw error;
-
-        return data as TaskResponseDTO;
+        return data as Task;
     },
 
-    async updateTask(request: TaskUpdateRequestDTO): Promise<TaskResponseDTO> {
-        const { id, ...updates } = request;
+    async updateTask(id: string, request: Task): Promise<Task> {
         const { data, error } = await supabase
             .from('ontime_task')
-            .update(updates)
+            .update({
+                project_id: request.project_id,
+                name: request.name,
+                color: request.color,
+            })
             .eq('id', id)
             .select()
             .single();
-
         if (error) throw error;
-
-        return data as TaskResponseDTO;
+        return data as Task;
     },
 
     async deleteTask(id: string): Promise<void> {
@@ -56,7 +52,7 @@ export const taskService = {
         if (error) throw error;
     },
 
-    async searchTasks(query: string): Promise<TaskResponseDTO[]> {
+    async searchTasks(query: string): Promise<Task[]> {
         const { data, error } = await supabase
             .from('ontime_task')
             .select('*')
@@ -65,10 +61,10 @@ export const taskService = {
 
         if (error) throw error;
 
-        return data as TaskResponseDTO[];
+        return data as Task[];
     },
 
-    async getTaskByName(name: string): Promise<TaskResponseDTO | null> {
+    async getTaskByName(name: string): Promise<Task | null> {
         const { data, error } = await supabase
             .from('ontime_task')
             .select('*')
@@ -76,6 +72,6 @@ export const taskService = {
             .maybeSingle();
         
         if (error) throw error;
-        return data as TaskResponseDTO | null;
+        return data as Task | null;
     }
 };

@@ -15,15 +15,14 @@ import {
 } from "@mui/material";
 import { AttachMoney } from "@mui/icons-material";
 import dayjs from "dayjs";
-import { taskService } from "../../../services/taskService";
-import { TaskResponseDTO } from "../../../dtos/response/Task.response.dto";
-import { ProjectResponseDTO } from "../../../dtos/response/Project.response.dto";
+import { Task, taskService } from "../../../services/taskService";
 import ProjectSelector from "./ProjectSelector";
+import { Project } from "../../../services/projectService";
 
 interface CreateEntryDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (title: string, startMinute: number, endMinute: number, taskId?: string, task?: TaskResponseDTO, projectId?: string, isBillable?: boolean) => void;
+    onSave: (title: string, startMinute: number, endMinute: number, taskId?: string, task?: Task, projectId?: string, isBillable?: boolean) => void;
     initialStartMinute: number;
     initialEndMinute: number;
     anchorPosition: { top: number; left: number } | null;
@@ -50,9 +49,9 @@ export default function CreateEntryDialog({
 }: CreateEntryDialogProps) {
     const [title, setTitle] = useState("");
     const [taskId, setTaskId] = useState<string | undefined>(undefined);
-    const [selectedTask, setSelectedTask] = useState<TaskResponseDTO | null>(null);
-    const [options, setOptions] = useState<TaskResponseDTO[]>([]);
-    const [selectedProject, setSelectedProject] = useState<ProjectResponseDTO | null>(null);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [options, setOptions] = useState<Task[]>([]);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isBillable, setIsBillable] = useState(true);
     const [startTime, setStartTime] = useState(minutesToTime(initialStartMinute));
     const [endTime, setEndTime] = useState(minutesToTime(initialEndMinute));

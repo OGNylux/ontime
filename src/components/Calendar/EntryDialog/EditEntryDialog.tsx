@@ -17,13 +17,13 @@ import {
     Tooltip,
 } from "@mui/material";
 import { ContentCopy, MoreVert, Delete, AttachMoney } from "@mui/icons-material";
-import { TimeEntry } from "../util/calendarTypes";
+import { AssignedEntry } from "../util/calendarTypes";
 import { HOURS_PER_DAY, MINUTES_PER_HOUR, minutesToTime, timeToMinutes } from "../util/calendarUtility";
 import ProjectSelector from "./ProjectSelector";
 
 interface EditEntryDialogProps {
     open: boolean;
-    entry: TimeEntry | null;
+    entry: AssignedEntry | null;
     onClose: () => void;
     onSave: (entryId: string, title: string, startMinute: number, endMinute: number, projectId?: string, isBillable?: boolean) => void;
     onDelete: (entryId: string) => void;
@@ -53,14 +53,10 @@ export default function EditEntryDialog({
     useEffect(() => {
         if (open && entry) {
             setTitle(entry.task?.name || "");
-            // use original start/end if available (for split entries)
-            const start = entry.originalStartMinute !== undefined ? entry.originalStartMinute : entry.startMinute;
-            const end = entry.originalEndMinute !== undefined ? entry.originalEndMinute : entry.endMinute;
-            
-            setStartTime(minutesToTime(start));
-            setEndTime(minutesToTime(end));
-            setIsBillable(entry.isBillable || false);
-            setSelectedProjectId(entry.projectId);
+            setStartTime(minutesToTime(entry.startMinute));
+            setEndTime(minutesToTime(entry.endMinute));
+            setIsBillable(entry.is_billable || false);
+            setSelectedProjectId(entry.project_id);
         }
     }, [open, entry]);
 
