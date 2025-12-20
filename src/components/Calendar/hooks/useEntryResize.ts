@@ -1,124 +1,225 @@
-import { useRef, useState, type MouseEvent } from "react";
-import { clamp, INTERVAL_MINUTES, MINUTES_PER_DAY, pixelPerMinute, snap } from "../util/calendarUtility";
-import { AssignedEntry } from "../util/calendarTypes";
+import { useState, useCallback, useEffect } from "react";
+import dayjs from "dayjs";
+import { CalendarEntry } from "../../../services/calendarService";
+import { clamp, clampMinute, MINUTES_PER_DAY, snap } from "../util/calendarUtility";
 
-interface UseEntryResizeProps {
-    entry: AssignedEntry;
-    hourHeight: number;
-    onResizeCommit?: (entryId: string, startMinute: number, endMinute: number) => void;
-    onResizeStart?: () => void;
-    onResizeEnd?: (moved: boolean) => void;
+export interface ResizeState {
+    entry: CalendarEntry;
+    handle: 'start' | 'end';
+    dateStr: string; // The day where the resize started (usually the day column)
+    originalStartMinute: number;
+    originalEndMinute: number;
+    newStartMinute: number;
+    newEndMinute: number;
 }
 
-type edgeType = "top" | "bottom";
-type eventType = MouseEvent | TouchEvent;
+export interface EntryResizeStartPayload {
+    dateStr: string;
+    entryId: string;
+    handle: 'start' | 'end';
+    clientY: number;
+}
 
-export function useEntryResize({ entry, hourHeight, onResizeCommit, onResizeStart, onResizeEnd }: UseEntryResizeProps) {
-    const resizeRef = useRef<{
-        edge: edgeType | null;
-        startMinute: number;
-        endMinute: number;
-        startClientY: number;
-    }>({ edge: null, startMinute: entry.startMinute, endMinute: entry.endMinute, startClientY: 0 });
+export type EntriesByDay = Record<string, CalendarEntry[]>;
 
-    const [previewStart, setPreviewStart] = useState<number | null>(null);
-    const [previewEnd, setPreviewEnd] = useState<number | null>(null);
-    const [resizing, setResizing] = useState(false);
+// Find the nearest ancestor element under the pointer that is a day column
+const findDayElement = (clientX: number, clientY: number) => {
+    if (typeof document === "undefined") return null;
+    const elements = document.elementsFromPoint(clientX, clientY);
+    for (const element of elements) {
+        const dayElement = element.closest<HTMLElement>("[data-date]");
+        if (dayElement) return dayElement;
+    }
+    return null;
+};
 
-    const pxPerMinute = pixelPerMinute(hourHeight);
+export function useEntryResize(
+    entriesByDay: EntriesByDay,
+    onResizeCommit: (dateStr: string, entryId: string, startMinute: number, endMinute: number) => Promise<void>
+) {
+    const [resizeState, setResizeState] = useState<ResizeState | null>(null);
 
-    const startResize = (edge: edgeType, clientY: number) => {
-        if (typeof onResizeStart === "function") onResizeStart();
-        resizeRef.current = {
-            edge,
-            startMinute: previewStart ?? entry.startMinute,
-            endMinute: previewEnd ?? entry.endMinute,
-            startClientY: clientY,
+    const calculateResizePosition = useCallback((clientX: number, clientY: number, state: ResizeState) => {
+        const dayElement = findDayElement(clientX, clientY);
+        if (!dayElement) return null;
+
+        const dateStr = dayElement.getAttribute("data-date");
+        if (!dateStr) return null;
+
+        // For simplicity, we might restrict resizing to the same day for now, 
+        // or handle multi-day resizing if needed. 
+        // If the user drags to another day, we could support it, but let's start with same-day logic 
+        // or simple overflow logic.
+        
+        // Actually, let's stick to the day column logic.
+        const rect = dayElement.getBoundingClientRect();
+        if (rect.height <= 0) return null;
+
+        const offsetY = clamp(clientY - rect.top, 0, rect.height);
+        const fractionOfDay = offsetY / rect.height;
+        const minutesFromTop = fractionOfDay * MINUTES_PER_DAY;
+        const pointerMinute = clampMinute(snap(minutesFromTop));
+
+        // Calculate new start/end based on handle
+        let newStart = state.newStartMinute;
+        let newEnd = state.newEndMinute;
+
+        // We need to handle day difference if dragged to another day
+        const dayDiff = dayjs(dateStr).diff(dayjs(state.dateStr), 'day');
+        const absolutePointerMinute = pointerMinute + (dayDiff * MINUTES_PER_DAY);
+
+        if (state.handle === 'start') {
+            newStart = absolutePointerMinute;
+            // Ensure start < end (min duration 15 mins)
+            if (newStart > state.originalEndMinute - 15) {
+                newStart = state.originalEndMinute - 15;
+            }
+        } else {
+            newEnd = absolutePointerMinute;
+            // Ensure end > start (min duration 15 mins)
+            if (newEnd < state.originalStartMinute + 15) {
+                newEnd = state.originalStartMinute + 15;
+            }
+        }
+
+        return { 
+            newStartMinute: newStart, 
+            newEndMinute: newEnd,
+            targetDateStr: state.dateStr // Keep the reference date as the start date of the resize operation
         };
+    }, []);
 
-        setResizing(true);
+    const commitResize = useCallback(async (state: ResizeState) => {
+        await onResizeCommit(state.dateStr, state.entry.id, state.newStartMinute, state.newEndMinute);
+    }, [onResizeCommit]);
 
-        let raf: number | null = null;
-        let moved = false;
+    const beginResize = useCallback((payload: EntryResizeStartPayload) => {
+        setResizeState(prev => {
+            if (prev) return prev;
 
-        const handleMove = (e: eventType) => {
-            let clientYPos = 0;
-            if ((e as TouchEvent).touches) {
-                e = e as TouchEvent;
-                clientYPos = e.touches[0]?.clientY ?? e.changedTouches[0]?.clientY ?? 0;
-            } else {
-                clientYPos = (e as MouseEvent).clientY;
+            // Find the entry
+            let clickedEntry: CalendarEntry | undefined;
+            const dayEntries = entriesByDay[payload.dateStr];
+            if (dayEntries) {
+                clickedEntry = dayEntries.find(e => e.id === payload.entryId);
+            }
+            if (!clickedEntry) {
+                 Object.values(entriesByDay).forEach(entries => {
+                     if (!clickedEntry) clickedEntry = entries.find(e => e.id === payload.entryId);
+                 });
             }
 
-            if (raf) return;
-            raf = requestAnimationFrame(() => {
-                const r = resizeRef.current;
-                if (!r.edge) {
-                    raf = null;
-                    return;
-                }
+            if (!clickedEntry) return prev;
 
-                const deltaY = clientYPos - r.startClientY;
-                const rawDeltaMinutes = deltaY / pxPerMinute;
+            const start = dayjs(clickedEntry.start_time);
+            const end = dayjs(clickedEntry.end_time);
+            
+            // Calculate minutes relative to the day column where resize started
+            const dayStart = dayjs(payload.dateStr).startOf('day');
+            const startMinute = start.diff(dayStart, 'minute');
+            const endMinute = end.diff(dayStart, 'minute');
 
-                if (r.edge === "top") {
-                    const candidate = r.startMinute + rawDeltaMinutes;
-                    let newStart = snap(candidate);
-                    newStart = clamp(newStart, 0, r.endMinute - INTERVAL_MINUTES);
+            return {
+                entry: clickedEntry,
+                handle: payload.handle,
+                dateStr: payload.dateStr,
+                originalStartMinute: startMinute,
+                originalEndMinute: endMinute,
+                newStartMinute: startMinute,
+                newEndMinute: endMinute,
+            };
+        });
+    }, [entriesByDay]);
 
-                    const usedDeltaPixels = (newStart - r.startMinute) * pxPerMinute;
+    useEffect(() => {
+        if (!resizeState) return;
 
-                    r.startClientY = r.startClientY + usedDeltaPixels;
-                    r.startMinute = newStart;
-                    moved = true;
-                    setPreviewStart(newStart);
-                    setPreviewEnd(null);
+        const handleMouseMove = (event: globalThis.MouseEvent | globalThis.TouchEvent | globalThis.PointerEvent) => {
+            setResizeState(prev => {
+                if (!prev) return prev;
+                let clientX = 0, clientY = 0;
+                if ((event as TouchEvent).touches && (event as TouchEvent).touches.length) {
+                    const t = (event as TouchEvent).touches[0];
+                    clientX = t.clientX; clientY = t.clientY;
+                } else if ((event as PointerEvent).clientX !== undefined) {
+                    clientX = (event as PointerEvent).clientX; clientY = (event as PointerEvent).clientY;
                 } else {
-                    const candidate = r.endMinute + rawDeltaMinutes;
-                    let newEnd = snap(candidate);
-                    newEnd = clamp(newEnd, r.startMinute + INTERVAL_MINUTES, MINUTES_PER_DAY);
-
-                    const usedDeltaPixels = (newEnd - r.endMinute) * pxPerMinute;
-
-                    r.startClientY = r.startClientY + usedDeltaPixels;
-                    r.endMinute = newEnd;
-                    moved = true;
-                    setPreviewEnd(newEnd);
-                    setPreviewStart(null);
+                    clientX = (event as MouseEvent).clientX; clientY = (event as MouseEvent).clientY;
                 }
-                raf = null;
+
+                const next = calculateResizePosition(clientX, clientY, prev);
+                if (!next) return prev;
+                
+                if (next.newStartMinute === prev.newStartMinute && next.newEndMinute === prev.newEndMinute) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    newStartMinute: next.newStartMinute,
+                    newEndMinute: next.newEndMinute,
+                };
             });
         };
 
-        const handleUp = () => {
-            const finalStart = previewStart ?? resizeRef.current.startMinute;
-            const finalEnd = previewEnd ?? resizeRef.current.endMinute;
-            if (typeof onResizeCommit === "function") {
-                onResizeCommit(entry.id, finalStart, finalEnd);
-            }
-            setPreviewStart(null);
-            setPreviewEnd(null);
-            resizeRef.current.edge = null;
-            setResizing(false);
-            if (typeof onResizeEnd === "function") onResizeEnd(moved);
-            window.removeEventListener("mousemove", handleMove as EventListener);
-            window.removeEventListener("mouseup", handleUp as EventListener);
-            window.removeEventListener("touchmove", handleMove as EventListener);
-            window.removeEventListener("touchend", handleUp as EventListener);
+        const handleMouseUp = (event: globalThis.MouseEvent | globalThis.TouchEvent | globalThis.PointerEvent) => {
+            setResizeState(prev => {
+                if (!prev) return prev;
+                let clientX = 0, clientY = 0;
+                if ((event as TouchEvent).changedTouches && (event as TouchEvent).changedTouches.length) {
+                    const t = (event as TouchEvent).changedTouches[0];
+                    clientX = t.clientX; clientY = t.clientY;
+                } else if ((event as PointerEvent).clientX !== undefined) {
+                    clientX = (event as PointerEvent).clientX; clientY = (event as PointerEvent).clientY;
+                } else {
+                    clientX = (event as MouseEvent).clientX; clientY = (event as MouseEvent).clientY;
+                }
 
-            if (raf) cancelAnimationFrame(raf);
+                // Final calculation
+                const next = calculateResizePosition(clientX, clientY, prev);
+                const finalStart = next ? next.newStartMinute : prev.newStartMinute;
+                const finalEnd = next ? next.newEndMinute : prev.newEndMinute;
+
+                commitResize({ ...prev, newStartMinute: finalStart, newEndMinute: finalEnd });
+                return null;
+            });
         };
 
-        window.addEventListener("mousemove", handleMove as EventListener);
-        window.addEventListener("mouseup", handleUp as EventListener);
-        window.addEventListener("touchmove", handleMove as EventListener, { passive: false } as AddEventListenerOptions);
-        window.addEventListener("touchend", handleUp as EventListener);
-    };
+        // Support pointer events first (covers touch and pen on modern browsers)
+        window.addEventListener("pointermove", handleMouseMove as any);
+        window.addEventListener("pointerup", handleMouseUp as any);
+        window.addEventListener("pointercancel", handleMouseUp as any);
+
+        // Fallback for touch-only environments
+        window.addEventListener("touchmove", handleMouseMove as any, { passive: false } as AddEventListenerOptions);
+        window.addEventListener("touchend", handleMouseUp as any);
+
+        // Mouse fallback
+        window.addEventListener("mousemove", handleMouseMove as any);
+        window.addEventListener("mouseup", handleMouseUp as any);
+
+        const originalUserSelect = document.body.style.userSelect;
+        const originalTouchAction = (document.body as HTMLElement).style.touchAction;
+        document.body.style.userSelect = "none";
+        (document.body as HTMLElement).style.touchAction = 'none';
+
+        return () => {
+            window.removeEventListener("pointermove", handleMouseMove as any);
+            window.removeEventListener("pointerup", handleMouseUp as any);
+            window.removeEventListener("pointercancel", handleMouseUp as any);
+
+            window.removeEventListener("touchmove", handleMouseMove as any);
+            window.removeEventListener("touchend", handleMouseUp as any);
+
+            window.removeEventListener("mousemove", handleMouseMove as any);
+            window.removeEventListener("mouseup", handleMouseUp as any);
+            document.body.style.userSelect = originalUserSelect;
+            (document.body as HTMLElement).style.touchAction = originalTouchAction;
+        };
+    }, [resizeState, calculateResizePosition, commitResize]);
 
     return {
-        previewStart,
-        previewEnd,
-        resizing,
-        startResize
+        resizeState,
+        beginResize
     };
 }

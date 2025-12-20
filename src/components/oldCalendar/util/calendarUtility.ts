@@ -1,14 +1,5 @@
 import dayjs from "dayjs";
-import { CalendarEntry } from "../../../services/calendarService";
-
-// Extended entry type with layout info
-export interface AssignedEntry extends CalendarEntry {
-    widthPercent: number;
-    offsetPercent: number;
-    zIndex: number;
-    visualStartMinute: number;
-    visualDuration: number;
-}
+import { AssignedEntry, CalendarEntry } from "./calendarTypes";
 
 
 export const MINUTES_PER_HOUR = 60;
@@ -25,7 +16,6 @@ export const MIN_ENTRY_WIDTH = 22;
 export const ENTRY_MARGIN_PERCENT = 4;
 const OVERLAP_PERCENT = 4;
 const INNER_SCALE = (100 - ENTRY_MARGIN_PERCENT * 2) / 100;
-const SCALE_MULTIPLIER = 1.3;
 
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 export const clampPercent = (value: number) => clamp(value, 0, 100);
@@ -56,73 +46,56 @@ export function roundTo15Minutes(minute: number) {
     return Math.round(minute / 15) * 15;
 }
 
-/**
- * Assigns layout properties (width, offset, zIndex) to overlapping entries.
- * Entries that overlap are placed side by side with some visual overlap.
- * When the second entry starts after the first entry's title area, it gets 30% more width.
- */
-export function assignEntryLayout(
-    entries: CalendarEntry[],
-    hourHeight: number = 40,
-    titleHeightPx: number = 30,
-    dateStr?: string
-): AssignedEntry[] {
+export function assignEntryLayout(entries: (CalendarEntry & { startMinute: number, endMinute: number })[], hourHeight: number = 40): AssignedEntry[] {
     if (!entries.length) return [];
 
-    // 1. Prepare and sort entries
-    const sorted = entries.map(entry => {
-        const start = dayjs(entry.start_time);
-        const end = dayjs(entry.end_time);
-        
-        // If dateStr provided, clamp to day boundaries for layout only
-        let startMinute: number;
-        let endMinute: number;
-        
-        if (dateStr) {
-            const dayStart = dayjs(dateStr).startOf('day');
-            const dayEnd = dayStart.endOf('day');
-            const clampedStart = start.isBefore(dayStart) ? dayStart : start;
-            const clampedEnd = end.isAfter(dayEnd) ? dayEnd : end;
-            startMinute = clampedStart.hour() * MINUTES_PER_HOUR + clampedStart.minute();
-            endMinute = clampedEnd.hour() * MINUTES_PER_HOUR + clampedEnd.minute();
-        } else {
-            startMinute = start.hour() * MINUTES_PER_HOUR + start.minute();
-            const duration = end.diff(start, 'minute');
-            endMinute = startMinute + duration;
-        }
-        
-        return { ...entry, startMinute, endMinute };
-    }).sort((a, b) => (a.startMinute - b.startMinute) || (a.endMinute - b.endMinute));
+    // Layout algorithm summary:
+    // 1. Sort entries by start time.
+    // 2. Greedily assign each entry to the first free column (interval
+    //    partitioning). `columnEnds` tracks end times per column.
+    // 3. Build a list of timeline intervals and compute concurrency per
+    //    interval so we can determine the maximum concurrency that affects
+    //    each entry (this determines how many columns wide it should be).
+    // 4. Compute width and left offset in percent, apply inner margins and
+    //    minimum width constraints, and return annotated entries.
 
-    // 2. Assign columns (greedy packing)
-    const columnEnds: number[] = [];
-    const assignedColumns = new Map<string, number>();
+    const sorted = [...entries].sort((a, b) => (a.startMinute - b.startMinute) || (a.endMinute - b.endMinute));
+
+    // Assign a column index to each entry (greedy reuse of freed columns)
+    const columnEnds: number[] = []; // endMinute per column
+    const assignedColumns: Map<string, number> = new Map();
 
     for (const entry of sorted) {
-        let col = columnEnds.findIndex(end => end <= entry.startMinute);
-        if (col === -1) {
-            col = columnEnds.length;
+        // find first free column
+        let found = -1;
+        for (let i = 0; i < columnEnds.length; i++) {
+            if (columnEnds[i] <= entry.startMinute) {
+                found = i;
+                break;
+            }
+        }
+        if (found === -1) {
+            found = columnEnds.length;
             columnEnds.push(entry.endMinute);
-        } else columnEnds[col] = entry.endMinute;
-
-        assignedColumns.set(entry.id, col);
+        } else {
+            columnEnds[found] = entry.endMinute;
+        }
+        assignedColumns.set(entry.id, found);
     }
 
-    // 3. Calculate concurrency per entry
-    // Build timeline intervals from unique start/end points
-    const points = Array.from(new Set(sorted.flatMap(e => [e.startMinute, e.endMinute]))).sort((a, b) => a - b);
-    
-    const intervals = [];
+    // Build timeline intervals from unique event points (start and end times)
+    const points = Array.from(new Set(entries.flatMap(e => [e.startMinute, e.endMinute]))).sort((a, b) => a - b);
+    const intervals: { start: number; end: number; concurrency: number }[] = [];
     for (let i = 0; i < points.length - 1; i++) {
         const s = points[i];
         const e = points[i + 1];
-        // Count how many entries overlap this specific interval
-        const concurrency = sorted.reduce((cnt, en) => (en.startMinute <= s && en.endMinute > s) ? cnt + 1 : cnt, 0);
+        const concurrency = entries.reduce((cnt, en) => (en.startMinute <= s && en.endMinute > s ? cnt + 1 : cnt), 0);
         intervals.push({ start: s, end: e, concurrency });
     }
 
-    const maxConcurrencyById = new Map<string, number>();
-    for (const entry of sorted) {
+    // For each entry compute the max concurrency over intervals it overlaps
+    const maxConcurrencyById: Map<string, number> = new Map();
+    for (const entry of entries) {
         let maxC = 1;
         for (const iv of intervals) {
             if (iv.end <= entry.startMinute) continue;
@@ -132,67 +105,73 @@ export function assignEntryLayout(
         maxConcurrencyById.set(entry.id, maxC);
     }
 
-    // 4. Compute final layout props
-    const titleMinutes = (titleHeightPx / hourHeight) * MINUTES_PER_HOUR;
+    // Prepare annotated entries
+    const annotated: AssignedEntry[] = [];
+    const TITLE_HEIGHT_PX = 30;
+    const titleMinutes = (TITLE_HEIGHT_PX / hourHeight) * 60;
 
-    return sorted.map(entry => {
+    for (const entry of sorted) {
         const col = assignedColumns.get(entry.id) ?? 0;
         const concurrency = maxConcurrencyById.get(entry.id) ?? 1;
 
-        // Base width and offset
+        // width and offset in percent
         let widthPercent = Math.max(MIN_ENTRY_WIDTH, 100 / concurrency);
         let offsetPercent = col * (100 / concurrency);
 
-        // Rule: If 2 entries overlap and the 2nd one starts after the 1st one's title, expand it
+        // If there are two elements overlapping each other and the 2nd one is not overlapping the title
+        // it should be 30% wider.
         if (concurrency === 2 && col === 1) {
             const overlappingEntry = sorted.find(other => {
                 const otherCol = assignedColumns.get(other.id);
                 if (otherCol !== 0) return false;
-                // Check overlap
                 return Math.max(entry.startMinute, other.startMinute) < Math.min(entry.endMinute, other.endMinute);
             });
 
             if (overlappingEntry && entry.startMinute >= overlappingEntry.startMinute + titleMinutes) {
-                const newWidth = widthPercent * SCALE_MULTIPLIER;
+                const expansionFactor = 1.6;
+                const newWidth = widthPercent * expansionFactor;
                 const diff = newWidth - widthPercent;
                 widthPercent = newWidth;
                 offsetPercent = Math.max(0, offsetPercent - diff);
             }
         }
 
-        // Clamp to 100%
-        if (offsetPercent + widthPercent > 100) offsetPercent = Math.max(0, 100 - widthPercent);
+        if (offsetPercent + widthPercent > 100) {
+            offsetPercent = Math.max(0, 100 - widthPercent);
+        }
 
-        // Apply inner margins and scale
+        // apply inner scale and margins
         let scaledOffset = ENTRY_MARGIN_PERCENT + offsetPercent * INNER_SCALE;
         let scaledWidth = widthPercent * INNER_SCALE;
 
-        // Apply visual overlap for adjacent columns
+        // Apply overlap percentage so adjacent concurrent entries slightly
+        // overlap visually. We increase the width a bit and shift the offset
+        // left for later columns to create the overlap. Ensure we don't
+        // overflow the 0..100% range after adjustments.
         if (concurrency > 1 && OVERLAP_PERCENT > 0) {
-            const extraWidth = OVERLAP_PERCENT;
+            const extraWidth = OVERLAP_PERCENT; // percent points to add to each entry
             const shiftPerCol = (OVERLAP_PERCENT * (col / Math.max(1, concurrency))) || 0;
 
             scaledWidth = Math.min(100 - ENTRY_MARGIN_PERCENT - scaledOffset, scaledWidth + extraWidth);
             scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, scaledOffset - shiftPerCol);
         }
 
-        // Final safety clamps
         if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_ENTRY_WIDTH, 100 - scaledOffset);
-        
+
         if (scaledWidth < MIN_ENTRY_WIDTH) {
             scaledWidth = MIN_ENTRY_WIDTH;
             if (scaledOffset + scaledWidth > 100) scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, 100 - scaledWidth);
         }
 
-        // Return original entry with layout props
-        const { startMinute, endMinute, ...originalEntry } = entry;
-        return {
-            ...originalEntry,
-            widthPercent: scaledWidth,
-            offsetPercent: scaledOffset,
-            zIndex: 2 + col,
-            visualStartMinute: startMinute,
-            visualDuration: endMinute - startMinute,
-        };
-    });
+        annotated.push({ ...entry, widthPercent: scaledWidth, offsetPercent: scaledOffset, zIndex: 2 });
+    }
+
+    return annotated;
 }
+
+// Generate a reasonably unique id for new entries. Not cryptographically strong;
+// used only for in-memory demo state.
+export const generateEntryId = () => {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+

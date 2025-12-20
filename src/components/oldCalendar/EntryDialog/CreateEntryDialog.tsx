@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
     Button,
     TextField,
@@ -11,119 +12,90 @@ import {
     Autocomplete,
     IconButton,
     Tooltip,
-    Menu,
-    ListItemIcon,
-    MenuItem,
-    ListItemText,
 } from "@mui/material";
-import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { AttachMoney } from "@mui/icons-material";
+import dayjs from "dayjs";
+import { Task, taskService } from "../../../services/taskService";
 import ProjectSelector from "./ProjectSelector";
 import { Project } from "../../../services/projectService";
 
 interface CreateEntryDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (data: { startTime: string; endTime: string; taskName: string; isBillable: boolean; projectId?: string | null }) => void;
+    onSave: (title: string, startMinute: number, endMinute: number, taskId?: string, task?: Task, projectId?: string, isBillable?: boolean) => void;
+    initialStartMinute: number;
+    initialEndMinute: number;
     anchorPosition: { top: number; left: number } | null;
-    initialStartTime?: string;
-    initialEndTime?: string;
-    dateStr?: string;
-    initialTitle?: string;
-    initialIsBillable?: boolean;
-    isEdit?: boolean;
-    editingEntryId?: string | null;
-    onDelete?: (id: string) => void;
-    onDuplicate?: (data: { startTime: string; endTime: string; taskName: string; isBillable: boolean; projectId?: string | null }) => void;
+}
+
+function minutesToTime(minutes: number): string {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return dayjs().hour(h).minute(m).format("HH:mm");
+}
+
+function timeToMinutes(time: string): number {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
 }
 
 export default function CreateEntryDialog({
     open,
     onClose,
     onSave,
+    initialStartMinute,
+    initialEndMinute,
     anchorPosition,
-    initialStartTime = "09:00",
-    initialEndTime = "10:00",
-    initialTitle,
-    initialIsBillable = false,
-    isEdit = false,
-    editingEntryId,
-    onDelete,
-    onDuplicate,
 }: CreateEntryDialogProps) {
+    const [title, setTitle] = useState("");
+    const [taskId, setTaskId] = useState<string | undefined>(undefined);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [options, setOptions] = useState<Task[]>([]);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [isBillable, setIsBillable] = useState(true);
+    const [startTime, setStartTime] = useState(minutesToTime(initialStartMinute));
+    const [endTime, setEndTime] = useState(minutesToTime(initialEndMinute));
+    
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-    const [title, setTitle] = useState(initialTitle || "");
-    const [startTime, setStartTime] = useState(initialStartTime);
-    const [endTime, setEndTime] = useState(initialEndTime);
-    const [isBillable, setIsBillable] = useState(initialIsBillable || false);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-    // Reset form when dialog opens with new times
     useEffect(() => {
         if (open) {
-            setStartTime(initialStartTime);
-            setEndTime(initialEndTime);
-            setTitle(initialTitle || "");
-            setIsBillable(initialIsBillable || false);
+            setTitle("");
+            setTaskId(undefined);
+            setOptions([]);
+            setSelectedProject(null);
+            setIsBillable(true);
+            setStartTime(minutesToTime(initialStartMinute));
+            setEndTime(minutesToTime(initialEndMinute));
         }
-    }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable]);
+    }, [open, initialStartMinute, initialEndMinute]);
 
-    const options: { name: string }[] = []; // TODO: Load from task service
-
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-
-    const handleMenuOpen = (e: any) => setMenuAnchorEl(e.currentTarget);
-    const handleMenuClose = () => setMenuAnchorEl(null);
-
-    const handleDuplicate = () => {
-        onDuplicate && onDuplicate({ startTime, endTime, taskName: title, isBillable, projectId: selectedProject?.id });
-    };
-
-    const handleDelete = () => {
-        if (!editingEntryId) return;
-        if (confirm("Delete this entry?")) {
-            onDelete && onDelete(editingEntryId);
-            handleMenuClose();
+    useEffect(() => {
+        if (title.length >= 3) {
+            const delayDebounceFn = setTimeout(() => {
+                taskService.searchTasks(title).then(setOptions).catch(console.error);
+            }, 300);
+            return () => clearTimeout(delayDebounceFn);
+        } else {
+            setOptions([]);
         }
-    };
+    }, [title]);
 
     const handleSave = () => {
-        onSave({
-            startTime,
-            endTime,
-            taskName: title,
-            isBillable,
-            projectId: selectedProject?.id,
-        });
+        const start = timeToMinutes(startTime);
+        let end = timeToMinutes(endTime);
+
+        if (end < start) {
+            end += 24 * 60;
+        }
+
+        onSave(title, start, end, taskId, selectedTask || undefined, selectedProject?.id, isBillable);
     };
 
     const content = (
         <Stack spacing={2} sx={{ p: 2, minWidth: 300 }}>
-            {isEdit && (
-                <Stack direction="row" spacing={1}>
-                    <IconButton onClick={handleDuplicate} size="small">
-                        <ContentCopy />
-                    </IconButton>
-                    <IconButton onClick={handleMenuOpen} size="small">
-                        <MoreVert />
-                    </IconButton>
-                    <Menu
-                        anchorEl={menuAnchorEl}
-                        open={Boolean(menuAnchorEl)}
-                        onClose={handleMenuClose}
-                    >
-                        <MenuItem onClick={handleDelete}>
-                            <ListItemIcon>
-                                <Delete fontSize="small" />
-                            </ListItemIcon>
-                            <ListItemText>Delete</ListItemText>
-                        </MenuItem>
-                    </Menu>
-                </Stack>
-            )}
-            {!isMobile && <Typography variant="h6">{isEdit ? "Edit Entry" : "Create New Entry"}</Typography>}
+            {!isMobile && <Typography variant="h6">Create New Entry</Typography>}
             <Autocomplete
                 freeSolo
                 options={options}
@@ -137,22 +109,41 @@ export default function CreateEntryDialog({
                         size="small"
                     />
                 )}
+                onInputChange={(_, newInputValue) => {
+                    setTitle(newInputValue);
+                }}
+                onChange={(_, newValue) => {
+                    if (typeof newValue === 'string') {
+                        setTitle(newValue);
+                        setTaskId(undefined);
+                        setSelectedTask(null);
+                    } else if (newValue) {
+                        setTitle(newValue.name);
+                        setTaskId(newValue.id);
+                        setSelectedTask(newValue);
+                    } else {
+                        setTitle("");
+                        setTaskId(undefined);
+                        setSelectedTask(null);
+                    }
+                }}
                 inputValue={title}
-                onInputChange={(_, value) => setTitle(value)}
             />
             <Stack direction="row" spacing={1} alignItems="center">
-                <ProjectSelector selectedProjectId={selectedProject?.id} onSelect={setSelectedProject} />
+                <ProjectSelector 
+                    selectedProjectId={selectedProject?.id} 
+                    onSelect={setSelectedProject} 
+                />
 
                 <Tooltip title="Billable">
                     <IconButton
-                        color={isBillable ? "success" : "default"}
                         onClick={() => setIsBillable(!isBillable)}
+                        color={isBillable ? "success" : "default"}
                     >
                         <AttachMoney />
                     </IconButton>
                 </Tooltip>
             </Stack>
-            
             <Stack direction="row" spacing={2}>
                 <TextField
                     label="Start"
@@ -173,10 +164,10 @@ export default function CreateEntryDialog({
                     size="small"
                 />
             </Stack>
-                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+            <Stack direction="row" justifyContent="flex-end" spacing={1}>
                 <Button onClick={onClose} size="small">Cancel</Button>
                 <Button onClick={handleSave} variant="contained" size="small">
-                    {isEdit ? "Save" : "Create"}
+                    Create
                 </Button>
             </Stack>
         </Stack>
@@ -207,7 +198,7 @@ export default function CreateEntryDialog({
                     mb: 1 
                 }} />
                 <Typography variant="h6" align="center" sx={{ mb: 1 }}>
-                    {isEdit ? "Edit Entry" : "Create New Entry"}
+                    Create New Entry
                 </Typography>
                 {content}
             </SwipeableDrawer>

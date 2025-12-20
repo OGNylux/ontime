@@ -1,14 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import dayjs from "dayjs";
-
-export type ViewMode = 'day' | 'work_week' | 'week';
-
-export interface WeekDayInfo {
-    id: number;
-    dateStr: string; // YYYY-MM-DD
-    dayOfTheMonth: string; // DD
-    dayOfTheWeek: string; // e.g., Mon, Tue
-}
+import { ViewMode, WeekDayInfo } from "../util/calendarTypes";
 
 export function useCalendarNavigation() {
     const [currentDate, setCurrentDate] = useState(dayjs());

@@ -19,9 +19,15 @@ export const taskService = {
     },
 
     async createTask(request: Task): Promise<Task> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
         const { data, error } = await supabase
             .from('ontime_task')
-            .insert(request)
+            .insert({
+                ...request,
+                created_by: user.id,
+            })
             .select()
             .single();
         if (error) throw error;

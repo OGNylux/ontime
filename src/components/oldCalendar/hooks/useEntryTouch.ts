@@ -30,10 +30,6 @@ export function useEntryTouch({ paperRef, onDragStart }: UseEntryTouchProps) {
             const touch = event.touches[0];
             touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
 
-            try { console.debug('[useEntryTouch] touchstart', { touchAction: element?.style?.touchAction, bodyTouchAction: typeof document !== 'undefined' ? document.body.style.touchAction : undefined, x: touch.clientX, y: touch.clientY }); } catch (err) {}
-
-            // Save and set touch-action immediately so the browser will deliver
-            // touchmove events to our listeners instead of performing native scrolling.
             try {
                 if (element && element.style) {
                     originalTouchActionRef.current = element.style.touchAction || null;
@@ -44,17 +40,11 @@ export function useEntryTouch({ paperRef, onDragStart }: UseEntryTouchProps) {
             longPressActiveRef.current = false;
             longPressTimerRef.current = window.setTimeout(() => {
                 if (onDragStartRef.current && touchStartPosRef.current) {
-                    // Trigger haptic feedback if available
-                    if (navigator.vibrate) {
-                        navigator.vibrate(50);
-                    }
                     longPressActiveRef.current = true;
-                    // Also lock touch-action on the body so the page doesn't scroll
                     try {
                         if (typeof document !== 'undefined' && document.body) {
                             originalBodyTouchActionRef.current = document.body.style.touchAction || null;
                             document.body.style.touchAction = 'none';
-                            // Prevent overscroll/bounce
                             originalBodyOverscrollRef.current = (document.body.style as any).overscrollBehavior || null;
                             (document.body.style as any).overscrollBehavior = 'none';
                             try {
@@ -78,21 +68,18 @@ export function useEntryTouch({ paperRef, onDragStart }: UseEntryTouchProps) {
                 const dy = touch.clientY - touchStartPosRef.current.y;
                 const distanceSq = dx * dx + dy * dy;
 
-                // If user moved significantly before long-press timeout, cancel long-press
                 if (distanceSq > 100) {
                     clearTimeout(longPressTimerRef.current);
                     longPressTimerRef.current = null;
                     touchStartPosRef.current = null;
                 }
             }
-            // If long-press is active, prevent default to stop scrolling and allow drag
             if (longPressActiveRef.current) {
                 try {
                     if (event.cancelable) event.preventDefault();
                 } catch (err) {}
             }
-            // Debug
-            try { console.debug('[useEntryTouch] touchmove', { longPressActive: longPressActiveRef.current }); } catch (err) {}
+            try { console.debug('[old useEntryTouch] touchmove', { longPressActive: longPressActiveRef.current }); } catch (err) {}
         };
 
         const handleTouchEnd = () => {
@@ -102,14 +89,12 @@ export function useEntryTouch({ paperRef, onDragStart }: UseEntryTouchProps) {
             }
             touchStartPosRef.current = null;
             longPressActiveRef.current = false;
-            // Restore original touch-action so normal page behavior resumes
             try {
                 if (element && originalTouchActionRef.current !== null) {
                     element.style.touchAction = originalTouchActionRef.current;
                     originalTouchActionRef.current = null;
                 }
             } catch (err) {}
-            try { console.debug('[useEntryTouch] touchend restore', { touchAction: element?.style?.touchAction, bodyTouchAction: typeof document !== 'undefined' ? document.body.style.touchAction : undefined }); } catch (err) {}
             try {
                 if (typeof document !== 'undefined' && document.body && originalBodyTouchActionRef.current !== null) {
                     document.body.style.touchAction = originalBodyTouchActionRef.current;
