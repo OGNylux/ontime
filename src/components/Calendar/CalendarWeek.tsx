@@ -5,6 +5,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useState, useCallback, useRef, useEffect } from "react";
 import CalendarDay from "./CalendarDay";
 import CalendarTime from "./CalendarTime";
+import CalendarNavigation from "./TopBar/CalendarNavigation";
+import CalendarViewSelector from "./TopBar/CalendarViewSelector";
+import Recorder from "./TopBar/Recorder";
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
 import { useCalendarEntries } from "./hooks/useCalendarEntries";
 import { useEntryMove } from "./hooks/useEntryMove";
@@ -28,7 +31,14 @@ interface DialogState {
 export default function Calendar() {
     const {
         weekDays,
+        nextWeek,
+        prevWeek,
+        goToToday,
+        currentDate,
+        viewMode,
+        setViewMode
     } = useCalendarWeekState();
+    
     const { entriesByDate, refetch, addOrReplaceEntry, removeEntryLocal } = useCalendarEntries(weekDays);
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
@@ -323,6 +333,13 @@ export default function Calendar() {
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default" }}>
+            <Box sx={{ px: { xs: 1, md: 2 }, py: 1, borderBottom: theme => `1px solid ${theme.palette.divider}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <CalendarNavigation onPrev={prevWeek} onNext={nextWeek} onToday={goToToday} />
+                    <Recorder addOrReplaceEntry={addOrReplaceEntry} entriesByDate={entriesByDate} />
+                </Stack>
+                <CalendarViewSelector viewMode={viewMode} onChange={mode => setViewMode(mode)} />
+            </Box>
             <Container
                 ref={scrollContainerRef}
                 className="scrollbar-hide"

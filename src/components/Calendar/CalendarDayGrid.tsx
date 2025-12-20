@@ -1,8 +1,11 @@
 import { Box } from "@mui/material";
 import { HOUR_ARRAY, HOURS_PER_DAY } from "./util/calendarUtility";
 
+interface CalendarDayGridProps {
+    hourHeight: number;
+}
 
-export default function CalendarDayGrid() {
+export default function CalendarDayGrid({ hourHeight }: CalendarDayGridProps) {
     return (
         <>
             {HOUR_ARRAY.map(hour => (
@@ -10,7 +13,7 @@ export default function CalendarDayGrid() {
                     key={hour}
                     data-hour={hour}
                     sx={{
-                        height: { xs: 40, md: 48 },
+                        height: hourHeight,
                         borderBottom: theme => hour === HOURS_PER_DAY - 1 ? "none" : `1px solid ${theme.palette.divider}`,
                         bgcolor: "background.paper",
                         transition: theme =>

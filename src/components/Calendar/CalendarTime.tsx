@@ -40,6 +40,7 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                     borderBottom: theme => `1px solid ${theme.palette.divider}`,
                 }}
             >
+                hi
             </Paper>
             {HOUR_ARRAY.map(hour => (
                 <Box
