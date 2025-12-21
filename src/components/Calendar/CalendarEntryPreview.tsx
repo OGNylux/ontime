@@ -1,5 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import dayjs from "dayjs";
+import { formatDuration } from "./util/calendarUtility";
 
 interface Props {
     title: string;
@@ -18,7 +19,8 @@ export default function CalendarEntryPreview({ title, startIso, endIso, top, hei
         if (startIso && endIso) {
             const s = dayjs(startIso);
             const e = dayjs(endIso);
-            timeDisplay = `${s.format("h:mm A")} - ${e.format("h:mm A")}`;
+            const mins = Math.max(0, e.diff(s, 'minute'));
+            timeDisplay = formatDuration(mins);
         }
     } catch (_) {}
 

@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase";
 
-interface Client {
+export interface Client {
     id: string;
     name: string;
     info_id?: string;

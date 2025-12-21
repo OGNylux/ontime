@@ -12,16 +12,15 @@ import {
     InputAdornment,
 } from "@mui/material";
 import { Folder, Search } from "@mui/icons-material";
-import { projectService } from "../../../services/projectService";
-import { ProjectResponseDTO } from "../../../dtos/response/Project.response.dto";
+import { Project, projectService } from "../../../services/projectService";
 
 interface ProjectSelectorProps {
     selectedProjectId?: string;
-    onSelect: (project: ProjectResponseDTO | null) => void;
+    onSelect: (project: Project | null) => void;
 }
 
 export default function ProjectSelector({ selectedProjectId, onSelect }: ProjectSelectorProps) {
-    const [projects, setProjects] = useState<ProjectResponseDTO[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [search, setSearch] = useState("");
 

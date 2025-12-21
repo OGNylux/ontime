@@ -1,20 +1,27 @@
 import { Box } from "@mui/material";
-import { HOUR_ARRAY, HOURS_PER_DAY } from "./util/calendarUtility";
+import { MINUTES_PER_DAY } from "./util/calendarUtility";
 
 interface CalendarDayGridProps {
     hourHeight: number;
+    gapSize: number;
 }
 
-export default function CalendarDayGrid({ hourHeight }: CalendarDayGridProps) {
+export default function CalendarDayGrid({ hourHeight, gapSize }: CalendarDayGridProps) {
+    // Generate time slots based on gap size
+    const timeSlots: number[] = [];
+    for (let minute = 0; minute < MINUTES_PER_DAY; minute += gapSize) {
+        timeSlots.push(minute);
+    }
+
     return (
         <>
-            {HOUR_ARRAY.map(hour => (
+            {timeSlots.map((minute, index) => (
                 <Box
-                    key={hour}
-                    data-hour={hour}
+                    key={minute}
+                    data-minute={minute}
                     sx={{
                         height: hourHeight,
-                        borderBottom: theme => hour === HOURS_PER_DAY - 1 ? "none" : `1px solid ${theme.palette.divider}`,
+                        borderBottom: theme => index === timeSlots.length - 1 ? "none" : `1px solid ${theme.palette.divider}`,
                         bgcolor: "background.paper",
                         transition: theme =>
                             theme.transitions.create("background-color", {

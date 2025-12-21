@@ -1,11 +1,13 @@
 import { Paper, Typography } from "@mui/material";
+import { formatDuration } from "./util/calendarUtility";
 
 interface CalendarDayHeaderProps {
     dayOfTheWeek: string;
     dayOfTheMonth: string;
+    totalMinutes?: number;
 }
 
-export default function CalendarDayHeader({ dayOfTheWeek, dayOfTheMonth }: CalendarDayHeaderProps) {
+export default function CalendarDayHeader({ dayOfTheWeek, dayOfTheMonth, totalMinutes }: CalendarDayHeaderProps) {
     return (
         <Paper
             elevation={0}
@@ -30,6 +32,11 @@ export default function CalendarDayHeader({ dayOfTheWeek, dayOfTheMonth }: Calen
             <Typography variant="caption" color="text.secondary">
                 {dayOfTheMonth}
             </Typography>
+            {typeof totalMinutes === 'number' && (
+                <Typography variant="caption" color="text.secondary">
+                    {`Total: ${formatDuration(totalMinutes)}`}
+                </Typography>
+            )}
         </Paper>
     );
 }

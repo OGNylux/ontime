@@ -1,11 +1,37 @@
 import { Box, Paper, Typography } from "@mui/material";
-import { formatTime, HOUR_ARRAY, HOURS_PER_DAY } from "./util/calendarUtility";
+import { MINUTES_PER_DAY } from "./util/calendarUtility";
+import dayjs from "dayjs";
+import CalendarZoom, { GapSize } from "./TopBar/CalendarZoom";
+import { BASE_CELL_HEIGHT, SMALL_CELL_HEIGHT } from "./util/calendarConfig";
 
 interface CalendarTimeProps {
     isCompact?: boolean;
+    gapSize: GapSize;
+    onGapSizeChange: (gapSize: GapSize) => void;
 }
 
-export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
+export default function CalendarTime({ isCompact = false, gapSize, onGapSizeChange }: CalendarTimeProps) {
+    // Generate time slots based on gap size
+    const timeSlots: number[] = [];
+    for (let minute = 0; minute < MINUTES_PER_DAY; minute += gapSize) {
+        timeSlots.push(minute);
+    }
+
+    // Use a constant base slot height (pixels per hour at baseline).
+    // The day grid computes positions using the same `baseHeight`,
+    // and zooming changes pixels-per-minute so entries grow/shrink.
+    const baseHeight = isCompact ? SMALL_CELL_HEIGHT : BASE_CELL_HEIGHT;
+
+    const formatTimeLabel = (minute: number) => {
+        const hour = Math.floor(minute / 60);
+        const min = minute % 60;
+        if (gapSize >= 60) {
+            // For 1h or 2h gaps, show just the hour
+            return dayjs().hour(hour).minute(min).format("h A");
+        }
+        // For smaller gaps, show hour:minute
+        return dayjs().hour(hour).minute(min).format("h:mm");
+    };
     return (
         <Box
             sx={{
@@ -32,7 +58,7 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                     top: 0,
                     zIndex: 50,
                     display: "flex",
-                    flexDirection: "column",
+                    flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 0.5,
@@ -40,18 +66,18 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                     borderBottom: theme => `1px solid ${theme.palette.divider}`,
                 }}
             >
-                hi
+                <CalendarZoom gapSize={gapSize} onGapSizeChange={onGapSizeChange} />
             </Paper>
-            {HOUR_ARRAY.map(hour => (
+            {timeSlots.map((minute, index) => (
                 <Box
-                    key={hour}
+                    key={minute}
                     sx={{
-                        height: { xs: 40, md: 48 },
+                        height: baseHeight,
                         position: "relative",
                         bgcolor: "background.paper",
                     }}
                 >
-                    {hour !== HOURS_PER_DAY - 1 && (
+                    {index !== timeSlots.length - 1 && (
                         <Typography
                             variant="caption"
                             sx={{
@@ -61,9 +87,10 @@ export default function CalendarTime({ isCompact = false }: CalendarTimeProps) {
                                 transform: "translateY(50%)",
                                 right: { xs: 6, md: 10 },
                                 color: "text.secondary",
+                                fontSize: gapSize < 60 ? '0.65rem' : '0.75rem',
                             }}
                         >
-                            {formatTime(hour + 1)}
+                            {formatTimeLabel(minute + gapSize)}
                         </Typography>
                     )}
                 </Box>

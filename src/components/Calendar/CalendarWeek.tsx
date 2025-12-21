@@ -8,6 +8,7 @@ import CalendarTime from "./CalendarTime";
 import CalendarNavigation from "./TopBar/CalendarNavigation";
 import CalendarViewSelector from "./TopBar/CalendarViewSelector";
 import Recorder from "./TopBar/Recorder";
+import { GapSize } from "./TopBar/CalendarZoom";
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
 import { useCalendarEntries } from "./hooks/useCalendarEntries";
 import { useEntryMove } from "./hooks/useEntryMove";
@@ -42,6 +43,9 @@ export default function Calendar() {
     const { entriesByDate, refetch, addOrReplaceEntry, removeEntryLocal } = useCalendarEntries(weekDays);
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
+
+    // Calendar zoom state
+    const [gapSize, setGapSize] = useState<GapSize>(60);
 
     // Entry move (drag to reposition)
     const handleMoveCommit = useCallback(async (dateStr: string, entryId: string, startMinute: number, endMinute: number) => {
@@ -356,7 +360,7 @@ export default function Calendar() {
                 }}
             >
                 <Stack direction="row" sx={{ minHeight: "100%" }}>
-                <CalendarTime isCompact={isCompact} />
+                <CalendarTime isCompact={isCompact} gapSize={gapSize} onGapSizeChange={setGapSize} />
                 <Box
                     sx={{
                         display: "flex",
@@ -393,6 +397,7 @@ export default function Calendar() {
                             onEntryDragStart={handleEntryDragStart}
                             resizeState={resizeState}
                             onEntryResizeStart={handleEntryResizeStart}
+                            gapSize={gapSize}
                         />
                     ))}
                 </Box>

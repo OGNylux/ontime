@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { MouseEvent, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry } from "../../services/calendarService";
-import { MINUTES_PER_HOUR } from "./util/calendarUtility";
+import { MINUTES_PER_HOUR, formatDuration } from "./util/calendarUtility";
 import { useEntryTouch } from "./hooks/useEntryTouch";
 import { useEntryPointer } from "./hooks/useEntryPointer";
 import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
@@ -184,8 +184,11 @@ export default function CalendarEntryBlock({
     // Get color from task or use default
     const backgroundColor = entry.task?.color || "#1976d2";
 
-    // Format time display
-    const timeDisplay = `${startTime.format("h:mm A")} - ${endTime.format("h:mm A")}`;
+    // Format duration display (show length rather than start-end)
+    const computedDurationMinutes = (typeof durationMinutes === 'number' && !isNaN(durationMinutes))
+        ? Math.max(0, Math.round(durationMinutes))
+        : Math.max(0, endTime.diff(startTime, 'minute'));
+    const timeDisplay = formatDuration(computedDurationMinutes);
     const title = entry.task?.name || "";
 
     return (
@@ -224,11 +227,8 @@ export default function CalendarEntryBlock({
             {!isPreview && !isDragging && (
                 <CalendarEntryResizeHandle
                     position="top"
-                    zIndex={12}
                     onMouseDown={(e: React.MouseEvent) => handleResizeMouseDown(e as any, 'start')}
                     onTouchStart={(e: React.TouchEvent) => handleResizeTouchStart(e as any, 'start')}
-                    className=""
-                    style={{}}
                 />
             )}
 
@@ -266,11 +266,8 @@ export default function CalendarEntryBlock({
             {!isPreview && !isDragging && (
                 <CalendarEntryResizeHandle
                     position="bottom"
-                    zIndex={12}
                     onMouseDown={(e: React.MouseEvent) => handleResizeMouseDown(e as any, 'end')}
                     onTouchStart={(e: React.TouchEvent) => handleResizeTouchStart(e as any, 'end')}
-                    className=""
-                    style={{}}
                 />
             )}
         </Box>

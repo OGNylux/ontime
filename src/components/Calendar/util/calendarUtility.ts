@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import { CalendarEntry } from "../../../services/calendarService";
+import { ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, OVERLAP_PERCENT, SCALE_MULTIPLIER } from "./calendarConfig";
 
 // Extended entry type with layout info
 export interface AssignedEntry extends CalendarEntry {
@@ -20,12 +21,7 @@ export const HOUR_ARRAY = Array.from({ length: HOURS_PER_DAY }).map((_, i) => i)
 
 export const pixelPerMinute = (hourHeight: number) => hourHeight / MINUTES_PER_HOUR;
 
-export const MIN_ENTRY_WIDTH = 22;
-
-export const ENTRY_MARGIN_PERCENT = 4;
-const OVERLAP_PERCENT = 4;
 const INNER_SCALE = (100 - ENTRY_MARGIN_PERCENT * 2) / 100;
-const SCALE_MULTIPLIER = 1.3;
 
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 export const clampPercent = (value: number) => clamp(value, 0, 100);
@@ -54,6 +50,16 @@ export function timeToMinutes(time: string): number {
 
 export function roundTo15Minutes(minute: number) {
     return Math.round(minute / 15) * 15;
+}
+
+export function formatDuration(minutes: number) {
+    if (!minutes || minutes <= 0) return "0m";
+    const hrs = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    if (hrs > 0) {
+        return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+    }
+    return `${mins}m`;
 }
 
 /**

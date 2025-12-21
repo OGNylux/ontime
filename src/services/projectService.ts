@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { Client } from "./clientService";
 
 export interface Project {
     id: string;
@@ -6,6 +7,7 @@ export interface Project {
     name: string;
     description?: string;
     color?: string;
+    client: Client;
 }
 
 export const projectService = {
