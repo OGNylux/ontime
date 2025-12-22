@@ -65,7 +65,7 @@ export function useEntryPointer({ paperRef, onDragStart }: UseEntryPointerProps)
             }
         };
 
-        const handlePointerUp = (ev: PointerEvent) => {
+        const handlePointerUp = () => {
             if (timerRef.current) {
                 clearTimeout(timerRef.current);
                 timerRef.current = null;

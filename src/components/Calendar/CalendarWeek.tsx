@@ -75,6 +75,7 @@ export default function CalendarWeek() {
     const [dialogState, setDialogState] = useState<DialogState>(INITIAL_DIALOG_STATE);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
     const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+    const [startRecordingFn, setStartRecordingFn] = useState<(() => void) | null>(null);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Data Hooks
@@ -232,7 +233,7 @@ export default function CalendarWeek() {
         beginMove({ dateStr, entryId, pointerOffset, clientX, clientY });
     }, [beginMove]);
 
-    const handleResizeStart = useCallback((dateStr: string, entryId: string, handle: "start" | "end", clientY: number) => {
+    const handleResizeStart = useCallback((dateStr: string, entryId: string, handle: "top" | "bottom", clientY: number) => {
         beginResize({ dateStr, entryId, handle, clientY });
     }, [beginResize]);
 
@@ -261,7 +262,11 @@ export default function CalendarWeek() {
             >
                 <Stack direction="row" spacing={1} alignItems="center">
                     <CalendarNavigation onPrev={prevWeek} onNext={nextWeek} onToday={goToToday} />
-                    <Recorder addOrReplaceEntry={addOrReplaceEntry} entriesByDate={entriesByDate} />
+                    <Recorder 
+                        addOrReplaceEntry={addOrReplaceEntry} 
+                        entriesByDate={entriesByDate}
+                        onRecordingStart={(fn) => setStartRecordingFn(() => fn)}
+                    />
                 </Stack>
                 <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
             </Box>
@@ -310,6 +315,8 @@ export default function CalendarWeek() {
                                 // Resize
                                 resizeState={resizeState}
                                 onEntryResizeStart={handleResizeStart}
+                                // Recording
+                                onStartRecording={startRecordingFn || undefined}
                             />
                         ))}
                     </Box>

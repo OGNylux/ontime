@@ -5,7 +5,7 @@ import { clamp, clampMinute, MINUTES_PER_DAY, snap } from "../util/calendarUtili
 
 export interface ResizeState {
     entry: CalendarEntry;
-    handle: 'start' | 'end';
+    handle: 'top' | 'bottom';
     dateStr: string; // The day where the resize started (usually the day column)
     originalStartMinute: number;
     originalEndMinute: number;
@@ -16,7 +16,7 @@ export interface ResizeState {
 export interface EntryResizeStartPayload {
     dateStr: string;
     entryId: string;
-    handle: 'start' | 'end';
+    handle: 'top' | 'bottom';
     clientY: number;
 }
 
@@ -68,7 +68,7 @@ export function useEntryResize(
         const dayDiff = dayjs(dateStr).diff(dayjs(state.dateStr), 'day');
         const absolutePointerMinute = pointerMinute + (dayDiff * MINUTES_PER_DAY);
 
-        if (state.handle === 'start') {
+        if (state.handle === 'top') {
             newStart = absolutePointerMinute;
             // Ensure start < end (min duration 15 mins)
             if (newStart > state.originalEndMinute - 15) {

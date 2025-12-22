@@ -1,15 +1,16 @@
 import { IconButton, Tooltip } from "@mui/material";
 import { PlayArrow, Stop } from "@mui/icons-material";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
 
 interface RecorderProps {
     addOrReplaceEntry: (entry: CalendarEntry) => void;
     entriesByDate: Record<string, CalendarEntry[]>;
+    onRecordingStart?: (startRecording: () => void) => void;
 }
 
-export default function Recorder({ addOrReplaceEntry, entriesByDate }: RecorderProps) {
+export default function Recorder({ addOrReplaceEntry, entriesByDate, onRecordingStart }: RecorderProps) {
     const [isRecording, setIsRecording] = useState(false);
     const recordingEntryIdRef = useRef<string | null>(null); // may be temp id or real db id
     const dbEntryIdRef = useRef<string | null>(null); // real db id once created
@@ -73,6 +74,13 @@ export default function Recorder({ addOrReplaceEntry, entriesByDate }: RecorderP
         })();
     }, [addOrReplaceEntry]);
 
+    // Expose startRecording to parent component
+    useEffect(() => {
+        if (onRecordingStart) {
+            onRecordingStart(startRecording);
+        }
+    }, [onRecordingStart, startRecording]);
+
     const stopRecording = useCallback(async () => {
         setIsRecording(false);
         const finalId = recordingEntryIdRef.current;
@@ -125,7 +133,16 @@ export default function Recorder({ addOrReplaceEntry, entriesByDate }: RecorderP
                 }}
                 size="small"
                 color={isRecording ? 'error' : 'primary'}
-                sx={{ mr: 1, border: 1, borderColor: 'divider' }}
+                sx={{
+                    mr: 1,
+                    border: 1,
+                    borderColor: 'divider',
+                    transition: 'transform 0.12s ease',
+                    transformOrigin: 'center',
+                    '&:hover': {
+                        transform: 'scale(1.18)'
+                    }
+                }}
             >
                 {isRecording ? <Stop /> : <PlayArrow />}
             </IconButton>

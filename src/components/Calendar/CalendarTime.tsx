@@ -27,19 +27,22 @@ export default function CalendarTime({ isCompact = false, gapSize, onGapSizeChan
         const min = minute % 60;
         if (gapSize >= 60) {
             // For 1h or 2h gaps, show just the hour
-            return dayjs().hour(hour).minute(min).format("h A");
+            return dayjs().hour(hour).minute(min).format("h:mm A");
         }
         // For smaller gaps, show hour:minute
-        return dayjs().hour(hour).minute(min).format("h:mm");
+        return dayjs().hour(hour).minute(min).format("h:mm A");
     };
+    // headerHeight reserved if needed for absolute positioning
+
     return (
         <Box
             sx={{
                 width: { xs: isCompact ? 62 : 64, md: 84 },
                 bgcolor: "grey.50",
                 borderRight: theme => `1px solid ${theme.palette.divider}`,
-                position: "sticky",
                 flexShrink: 0,
+                // allow absolute children positioned under the header
+                position: "relative",
             }}
         >
             {/*
@@ -95,6 +98,7 @@ export default function CalendarTime({ isCompact = false, gapSize, onGapSizeChan
                     )}
                 </Box>
             ))}
+            {/* no current-time indicator in the time column; shown within each day instead */}
         </Box>
     );
 }
