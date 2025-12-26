@@ -6,10 +6,10 @@ import dayjs from "dayjs";
 import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
 
 // Types & Utils
-import { CalendarEntry } from "../../services/calendarService";
-import { MINUTES_PER_HOUR, formatDuration } from "./util/calendarUtility";
-import { useEntryTouch } from "./hooks/useEntryTouch";
-import { useEntryPointer } from "./hooks/useEntryPointer";
+import { CalendarEntry } from "../../../services/calendarService";
+import { MINUTES_PER_HOUR, formatDuration } from "../util/calendarUtility";
+import { useEntryTouch } from "../hooks/useEntryTouch";
+import { useEntryPointer } from "../hooks/useEntryPointer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

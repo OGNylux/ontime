@@ -11,6 +11,7 @@ export interface AssignedEntry extends CalendarEntry {
     visualDuration: number;
 }
 
+export type ResizeHandlePosition = 'top' | 'bottom';
 
 export const MINUTES_PER_HOUR = 60;
 export const MINUTES_PER_DAY = 1440;

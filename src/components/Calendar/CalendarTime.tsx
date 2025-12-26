@@ -25,14 +25,9 @@ export default function CalendarTime({ isCompact = false, gapSize, onGapSizeChan
     const formatTimeLabel = (minute: number) => {
         const hour = Math.floor(minute / 60);
         const min = minute % 60;
-        if (gapSize >= 60) {
-            // For 1h or 2h gaps, show just the hour
-            return dayjs().hour(hour).minute(min).format("h:mm A");
-        }
-        // For smaller gaps, show hour:minute
+
         return dayjs().hour(hour).minute(min).format("h:mm A");
     };
-    // headerHeight reserved if needed for absolute positioning
 
     return (
         <Box

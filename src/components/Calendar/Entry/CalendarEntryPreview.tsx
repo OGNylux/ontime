@@ -1,6 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import dayjs from "dayjs";
-import { formatDuration } from "./util/calendarUtility";
+import { formatDuration } from "../util/calendarUtility";
 
 interface Props {
     title: string;

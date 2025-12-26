@@ -70,12 +70,19 @@ export const taskService = {
         return data as Task[];
     },
 
-    async getTaskByName(name: string): Promise<Task | null> {
-        const { data, error } = await supabase
+    async getTaskByName(name: string, projectId?: string | null): Promise<Task | null> {
+        let query = supabase
             .from('ontime_task')
             .select('*')
-            .eq('name', name)
-            .maybeSingle();
+            .eq('name', name);
+        
+        if (projectId) {
+            query = query.eq('project_id', projectId);
+        } else {
+            query = query.is('project_id', null);
+        }
+
+        const { data, error } = await query.maybeSingle();
         
         if (error) throw error;
         return data as Task | null;

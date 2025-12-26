@@ -4,8 +4,8 @@ import dayjs from "dayjs";
 
 // Components
 import CalendarDayHeader from "./CalendarDayHeader";
-import CalendarEntryBlock from "./CalendarEntryBlock";
-import CalendarEntryPreview from "./CalendarEntryPreview";
+import CalendarEntryBlock from "./Entry/CalendarEntryBlock";
+import CalendarEntryPreview from "./Entry/CalendarEntryPreview";
 import CalendarCurrentTimeLine from "./CalendarCurrentTimeLine";
 
 // Hooks & Types

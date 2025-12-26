@@ -34,34 +34,22 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
                 top: topPosition,
                 left: 0,
                 right: 0,
-                height: 2,
-                bgcolor: "error.main",
+                height: 28,
                 zIndex: 20,
-                pointerEvents: "none",
+                pointerEvents: "none", // allow clicks to pass through except for interactive children
                 display: "flex",
                 alignItems: "center",
+                flexDirection: 'row',
             }}
         >
-            {/* Red line */}
-            <Box
-                sx={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    height: 2,
-                    bgcolor: "error.main",
-                }}
-            />
             
-            {/* Play button on the right */}
+            {/* Play button */}
             {onStartRecording && (
                 <Tooltip title="Start recording from now">
                     <IconButton
                         onClick={onStartRecording}
                         size="small"
                         sx={{
-                            position: "absolute",
-                            left: -4,
                             pointerEvents: "auto",
                             bgcolor: "error.main",
                             color: "white",
@@ -74,22 +62,33 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
                                 bgcolor: 'error.dark',
                             },
                             boxShadow: 1,
+                            flex: '0 0 auto',
                         }}
                     >
                         <PlayArrow sx={{ fontSize: 16 }} />
                     </IconButton>
                 </Tooltip>
             )}
-            
-            {/* Circle on the left */}
+
+            {/* Line that stretches between marker and button */}
             <Box
                 sx={{
-                    position: "absolute",
-                    right: 4,
+                    flex: 1,
+                    height: 2,
+                    bgcolor: "error.main",
+                    pointerEvents: 'none',
+                }}
+            />
+
+            {/* Left marker */}
+            <Box
+                sx={{
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
                     bgcolor: "error.main",
+                    flex: '0 0 auto',
+                    pointerEvents: 'none',
                 }}
             />
         </Box>

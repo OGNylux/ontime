@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Container, Box, Typography, Button, Grid, Alert } from "@mui/material";
 import AuthForm from "../../components/AuthForm";
-import { authService } from "../../services/authService";
-import { UserLoginRequestDto } from "../../dtos/request/UserLogin.request.dto";
+import { authService, User } from "../../services/authService";
 
 export default function LoginPage() {
     const navigate = useNavigate();
@@ -16,7 +15,7 @@ export default function LoginPage() {
         setError(null);
 
         try {
-            const request: UserLoginRequestDto = {
+            const request: User = {
                 email,
                 password
             };

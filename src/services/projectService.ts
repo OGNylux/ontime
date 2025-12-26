@@ -25,9 +25,12 @@ export const projectService = {
     },
 
     async createProject(request: Project): Promise<Project> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+        
         const { data, error } = await supabase
             .from('ontime_project')
-            .insert(request)
+            .insert({ ...request, created_by: user.id })
             .select(`
                 *,
                 client:ontime_client(*)

@@ -20,7 +20,7 @@ type AuthFormProps = {
 
 export default function AuthForm({ title, fields, onSubmit, submitLabel, extra }: AuthFormProps) {
     return (
-        <Box mt={4} p={3} boxShadow={3} borderRadius={2} maxWidth={400} width="100%">
+        <Box mt={4} p={3} boxShadow={3} borderRadius={2} maxWidth={400} width="100%" bgcolor="background.paper">
             <Typography variant="h5" component="h2" mb={3} textAlign="center">
                 {title}
             </Typography>

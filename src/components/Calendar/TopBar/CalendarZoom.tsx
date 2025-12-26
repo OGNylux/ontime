@@ -29,27 +29,27 @@ export default function CalendarZoom({ gapSize, onGapSizeChange }: CalendarZoomP
 
     return (
         <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Zoom in">
-                <span>
-                    <IconButton
-                        onClick={handleZoomIn}
-                        disabled={!canZoomIn}
-                        size="small"
-                        sx={{ border: 1, borderColor: 'divider' }}
-                    >
-                        <Add fontSize="small" />
-                    </IconButton>
-                </span>
-            </Tooltip>
             <Tooltip title="Zoom out">
                 <span>
                     <IconButton
                         onClick={handleZoomOut}
                         disabled={!canZoomOut}
                         size="small"
-                        sx={{ border: 1, borderColor: 'divider' }}
+                        sx={{ border: 1, borderColor: 'divider', p: 0.4, width: 32, height: 32, minWidth: 32 }}
                     >
-                        <Remove fontSize="small" />
+                        <Remove sx={{ fontSize: 18 }} />
+                    </IconButton>
+                </span>
+            </Tooltip>
+            <Tooltip title="Zoom in">
+                <span>
+                    <IconButton
+                        onClick={handleZoomIn}
+                        disabled={!canZoomIn}
+                        size="small"
+                        sx={{ border: 1, borderColor: 'divider', p: 0.4, width: 32, height: 32, minWidth: 32 }}
+                    >
+                        <Add sx={{ fontSize: 18 }} />
                     </IconButton>
                 </span>
             </Tooltip>

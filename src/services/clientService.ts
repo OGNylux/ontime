@@ -1,9 +1,19 @@
 import { supabase } from "../lib/supabase";
 
+export interface ClientInfo {
+    id?: string;
+    address?: string;
+    postal_code?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+}
+
 export interface Client {
-    id: string;
+    id?: string;
     name: string;
     info_id?: string;
+    info?: ClientInfo;
 }
 
 export const clientService = {
@@ -22,9 +32,30 @@ export const clientService = {
     },
 
     async createClient(request: Client): Promise<Client> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        let infoId = request.info_id;
+
+        if (request.info) {
+            const { ...infoData } = request.info;
+            const { data: newInfo, error: infoError } = await supabase
+                .from('ontime_client_info')
+                .insert({ ...infoData, created_by: user.id })
+                .select()
+                .single();
+            
+            if (infoError) throw infoError;
+            infoId = newInfo.id;
+        }
+
         const { data, error } = await supabase
             .from('ontime_client')
-            .insert(request)
+            .insert({
+                name: request.name,
+                info_id: infoId,
+                created_by: user.id
+            })
             .select(`
                 *,
                 info:ontime_client_info(*)
@@ -36,12 +67,21 @@ export const clientService = {
     },
 
     async updateClient(request: Client): Promise<Client> {
+        if (request.info && request.info_id) {
+            const { id, ...infoUpdates } = request.info;
+            const { error: infoError } = await supabase
+                .from('ontime_client_info')
+                .update(infoUpdates)
+                .eq('id', request.info_id);
+            if (infoError) throw infoError;
+        }
+
         const { data, error } = await supabase
             .from('ontime_client')
             .update({
                 name: request.name,
             })
-            .eq('id', request.info_id)
+            .eq('id', request.id)
             .select(`
                 *,
                 info:ontime_client_info(*)

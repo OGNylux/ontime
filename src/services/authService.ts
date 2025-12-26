@@ -1,9 +1,9 @@
 import { supabase } from "../lib/supabase";
 
-interface User {
+export interface User {
     email: string;
     password: string;
-    name: string;
+    name?: string;
 }
 
 export const authService = {
@@ -19,7 +19,7 @@ export const authService = {
 
     async register(request: User) {
         // 0. Check if user already exists (name or email)
-        const existsData = await this.checkAvailability(request.email, request.name);
+        const existsData = await this.checkAvailability(request.email, request.name!);
 
         if (existsData) {
             if (existsData.emailExists) {

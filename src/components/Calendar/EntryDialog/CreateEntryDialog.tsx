@@ -20,11 +20,12 @@ import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material"
 import { useState, useEffect } from "react";
 import ProjectSelector from "./ProjectSelector";
 import { Project } from "../../../services/projectService";
+import { taskService, Task } from "../../../services/taskService";
 
 interface CreateEntryDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (data: { startTime: string; endTime: string; taskName: string; isBillable: boolean; projectId?: string | null }) => void;
+    onSave: (data: { startTime: string; endTime: string; taskName: string; isBillable: boolean; projectId?: string | null; taskId?: string }) => void;
     anchorPosition: { top: number; left: number } | null;
     initialStartTime?: string;
     initialEndTime?: string;
@@ -59,6 +60,9 @@ export default function CreateEntryDialog({
     const [endTime, setEndTime] = useState(initialEndTime);
     const [isBillable, setIsBillable] = useState(initialIsBillable || false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [options, setOptions] = useState<Task[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
 
     // Reset form when dialog opens with new times
     useEffect(() => {
@@ -67,10 +71,37 @@ export default function CreateEntryDialog({
             setEndTime(initialEndTime);
             setTitle(initialTitle || "");
             setIsBillable(initialIsBillable || false);
+            setOptions([]);
+            setSelectedTaskId(undefined);
         }
     }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable]);
 
-    const options: { name: string }[] = []; // TODO: Load from task service
+    useEffect(() => {
+        let active = true;
+        const timer = setTimeout(async () => {
+            if (title.length < 3) {
+                if (active) setOptions([]);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const tasks = await taskService.searchTasks(title);
+                if (active) {
+                    setOptions(tasks);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (active) setLoading(false);
+            }
+        }, 300);
+
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [title]);
 
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -96,6 +127,7 @@ export default function CreateEntryDialog({
             taskName: title,
             isBillable,
             projectId: selectedProject?.id,
+            taskId: selectedTaskId,
         });
     };
 
@@ -127,6 +159,7 @@ export default function CreateEntryDialog({
             <Autocomplete
                 freeSolo
                 options={options}
+                loading={loading}
                 getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
                 renderInput={(params) => (
                     <TextField
@@ -138,7 +171,21 @@ export default function CreateEntryDialog({
                     />
                 )}
                 inputValue={title}
-                onInputChange={(_, value) => setTitle(value)}
+                onInputChange={(_, value) => {
+                    setTitle(value);
+                    // If user types, clear selected task ID unless it matches exactly (hard to know)
+                    // Safer to clear it and let backend resolve by name/project
+                    setSelectedTaskId(undefined);
+                }}
+                onChange={(_, value) => {
+                    if (value && typeof value === 'object') {
+                        setTitle(value.name);
+                        setSelectedTaskId(value.id);
+                        if (value.project_id) {
+                            setSelectedProject({ id: value.project_id } as Project);
+                        }
+                    }
+                }}
             />
             <Stack direction="row" spacing={1} alignItems="center">
                 <ProjectSelector selectedProjectId={selectedProject?.id} onSelect={setSelectedProject} />

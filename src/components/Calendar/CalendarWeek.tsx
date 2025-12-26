@@ -10,7 +10,7 @@ import CalendarNavigation from "./TopBar/CalendarNavigation";
 import CalendarViewSelector from "./TopBar/CalendarViewSelector";
 import Recorder from "./TopBar/Recorder";
 import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
-import EntryContextMenu from "./EntryContextMenu";
+import EntryContextMenu from "./EntryDialog/EntryContextMenu";
 
 // Hooks
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
@@ -177,6 +177,7 @@ export default function CalendarWeek() {
         taskName: string;
         isBillable: boolean;
         projectId?: string | null;
+        taskId?: string;
     }) => {
         try {
             if (dialogState.editingEntry) {
@@ -264,7 +265,6 @@ export default function CalendarWeek() {
                     <CalendarNavigation onPrev={prevWeek} onNext={nextWeek} onToday={goToToday} />
                     <Recorder 
                         addOrReplaceEntry={addOrReplaceEntry} 
-                        entriesByDate={entriesByDate}
                         onRecordingStart={(fn) => setStartRecordingFn(() => fn)}
                     />
                 </Stack>

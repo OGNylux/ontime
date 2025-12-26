@@ -62,6 +62,7 @@ export function useEntryPersistence({
         taskName?: string;
         isBillable: boolean;
         projectId?: string | null;
+        taskId?: string;
     }) => {
         const startDateTime = dayjs(data.dateStr)
             .hour(parseInt(data.startTime.split(":")[0]))
@@ -75,11 +76,17 @@ export function useEntryPersistence({
             .toISOString();
 
         // Resolve task
-        let taskId: string | undefined;
-        if (data.taskName?.trim()) {
-            let task = await taskService.getTaskByName(data.taskName.trim());
+        let taskId: string | undefined = data.taskId;
+        if (!taskId && data.taskName?.trim()) {
+            // Try to find existing task with same name AND project
+            let task = await taskService.getTaskByName(data.taskName.trim(), data.projectId);
+            
             if (!task) {
-                task = await taskService.createTask({ name: data.taskName.trim() });
+                // Create new task if not found
+                task = await taskService.createTask({ 
+                    name: data.taskName.trim(),
+                    project_id: data.projectId ?? undefined
+                });
             }
             taskId = task.id;
         }
@@ -122,6 +129,7 @@ export function useEntryPersistence({
             taskName?: string;
             isBillable: boolean;
             projectId?: string | null;
+            taskId?: string;
         }
     ) => {
         const existing = findEntry(entryId);
@@ -139,11 +147,17 @@ export function useEntryPersistence({
             .toISOString();
 
         // Resolve task
-        let taskId: string | undefined;
-        if (data.taskName?.trim()) {
-            let task = await taskService.getTaskByName(data.taskName.trim());
+        let taskId: string | undefined = data.taskId;
+        if (!taskId && data.taskName?.trim()) {
+            // Try to find existing task with same name AND project
+            let task = await taskService.getTaskByName(data.taskName.trim(), data.projectId);
+            
             if (!task) {
-                task = await taskService.createTask({ name: data.taskName.trim() });
+                // Create new task if not found
+                task = await taskService.createTask({ 
+                    name: data.taskName.trim(),
+                    project_id: data.projectId ?? undefined
+                });
             }
             taskId = task.id;
         }

@@ -1,7 +1,7 @@
 import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import { CalendarEntry } from "../../services/calendarService";
+import { CalendarEntry } from "../../../services/calendarService";
 
 interface EntryContextMenuProps {
     contextMenu: { mouseX: number; mouseY: number; entry: CalendarEntry } | null;
