@@ -11,30 +11,33 @@ interface CalendarCurrentTimeLineProps {
 export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecording }: CalendarCurrentTimeLineProps) {
     const [currentMinute, setCurrentMinute] = useState(() => {
         const now = dayjs();
-        return now.hour() * 60 + now.minute();
+        return now.hour() * 60 + now.minute() + now.second() / 60;
     });
 
-    // Update current time every minute
+    // Update current time every second for smooth movement
     useEffect(() => {
         const updateTime = () => {
             const now = dayjs();
-            setCurrentMinute(now.hour() * 60 + now.minute());
+            setCurrentMinute(now.hour() * 60 + now.minute() + now.second() / 60);
         };
 
-        const interval = setInterval(updateTime, 60000); // Update every minute
+        const interval = setInterval(updateTime, 1000); // Update every second
         return () => clearInterval(interval);
     }, []);
 
     const topPosition = currentMinute * pixelsPerMinute;
+    const containerHeight = 28;
+    // Offset to center the container on the actual time position
+    const centeredTop = topPosition - containerHeight / 2;
 
     return (
         <Box
             sx={{
                 position: "absolute",
-                top: topPosition,
+                top: centeredTop,
                 left: 0,
                 right: 0,
-                height: 28,
+                height: containerHeight,
                 zIndex: 20,
                 pointerEvents: "none", // allow clicks to pass through except for interactive children
                 display: "flex",

@@ -1,10 +1,12 @@
 import { supabase } from "../lib/supabase";
+import { CalendarEntry } from "./calendarService";
 
 export interface Task {
     id?: string;
     project_id?: string;
     name: string;
     color?: string;
+    calendar_entries?: CalendarEntry[];
 }
 
 export const taskService = {

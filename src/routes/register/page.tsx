@@ -4,16 +4,16 @@ import React, { useState } from "react";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Grid from "@mui/material/Grid";
 import { Link as RouterLink } from "react-router-dom";
-import AuthForm from "../../components/AuthForm";
-import { authService } from "../../services/authService";
-import { UserRegisterRequestDto } from "../../dtos/request/UserRegister.request.dto";
+import Link from '@mui/material/Link';
+import AuthForm from "../../components/Forms/AuthForm";
+import { authService, User } from "../../services/authService";
+import { Alert } from "@mui/material";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [_, setSuccess] = useState<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -25,79 +25,79 @@ export default function RegisterPage() {
   const [passwordRepeat, setPasswordRepeat] = useState("");
 
   const checkAvailability = async () => {
-      // Only check if we have values to check
-      if (!email && !name) return;
-      
-      try {
-          const result = await authService.checkAvailability(email, name);
-          
-          if (email && result.emailExists) {
-              setEmailError("Email already registered");
-          } else {
-              setEmailError(null);
-          }
+    // Only check if we have values to check
+    if (!email && !name) return;
 
-          if (name && result.nameExists) {
-              setNameError("Username already taken");
-          } else {
-              setNameError(null);
-          }
-      } catch (err) {
-          console.error("Failed to check availability", err);
+    try {
+      const result = await authService.checkAvailability(email, name);
+
+      if (email && result.emailExists) {
+        setEmailError("Email already registered");
+      } else {
+        setEmailError(null);
       }
+
+      if (name && result.nameExists) {
+        setNameError("Username already taken");
+      } else {
+        setNameError(null);
+      }
+    } catch (err) {
+      console.error("Failed to check availability", err);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    
+
     // Don't submit if there are validation errors
     if (emailError || nameError) return;
 
-    if(password == passwordRepeat) {
-        try {
-            const request: UserRegisterRequestDto = {
-                name,
-                email,
-                password
-            };
-            await authService.register(request);
-            setSuccess("Registration successful! Please check your email.");
-            setError(null);
-        } catch (error: any) {
-            setError(error.message || "Registration denied with provided credentials");
-            setSuccess(null);
-        }
-    } else {
-        setError("Passwords don't match");
+    if (password == passwordRepeat) {
+      try {
+        const request: User = {
+          name,
+          email,
+          password
+        };
+        await authService.register(request);
+        setSuccess("Registration successful! Please check your email.");
+        setError(null);
+      } catch (error: any) {
+        setError(error.message || "Registration denied with provided credentials");
         setSuccess(null);
+      }
+    } else {
+      setError("Passwords don't match");
+      setSuccess(null);
     }
 
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box my={4} display="flex" flexDirection="column" alignItems="center">
-        <Typography variant="h4" component="h1" sx={{ mb: 2 }}>
-          {error ? error : success}
-        </Typography>
+    <Container maxWidth="lg" className="h-full flex items-center justify-center">
+      <Box display="flex" flexDirection="column" alignItems="center" width="100%">
+        {error && <Alert severity="error" className="mb-2 w-full max-w-96">{error}</Alert>}
         <AuthForm
           title="Register"
           fields={[
             {
               label: "Email",
               type: "email",
+              placeholder: "user@example.com",
               value: email,
-              onChange: (e) => setEmail(e.target.value),
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value),
               onBlur: checkAvailability,
               required: true,
               error: !!emailError,
               helperText: emailError || "",
             },
             {
-              label: "Name",
+              label: "Username",
               type: "text",
+              placeholder: "Choose a username",
               value: name,
-              onChange: (e) => setName(e.target.value),
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value),
               onBlur: checkAvailability,
               required: true,
               error: !!nameError,
@@ -106,15 +106,17 @@ export default function RegisterPage() {
             {
               label: "Password",
               type: "password",
+              placeholder: "Create a password",
               value: password,
-              onChange: (e) => setPassword(e.target.value),
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value),
               required: true,
             },
             {
               label: "Repeat Password",
               type: "password",
+              placeholder: "Repeat your password",
               value: passwordRepeat,
-              onChange: (e) => setPasswordRepeat(e.target.value),
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPasswordRepeat(e.target.value),
               required: true,
             },
           ]}
@@ -123,16 +125,11 @@ export default function RegisterPage() {
           extra={
             <Grid>
               <Typography variant="body2" mt={2} textAlign="center">
-                Already have an account? <RouterLink to="/login">Login here</RouterLink>
+                Already have an account? <Link component={RouterLink} to="/login" color="primary">Login here</Link>
               </Typography>
             </Grid>
           }
         />
-        <Box maxWidth="sm" mt={2}>
-          <Button variant="contained" component={RouterLink} to="/">
-            Go to the home page
-          </Button>
-        </Box>
       </Box>
     </Container>
   );

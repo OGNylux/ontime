@@ -10,7 +10,7 @@ import CalendarCurrentTimeLine from "./CalendarCurrentTimeLine";
 
 // Hooks & Types
 import { CalendarEntry } from "../../services/calendarService";
-import { MINUTES_PER_DAY, assignEntryLayout } from "./util/calendarUtility";
+import { MINUTES_PER_DAY, ResizeHandlePosition, assignEntryLayout } from "./util/calendarUtility";
 import { useCalendarDrag } from "./hooks/useCalendarDrag";
 import { MoveState } from "./hooks/useEntryMove";
 import { ResizeState } from "./hooks/useEntryResize";
@@ -35,7 +35,7 @@ interface CalendarDayProps {
     onEntryContextMenu?: (entry: CalendarEntry, anchor?: { top: number; left: number } | null) => void;
     onDragEnd?: (preview: { startMinute: number; endMinute: number } | null) => void;
     onEntryDragStart?: (dateStr: string, entryId: string, pointerOffset: number, clientX: number, clientY: number) => void;
-    onEntryResizeStart?: (dateStr: string, entryId: string, handle: "top" | "bottom", clientY: number) => void;
+    onEntryResizeStart?: (dateStr: string, entryId: string, handle: ResizeHandlePosition, clientY: number) => void;
     onStartRecording?: () => void;
     // Preview state
     persistentDragPreview?: { startMinute: number; endMinute: number } | null;
@@ -150,7 +150,7 @@ export default function CalendarDay({
                 <CalendarEntryPreview
                     title=""
                     top={dragPreview.top}
-                    height={Math.max(dragPreview.height, 20)}
+                    height={Math.max(dragPreview.height, 5)}
                     left={4}
                     right={4}
                     zIndex={5}
@@ -179,7 +179,7 @@ export default function CalendarDay({
                         startIso={dayjs(dateStr).startOf("day").add(clampedStart, "minute").toISOString()}
                         endIso={dayjs(dateStr).startOf("day").add(clampedEnd, "minute").toISOString()}
                         top={clampedStart * pixelsPerMinute}
-                        height={Math.max((clampedEnd - clampedStart) * pixelsPerMinute, 20)}
+                        height={Math.max((clampedEnd - clampedStart) * pixelsPerMinute, 5)}
                         left={4}
                         right={4}
                         zIndex={10}
@@ -195,7 +195,7 @@ export default function CalendarDay({
                 <CalendarEntryPreview
                     title={title}
                     top={0}
-                    height={Math.max(overflowEnd * pixelsPerMinute, 20)}
+                    height={Math.max(overflowEnd * pixelsPerMinute, 5)}
                     left={4}
                     right={4}
                     zIndex={10}
@@ -212,7 +212,7 @@ export default function CalendarDay({
                     <CalendarEntryPreview
                         title={title}
                         top={underflowStart * pixelsPerMinute}
-                        height={Math.max((underflowEnd - underflowStart) * pixelsPerMinute, 20)}
+                        height={Math.max((underflowEnd - underflowStart) * pixelsPerMinute, 5)}
                         left={4}
                         right={4}
                         zIndex={10}

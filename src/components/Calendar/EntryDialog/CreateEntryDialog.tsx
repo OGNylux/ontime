@@ -19,6 +19,7 @@ import {
 import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 import ProjectSelector from "./ProjectSelector";
+import ConfirmDialog from "../../Forms/ConfirmDialog";
 import { Project } from "../../../services/projectService";
 import { taskService, Task } from "../../../services/taskService";
 
@@ -114,10 +115,21 @@ export default function CreateEntryDialog({
 
     const handleDelete = () => {
         if (!editingEntryId) return;
-        if (confirm("Delete this entry?")) {
-            onDelete && onDelete(editingEntryId);
-            handleMenuClose();
-        }
+        // Open custom confirmation dialog
+        handleMenuClose();
+        setConfirmOpen(true);
+    };
+
+    const [confirmOpen, setConfirmOpen] = useState(false);
+
+    const handleConfirmCancel = () => {
+        setConfirmOpen(false);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!editingEntryId) return;
+        onDelete && onDelete(editingEntryId);
+        setConfirmOpen(false);
     };
 
     const handleSave = () => {
@@ -257,22 +269,43 @@ export default function CreateEntryDialog({
                     {isEdit ? "Edit Entry" : "Create New Entry"}
                 </Typography>
                 {content}
+                <ConfirmDialog
+                    open={confirmOpen}
+                    onClose={handleConfirmCancel}
+                    onConfirm={handleConfirmDelete}
+                    title="Delete Entry"
+                    message="Are you sure you want to delete this entry?"
+                    confirmLabel="Delete"
+                    confirmColor="error"
+                />
             </SwipeableDrawer>
         );
     }
 
     return (
-        <Popover
-            open={open}
-            onClose={onClose}
-            anchorReference="anchorPosition"
-            anchorPosition={anchorPosition ? anchorPosition : undefined}
-            transformOrigin={{
-                vertical: 'center',
-                horizontal: 'left',
-            }}
-        >
-            {content}
-        </Popover>
+        <>
+            <Popover
+                open={open}
+                onClose={onClose}
+                anchorReference="anchorPosition"
+                anchorPosition={anchorPosition ? anchorPosition : undefined}
+                transformOrigin={{
+                    vertical: 'center',
+                    horizontal: 'left',
+                }}
+            >
+                {content}
+            </Popover>
+
+            <ConfirmDialog
+                open={confirmOpen}
+                onClose={handleConfirmCancel}
+                onConfirm={handleConfirmDelete}
+                title="Delete Entry"
+                message="Are you sure you want to delete this entry?"
+                confirmLabel="Delete"
+                confirmColor="error"
+            />
+        </>
     );
 }

@@ -1,4 +1,4 @@
-import { Box, Container, Stack, useMediaQuery } from "@mui/material";
+import { Box, Stack, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useState, useCallback, useRef, useEffect } from "react";
 import dayjs from "dayjs";
@@ -11,6 +11,7 @@ import CalendarViewSelector from "./TopBar/CalendarViewSelector";
 import Recorder from "./TopBar/Recorder";
 import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
 import EntryContextMenu from "./EntryDialog/EntryContextMenu";
+import ConfirmDialog from "../Forms/ConfirmDialog";
 
 // Hooks
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
@@ -21,7 +22,7 @@ import { useEntryPersistence } from "./hooks/useEntryPersistence";
 
 // Types & Utils
 import { CalendarEntry } from "../../services/calendarService";
-import { minutesToTime } from "./util/calendarUtility";
+import { minutesToTime, ResizeHandlePosition } from "./util/calendarUtility";
 import { GapSize } from "./TopBar/CalendarZoom";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,6 +75,8 @@ export default function CalendarWeek() {
     const [gapSize, setGapSize] = useState<GapSize>(60);
     const [dialogState, setDialogState] = useState<DialogState>(INITIAL_DIALOG_STATE);
     const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+    const [confirmContextDeleteOpen, setConfirmContextDeleteOpen] = useState(false);
+    const [contextDeleteTargetId, setContextDeleteTargetId] = useState<string | null>(null);
     const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
     const [startRecordingFn, setStartRecordingFn] = useState<(() => void) | null>(null);
 
@@ -234,7 +237,7 @@ export default function CalendarWeek() {
         beginMove({ dateStr, entryId, pointerOffset, clientX, clientY });
     }, [beginMove]);
 
-    const handleResizeStart = useCallback((dateStr: string, entryId: string, handle: "top" | "bottom", clientY: number) => {
+    const handleResizeStart = useCallback((dateStr: string, entryId: string, handle: ResizeHandlePosition, clientY: number) => {
         beginResize({ dateStr, entryId, handle, clientY });
     }, [beginResize]);
 
@@ -253,35 +256,39 @@ export default function CalendarWeek() {
             {/* Top Bar */}
             <Box
                 sx={{
-                    px: { xs: 1, md: 2 },
                     py: 1,
                     borderBottom: t => `1px solid ${t.palette.divider}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    gap: 2,
+                    flexWrap: { xs: "wrap", lg: "nowrap" },
                 }}
             >
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <CalendarNavigation onPrev={prevWeek} onNext={nextWeek} onToday={goToToday} />
+                </Stack>
+
+                <Box sx={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}>
                     <Recorder 
                         addOrReplaceEntry={addOrReplaceEntry} 
                         onRecordingStart={(fn) => setStartRecordingFn(() => fn)}
                     />
-                </Stack>
-                <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
+                </Box>
             </Box>
 
             {/* Calendar Grid */}
-            <Container
+            <Box
                 ref={scrollContainerRef}
                 className="scrollbar-hide"
-                disableGutters
-                maxWidth={false}
                 sx={{
                     flex: 1,
                     overflowX: "auto",
                     overflowY: "auto",
-                    px: { xs: 1, md: 2 },
                     pb: { xs: 1, md: 2 },
                     WebkitOverflowScrolling: "touch",
                     ...(moveState && { overflow: "hidden", touchAction: "none" }),
@@ -321,7 +328,7 @@ export default function CalendarWeek() {
                         ))}
                     </Box>
                 </Stack>
-            </Container>
+            </Box>
 
             {/* Dialogs */}
             <CreateEntryDialog
@@ -344,7 +351,27 @@ export default function CalendarWeek() {
                 contextMenu={contextMenu}
                 onClose={() => setContextMenu(null)}
                 onDuplicate={persistence.duplicateEntry}
-                onDelete={persistence.deleteEntry}
+                onDelete={(id: string) => {
+                    setContextDeleteTargetId(id);
+                    setConfirmContextDeleteOpen(true);
+                }}
+            />
+
+            <ConfirmDialog
+                open={confirmContextDeleteOpen}
+                onClose={() => { setConfirmContextDeleteOpen(false); setContextDeleteTargetId(null); }}
+                onConfirm={async () => {
+                    if (contextDeleteTargetId) {
+                        await persistence.deleteEntry(contextDeleteTargetId);
+                    }
+                    setConfirmContextDeleteOpen(false);
+                    setContextDeleteTargetId(null);
+                    setContextMenu(null);
+                }}
+                title="Delete Entry"
+                message="Are you sure you want to delete this entry?"
+                confirmLabel="Delete"
+                confirmColor="error"
             />
         </Box>
     );

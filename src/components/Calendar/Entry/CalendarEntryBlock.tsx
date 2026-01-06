@@ -10,6 +10,7 @@ import { CalendarEntry } from "../../../services/calendarService";
 import { MINUTES_PER_HOUR, formatDuration } from "../util/calendarUtility";
 import { useEntryTouch } from "../hooks/useEntryTouch";
 import { useEntryPointer } from "../hooks/useEntryPointer";
+import { edgeType } from "../../oldCalendar/hooks/useEntryResize";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -21,7 +22,7 @@ interface CalendarEntryBlockProps {
     onClick?: (entry: CalendarEntry, ev?: MouseEvent) => void;
     onContextMenu?: (entry: CalendarEntry, ev?: MouseEvent) => void;
     onDragStart?: (clientX: number, clientY: number) => void;
-    onResizeStart?: (handle: "top" | "bottom", clientY: number) => void;
+    onResizeStart?: (handle: edgeType, clientY: number) => void;
     isDragging?: boolean;
     isPreview?: boolean;
     widthPercent?: number;
@@ -41,14 +42,16 @@ function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number) {
     const startTime = dayjs(entry.start_time);
     const endTime = dayjs(entry.end_time);
 
-    const startMinutes = entry.visualStartMinute ?? startTime.hour() * MINUTES_PER_HOUR + startTime.minute();
-    const durationMinutes = entry.visualDuration ?? endTime.diff(startTime, "minute");
+    // Include seconds for more precise positioning
+    const startMinutes = entry.visualStartMinute ?? 
+        (startTime.hour() * MINUTES_PER_HOUR + startTime.minute() + startTime.second() / 60);
+    const durationMinutes = entry.visualDuration ?? endTime.diff(startTime, "minute", true);
 
     const pixelsPerMinute = hourHeight / MINUTES_PER_HOUR;
 
     return {
         top: startMinutes * pixelsPerMinute,
-        height: Math.max(durationMinutes * pixelsPerMinute, 20),
+        height: Math.max(durationMinutes * pixelsPerMinute, 5),
         durationMinutes: Math.max(0, Math.round(durationMinutes)),
     };
 }
@@ -142,7 +145,7 @@ export default function CalendarEntryBlock({
         window.addEventListener("mouseup", onUp);
     }, [isPreview, isDragging, onDragStart]);
 
-    const handleResize = useCallback((handle: "top" | "bottom", clientY: number) => {
+    const handleResize = useCallback((handle: edgeType, clientY: number) => {
         isResizingRef.current = true;
         resizeTimestamp.current = Date.now();
         onResizeStart?.(handle, clientY);
@@ -166,6 +169,11 @@ export default function CalendarEntryBlock({
         onContextMenu?.(entry, e);
     }, [entry, onContextMenu]);
 
+    const handleResizeHandleClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        onClick?.(entry, e as MouseEvent<HTMLDivElement>);
+    }, [entry, onClick]);
+
     // ─────────────────────────────────────────────────────────────────────────
     // Layout Calculations
     // ─────────────────────────────────────────────────────────────────────────
@@ -175,6 +183,7 @@ export default function CalendarEntryBlock({
     const title = entry.task?.name || "";
     const duration = formatDuration(durationMinutes);
     const showDuration = height >= 40;
+    const showTitle = height >= 15;
     const showResizeHandles = !isPreview && !isDragging;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -196,7 +205,7 @@ export default function CalendarEntryBlock({
                 height,
                 backgroundColor,
                 borderRadius: 1,
-                padding: 0.5,
+                padding: height < 15 ? 0 : 0.5,
                 overflow: "hidden",
                 boxSizing: "border-box",
                 cursor: isDragging ? "grabbing" : "pointer",
@@ -218,23 +227,26 @@ export default function CalendarEntryBlock({
                     position="top"
                     onMouseDown={e => { e.stopPropagation(); e.preventDefault(); handleResize("top", e.clientY); }}
                     onTouchStart={e => { e.stopPropagation(); e.preventDefault(); handleResize("top", e.touches[0]?.clientY); }}
+                    onClick={handleResizeHandleClick}
                 />
             )}
 
-            <Typography
-                variant="caption"
-                sx={{
-                    color: "white",
-                    fontWeight: 600,
-                    display: "block",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontSize: height < 40 ? "0.65rem" : "0.75rem",
-                }}
-            >
-                {title}
-            </Typography>
+            {showTitle && (
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: "white",
+                        fontWeight: 600,
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: height < 40 ? "0.65rem" : "0.75rem",
+                    }}
+                >
+                    {title}
+                </Typography>
+            )}
 
             {showDuration && (
                 <Typography
@@ -256,6 +268,7 @@ export default function CalendarEntryBlock({
                 <CalendarEntryResizeHandle
                     position="bottom"
                     onMouseDown={e => { e.stopPropagation(); e.preventDefault(); handleResize("bottom", e.clientY); }}
+                    onClick={handleResizeHandleClick}
                     onTouchStart={e => { e.stopPropagation(); e.preventDefault(); handleResize("bottom", e.touches[0]?.clientY); }}
                 />
             )}

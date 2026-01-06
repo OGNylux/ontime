@@ -90,11 +90,13 @@ export function assignEntryLayout(
             const dayEnd = dayStart.endOf('day');
             const clampedStart = start.isBefore(dayStart) ? dayStart : start;
             const clampedEnd = end.isAfter(dayEnd) ? dayEnd : end;
-            startMinute = clampedStart.hour() * MINUTES_PER_HOUR + clampedStart.minute();
-            endMinute = clampedEnd.hour() * MINUTES_PER_HOUR + clampedEnd.minute();
+            // Include seconds for precise positioning
+            startMinute = clampedStart.hour() * MINUTES_PER_HOUR + clampedStart.minute() + clampedStart.second() / 60;
+            endMinute = clampedEnd.hour() * MINUTES_PER_HOUR + clampedEnd.minute() + clampedEnd.second() / 60;
         } else {
-            startMinute = start.hour() * MINUTES_PER_HOUR + start.minute();
-            const duration = end.diff(start, 'minute');
+            // Include seconds for precise positioning
+            startMinute = start.hour() * MINUTES_PER_HOUR + start.minute() + start.second() / 60;
+            const duration = end.diff(start, 'minute', true); // true for floating point
             endMinute = startMinute + duration;
         }
         
