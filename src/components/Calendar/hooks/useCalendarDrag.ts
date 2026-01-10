@@ -8,16 +8,16 @@ interface DragState {
     currentMinute: number;
 }
 
-
 interface UseCalendarDragProps {
     hourHeight: number;
     dateStr: string;
     isTouchDevice: boolean;
+    gapSize: number;
     onCreateEntry: (dateStr: string, startMinute: number, endMinute: number, anchorPosition: { top: number; left: number }) => void;
     onDragEnd?: (info: { startMinute: number; endMinute: number } | null) => void;
 }
 
-export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, onCreateEntry, onDragEnd }: UseCalendarDragProps) {
+export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, gapSize, onCreateEntry, onDragEnd }: UseCalendarDragProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dragState, setDragState] = useState<DragState>({
         isDragging: false,
@@ -70,10 +70,10 @@ export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, onCreateEn
         const startMinute = Math.min(dragState.startMinute, endMinute);
         const finalEndMinute = Math.max(dragState.startMinute, endMinute);
 
-        // If it's a click (no drag), default to 1 hour duration
+        // If it's a click (no drag), default to gap size duration
         const isClick = Math.abs(finalEndMinute - startMinute) < INTERVAL_MINUTES;
         const adjustedEndMinute = isClick 
-            ? clampMinute(startMinute + 60) 
+            ? clampMinute(startMinute + gapSize) 
             : finalEndMinute;
 
         // Get anchor position for the popover
@@ -104,7 +104,7 @@ export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, onCreateEn
 
         const minute = getMinuteFromY(e.clientY);
         const startMinute = snap(minute);
-        const endMinute = clampMinute(startMinute + 60);
+        const endMinute = clampMinute(startMinute + gapSize);
 
         const anchorPosition = {
             top: e.clientY,

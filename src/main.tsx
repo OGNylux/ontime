@@ -6,14 +6,14 @@ import LoginPage from "./routes/login/page";
 import "./App.css";
 import RegisterPage from "./routes/register/page";
 import ProjectsPage from "./routes/projects/page";
-import CreateTaskPage from "./routes/tasks/create/page";
-import CreateClientPage from "./routes/clients/create/page";
+import ClientsPage from "./routes/clients/page";
+import TasksPage from "./routes/tasks/page";
 import Navbar from "./components/Navigation/Navbar";
 import Sidebar from "./components/Navigation/Sidebar";
 import BottomAppBar from "./components/Navigation/BottomAppBar";
 import { supabase } from "./lib/supabase";
 import type { User } from "@supabase/supabase-js";
-import { ThemeProvider } from "@emotion/react";
+import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, Box, useMediaQuery, useTheme } from "@mui/material";
 import theme from "./theme";
 import { platform } from "@tauri-apps/plugin-os";
@@ -67,19 +67,19 @@ function AppLayout() {
   }, [location.pathname, navigate]);
 
   return (
-    <Box bgcolor="background.paper" sx={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
       {/* Desktop: Top Navbar */}
       {!isTauriMobile && !hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
       
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'row', 
-        pt: (!isTauriMobile && !hideNav) ? { xs: 7, md: 8 } : 0, 
-        pb: (isTauriMobile && !hideNav) ? '80px' : 0,
-        flex: 1, 
-        minHeight: 0, 
-        overflow: 'hidden' 
-      }}>
+      <Box 
+        display="flex"
+        flexDirection="row"
+        pt={(!isTauriMobile && !hideNav) ? { xs: 7, md: 8 } : 0}
+        pb={(isTauriMobile && !hideNav) ? '80px' : 0}
+        flex={1}
+        minHeight={0}
+        overflow="hidden"
+      >
         {/* Desktop: Sidebar */}
         {!isTauriMobile && !hideNav && (
           <Sidebar 
@@ -96,8 +96,8 @@ function AppLayout() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/tasks/create" element={<CreateTaskPage />} />
-            <Route path="/clients/create" element={<CreateClientPage />} />
+            <Route path="/clients" element={<ClientsPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
           </Routes>
         </Box>
       </Box>

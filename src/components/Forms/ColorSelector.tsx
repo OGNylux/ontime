@@ -36,18 +36,18 @@ export default function ColorSelector({ value, onChange }: ColorSelectorProps) {
                     const index = Number(v);
                     const colorObj = TAILWIND_COLORS[index];
                     return (
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Box sx={{
-                                width: 32,
-                                height: 32,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                border: '2px solid',
-                                borderColor: 'primary.main',
-                                boxSizing: 'border-box',
-                            }}>
+                        <Box display="flex" alignItems="center">
+                            <Box 
+                                width={32}
+                                height={32}
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                borderRadius="50%"
+                                border="2px solid"
+                                borderColor="primary.main"
+                                boxSizing="border-box"
+                            >
                                 <div className={`w-6 h-6 rounded-full ${colorObj?.value}`} />
                             </Box>
                         </Box>
@@ -74,21 +74,23 @@ export default function ColorSelector({ value, onChange }: ColorSelectorProps) {
                         }}
                     >
                         <Tooltip title={colorOption.name} enterDelay={200} followCursor>
-                            <Box sx={{
-                                width: 36,
-                                height: 36,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                boxSizing: 'border-box',
-                                border: '2px solid',
-                                borderColor: index === value ? 'primary.main' : 'transparent',
-                                transition: 'border-color 0.2s',
-                                '&:hover': {
-                                    borderColor: index === value ? 'primary.main' : 'primary.light',
-                                },
-                            }}>
+                            <Box 
+                                width={36}
+                                height={36}
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                borderRadius="50%"
+                                boxSizing="border-box"
+                                border="2px solid"
+                                borderColor={index === value ? 'primary.main' : 'transparent'}
+                                sx={{
+                                    transition: 'border-color 0.2s',
+                                    '&:hover': {
+                                        borderColor: index === value ? 'primary.main' : 'primary.light',
+                                    },
+                                }}
+                            >
                                 <div className={`w-6 h-6 rounded-full ${colorOption.value}`} />
                             </Box>
                         </Tooltip>

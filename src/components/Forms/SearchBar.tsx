@@ -18,7 +18,7 @@ export default function SearchBar({
     endAdornment,
 }: SearchBarProps) {
     return (
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box display="flex" gap={2} alignItems="center">
             <TextField
                 placeholder={placeholder}
                 value={value}

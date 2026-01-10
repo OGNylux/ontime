@@ -1,8 +1,5 @@
 import { supabase } from "../lib/supabase";
 import dayjs from "dayjs";
-import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-
-dayjs.extend(isSameOrBefore);
 import { Task } from "./taskService";
 import { Project } from "./projectService";
 
@@ -21,7 +18,6 @@ export interface CalendarEntry {
 
 export const calendarService = {
     async getEntries(startDate: string, endDate: string): Promise<CalendarEntry[]> {
-        // Convert YYYY-MM-DD to ISO timestamps for querying
         const start = dayjs(startDate).startOf('day').toISOString();
         const end = dayjs(endDate).endOf('day').toISOString();
 
@@ -30,7 +26,7 @@ export const calendarService = {
             .select(`
                 *,
                 task:ontime_task(*),
-                project:ontime_project(*)
+                project:ontime_project(*, client:ontime_client(*))
             `)
             .gte('start_time', start)
             .lte('start_time', end);
@@ -43,11 +39,6 @@ export const calendarService = {
     async createEntry(request: Omit<CalendarEntry, 'id'>): Promise<CalendarEntry> {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("User not authenticated");
-
-        // Debug: log incoming project_id to help track why projects aren't being saved
-        // (remove this log after debugging)
-        // eslint-disable-next-line no-console
-        console.log('calendarService.createEntry project_id:', request.project_id);
 
         const { data, error } = await supabase
             .from('ontime_calendar_entry')
@@ -62,43 +53,67 @@ export const calendarService = {
             .select(`
                 *,
                 task:ontime_task(*),
-                project:ontime_project(*)
+                project:ontime_project(*, client:ontime_client(*))
             `)
             .single();
 
         if (error) throw error;
 
-        return data as CalendarEntry;
+        const entry = data as CalendarEntry;
+
+        // If a task is associated with this entry, ensure the task has the same project set.
+        try {
+            if (request.task_id && request.project_id) {
+                const { error: taskError } = await supabase
+                    .from('ontime_task')
+                    .update({ project_id: request.project_id })
+                    .eq('id', request.task_id);
+
+                if (taskError) console.error('Failed to update task project_id for task', request.task_id, taskError);
+            }
+        } catch (e) {
+            console.error('Error updating task project_id after creating calendar entry', e);
+        }
+
+        return entry;
     },
 
-    async updateEntry(id: string, updates: Partial<{
-        task_id: string | null;
-        project_id: string | null;
-        is_billable: boolean | null;
-        start_time: string | null;
-        end_time: string | null;
-    }>): Promise<CalendarEntry> {
-        const payload: Record<string, any> = {};
-        if (updates.task_id !== undefined) payload.task_id = updates.task_id;
-        if (updates.project_id !== undefined) payload.project_id = updates.project_id;
-        if (updates.is_billable !== undefined) payload.is_billable = updates.is_billable;
-        if (updates.start_time !== undefined) payload.start_time = updates.start_time;
-        if (updates.end_time !== undefined) payload.end_time = updates.end_time;
 
+    async updateEntry(id: string, request: Partial<CalendarEntry>): Promise<CalendarEntry> {
         const { data, error } = await supabase
             .from('ontime_calendar_entry')
-            .update(payload)
+            .update({
+                task_id: request.task_id,
+                project_id: request.project_id,
+                is_billable: request.is_billable,
+                start_time: request.start_time,
+                end_time: request.end_time,
+            })
             .eq('id', id)
             .select(`
                 *,
                 task:ontime_task(*),
-                project:ontime_project(*)
+                project:ontime_project(*, client:ontime_client(*))
             `)
             .single();
-
         if (error) throw error;
+        const entry = data as CalendarEntry;
 
-        return data as CalendarEntry;
+        // If a task is associated with this entry, ensure the task has the same project set.
+        try {
+            if (request.task_id && request.project_id) {
+                const { error: taskError } = await supabase
+                    .from('ontime_task')
+                    .update({ project_id: request.project_id })
+                    .eq('id', request.task_id);
+
+                if (taskError) console.error('Failed to update task project_id for task', request.task_id, taskError);
+            }
+        } catch (e) {
+            console.error('Error updating task project_id after updating calendar entry', e);
+        }
+
+        return entry;
     },
 
     async deleteEntry(id: string): Promise<void> {
@@ -116,7 +131,7 @@ export const calendarService = {
             .select(`
                 *,
                 task:ontime_task(*),
-                project:ontime_project(*)
+                project:ontime_project(*, client:ontime_client(*))
             `)
             .eq('id', id)
             .single();

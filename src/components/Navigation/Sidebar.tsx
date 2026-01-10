@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Drawer, Box, IconButton, Divider, Typography } from '@mui/material';
+import { Drawer, Box, IconButton, Divider, Typography, Theme } from '@mui/material';
 import {
   Timer,
   Add,
@@ -28,18 +28,17 @@ const NAV_SECTIONS: NavSection[] = [
     icon: <Timer />,
     paths: ['/timer'],
     subItems: [
-      { label: 'Calendar', path: '/timer', pathMatch: 'exact' },
-      { label: 'List View', path: '/timer/list', pathMatch: 'exact' },
+      { label: 'Calendar', path: '/timer', pathMatch: 'exact' }
     ],
   },
   {
     label: 'Create',
     icon: <Add />,
-    paths: ['/clients/create', '/projects', '/tasks/create'],
+    paths: ['/clients', '/projects', '/tasks'],
     subItems: [
-      { label: 'Client', path: '/clients/create', pathMatch: 'startsWith' },
-      { label: 'Project', path: '/projects', pathMatch: 'startsWith' },
-      { label: 'Task', path: '/tasks/create', pathMatch: 'startsWith' },
+      { label: 'Clients', path: '/clients', pathMatch: 'startsWith' },
+      { label: 'Projects', path: '/projects', pathMatch: 'startsWith' },
+      { label: 'Tasks', path: '/tasks', pathMatch: 'startsWith' },
     ],
   },
 ];
@@ -48,7 +47,7 @@ const drawerPaperSx = {
   width: 280,
   top: { xs: '56px', md: '64px' },
   height: { xs: 'calc(100% - 56px)', md: 'calc(100% - 64px)' },
-  background: (theme: any) =>
+  background: (theme: Theme) =>
     `linear-gradient(90deg, ${theme.palette.primary.main} -150%, ${theme.palette.background.default} 70%)`,
   borderTopRightRadius: 12,
   borderBottomRightRadius: 12,
@@ -125,13 +124,13 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         slotProps={{ paper: { sx: drawerPaperSx } }}
         sx={{ '& .MuiBackdrop-root': { top: { xs: '56px', md: '64px' } } }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 2 }}>
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+        <Box display="flex" alignItems="center" px={2} py={2}>
+          <Typography variant="h5" fontWeight="bold" color="text.primary">
             {userName}'s Workspace
           </Typography>
         </Box>
         <Divider />
-        <Box sx={{ overflow: 'auto' }}>
+        <Box overflow="auto">
           <SidebarContent
             navItems={NAV_ITEMS}
             navSections={NAV_SECTIONS}
@@ -168,9 +167,9 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, py: 2 }}>
+      <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
         {!collapsed && (
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+          <Typography variant="h5" fontWeight="bold" color="text.primary">
             {userName}'s Workspace
           </Typography>
         )}
@@ -179,7 +178,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         </IconButton>
       </Box>
       <Divider />
-      <Box sx={{ overflow: collapsed ? 'hidden' : 'auto' }}>{sidebarContent}</Box>
+      <Box overflow={collapsed ? 'hidden' : 'auto'}>{sidebarContent}</Box>
     </Drawer>
   );
 }

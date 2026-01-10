@@ -19,7 +19,7 @@ export function useCalendarNavigation() {
             return [{
                 id: 0,
                 dateStr: currentDate.format("YYYY-MM-DD"),
-                dayOfTheMonth: currentDate.format("DD"),
+                dayOfTheMonth: currentDate.format("D"),
                 dayOfTheWeek: currentDate.format("ddd"),
             }] as WeekDayInfo[];
         }
@@ -33,7 +33,7 @@ export function useCalendarNavigation() {
             return {
                 id: index,
                 dateStr: day.format("YYYY-MM-DD"),
-                dayOfTheMonth: day.format("DD"),
+                dayOfTheMonth: day.format("D"),
                 dayOfTheWeek: day.format("ddd"),
             };
         }) as WeekDayInfo[];

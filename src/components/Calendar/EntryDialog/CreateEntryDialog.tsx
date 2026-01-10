@@ -17,7 +17,7 @@ import {
     ListItemText,
 } from "@mui/material";
 import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, MouseEvent } from "react";
 import ProjectSelector from "./ProjectSelector";
 import ConfirmDialog from "../../Forms/ConfirmDialog";
 import { Project } from "../../../services/projectService";
@@ -33,6 +33,7 @@ interface CreateEntryDialogProps {
     dateStr?: string;
     initialTitle?: string;
     initialIsBillable?: boolean;
+    initialProjectId?: string | null;
     isEdit?: boolean;
     editingEntryId?: string | null;
     onDelete?: (id: string) => void;
@@ -48,6 +49,7 @@ export default function CreateEntryDialog({
     initialEndTime = "10:00",
     initialTitle,
     initialIsBillable = false,
+    initialProjectId = null,
     isEdit = false,
     editingEntryId,
     onDelete,
@@ -74,8 +76,9 @@ export default function CreateEntryDialog({
             setIsBillable(initialIsBillable || false);
             setOptions([]);
             setSelectedTaskId(undefined);
+            setSelectedProject(initialProjectId ? { id: initialProjectId } as Project : null);
         }
-    }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable]);
+    }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable, initialProjectId]);
 
     useEffect(() => {
         let active = true;
@@ -106,7 +109,7 @@ export default function CreateEntryDialog({
 
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
 
-    const handleMenuOpen = (e: any) => setMenuAnchorEl(e.currentTarget);
+    const handleMenuOpen = (e: MouseEvent<HTMLElement>) => setMenuAnchorEl(e.currentTarget);
     const handleMenuClose = () => setMenuAnchorEl(null);
 
     const handleDuplicate = () => {

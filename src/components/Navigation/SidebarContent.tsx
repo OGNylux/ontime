@@ -131,11 +131,11 @@ export default function SidebarContent({
                                 }}
                             >
                                 <ListItemIcon
+                                    color='inherit'
                                     sx={{
                                         minWidth: collapsed ? 0 : 56,
                                         display: 'flex',
-                                        justifyContent: 'center',
-                                        color: 'inherit',
+                                        justifyContent: 'center'
                                     }}
                                 >
                                     {section.icon}
@@ -144,12 +144,12 @@ export default function SidebarContent({
                                     <>
                                         <ListItemText
                                             primary={section.label}
-                                            sx={{ color: 'inherit' }}
+                                            color='inherit'
                                         />
                                         {isOpen ? (
-                                            <ExpandLess sx={{ color: 'inherit' }} />
+                                            <ExpandLess color='inherit' />
                                         ) : (
-                                            <ExpandMore sx={{ color: 'inherit' }} />
+                                            <ExpandMore color='inherit' />
                                         )}
                                     </>
                                 )}

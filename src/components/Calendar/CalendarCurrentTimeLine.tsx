@@ -32,18 +32,16 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
 
     return (
         <Box
-            sx={{
-                position: "absolute",
-                top: centeredTop,
-                left: 0,
-                right: 0,
-                height: containerHeight,
-                zIndex: 20,
-                pointerEvents: "none", // allow clicks to pass through except for interactive children
-                display: "flex",
-                alignItems: "center",
-                flexDirection: 'row',
-            }}
+            position="absolute"
+            top={centeredTop}
+            left={0}
+            right={0}
+            height={containerHeight}
+            zIndex={20}
+            display="flex"
+            alignItems="center"
+            flexDirection="row"
+            sx={{ pointerEvents: "none" }}
         >
             
             {/* Play button */}
@@ -75,24 +73,20 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
 
             {/* Line that stretches between marker and button */}
             <Box
-                sx={{
-                    flex: 1,
-                    height: 2,
-                    bgcolor: "error.main",
-                    pointerEvents: 'none',
-                }}
+                flex={1}
+                height={2}
+                bgcolor="error.main"
+                sx={{ pointerEvents: 'none' }}
             />
 
             {/* Left marker */}
             <Box
-                sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: "error.main",
-                    flex: '0 0 auto',
-                    pointerEvents: 'none',
-                }}
+                width={8}
+                height={8}
+                borderRadius="50%"
+                bgcolor="error.main"
+                flex="0 0 auto"
+                sx={{ pointerEvents: 'none' }}
             />
         </Box>
     );

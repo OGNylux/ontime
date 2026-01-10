@@ -1,4 +1,4 @@
-import { Button, IconButton, Stack } from "@mui/material";
+import { Button, IconButton, Stack, Typography } from "@mui/material";
 import { ChevronLeft, ChevronRight, PlayArrow, Stop } from "@mui/icons-material";
 
 interface CalendarNavigationProps {
@@ -7,9 +7,10 @@ interface CalendarNavigationProps {
     onToday: () => void;
     isRecording?: boolean;
     onToggleRecording?: () => void;
+    totalWeekTime?: string;
 }
 
-export default function CalendarNavigation({ onPrev, onNext, onToday, isRecording, onToggleRecording }: CalendarNavigationProps) {
+export default function CalendarNavigation({ onPrev, onNext, onToday, isRecording, onToggleRecording, totalWeekTime }: CalendarNavigationProps) {
     return (
         <Stack direction="row" spacing={1} alignItems="center">
             {onToggleRecording && (
@@ -36,6 +37,20 @@ export default function CalendarNavigation({ onPrev, onNext, onToday, isRecordin
             <IconButton onClick={onNext} size="small">
                 <ChevronRight />
             </IconButton>
+            {totalWeekTime && (
+                <Typography variant="body2" color="textSecondary" sx={{ ml: 2 }}>
+                    WEEK TOTAL: {totalWeekTime}
+                </Typography>
+            )}
+            {/* {totalWeekTime && (
+                <Chip 
+                    icon={<AccessTime fontSize="small" />}
+                    label={totalWeekTime}
+                    size="small"
+                    variant="outlined"
+                    sx={{ ml: 1 }}
+                />
+            )} */}
         </Stack>
     );
 }

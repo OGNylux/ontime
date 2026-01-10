@@ -5,15 +5,19 @@ export interface Task {
     id?: string;
     project_id?: string;
     name: string;
-    color?: string;
+    color?: number;
     calendar_entries?: CalendarEntry[];
+    pinned?: boolean;
 }
 
 export const taskService = {
     async getTasks(): Promise<Task[]> {
         const { data, error } = await supabase
             .from('ontime_task')
-            .select('*')
+            .select(`
+                *,
+                calendar_entries:ontime_calendar_entry(*)
+            `)
             .order('created_at', { ascending: false });
         if (error) throw error;
 
@@ -88,5 +92,17 @@ export const taskService = {
         
         if (error) throw error;
         return data as Task | null;
+    },
+
+    async togglePin(id: string, pinned: boolean): Promise<Task> {
+        const { data, error } = await supabase
+            .from('ontime_task')
+            .update({ pinned })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Task;
     }
 };

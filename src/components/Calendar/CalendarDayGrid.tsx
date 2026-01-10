@@ -19,10 +19,10 @@ export default function CalendarDayGrid({ hourHeight, gapSize }: CalendarDayGrid
                 <Box
                     key={minute}
                     data-minute={minute}
+                    height={hourHeight}
+                    borderBottom={t => index === timeSlots.length - 1 ? "none" : `1px solid ${t.palette.divider}`}
+                    bgcolor="background.paper"
                     sx={{
-                        height: hourHeight,
-                        borderBottom: theme => index === timeSlots.length - 1 ? "none" : `1px solid ${theme.palette.divider}`,
-                        bgcolor: "background.paper",
                         transition: theme =>
                             theme.transitions.create("background-color", {
                                 duration: theme.transitions.duration.shortest,

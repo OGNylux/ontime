@@ -7,53 +7,60 @@ import {
     MenuItem,
     ListItemIcon,
     ListItemText,
-    Chip,
     Divider,
+    Chip,
 } from '@mui/material';
 import {
     MoreVert,
     Edit,
     Delete,
+    FilterList,
     PushPin,
     PushPinOutlined,
-    FilterList,
 } from '@mui/icons-material';
+import { taskService, Task } from '../../services/taskService';
 import { projectService, Project } from '../../services/projectService';
-import { clientService, Client } from '../../services/clientService';
 import { DataTable, Column } from '../../components/DataTable';
 import PageHeader from '../../components/PageHeader';
 import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
-import ProjectDialog from '../../components/ProjectDialog';
+import TaskDialog from '../../components/TaskDialog';
 import dayjs from 'dayjs';
-import { formatDuration } from '../../components/Calendar/util/calendarUtility';
 
+// Extended Task type with calculated total time
+interface TaskWithTime extends Task {
+    total_time?: number;
+}
 
-const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    return dayjs(dateStr).format('MMM D');
+// ============ Helpers ============
+const formatTotalTime = (minutes?: number) => {
+    if (!minutes) return '0h';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (mins === 0) return `${hours}h`;
+    return `${hours}.${String(Math.round((mins / 60) * 100)).padStart(2, '0')}h`;
 };
 
 // ============ Main Component ============
-export default function ProjectsPage() {
+export default function TasksPage() {
+    const [tasks, setTasks] = useState<TaskWithTime[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     
     // Menu state
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-    const [menuProject, setMenuProject] = useState<Project | null>(null);
+    const [menuTask, setMenuTask] = useState<Task | null>(null);
     
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [editingProject, setEditingProject] = useState<Project | null>(null);
+    const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+    const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     
     // Filter state
-    const [clientFilter, setClientFilter] = useState('');
+    const [projectFilter, setProjectFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
@@ -63,12 +70,27 @@ export default function ProjectsPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [projectsData, clientsData] = await Promise.all([
+            const [tasksData, projectsData] = await Promise.all([
+                taskService.getTasks(),
                 projectService.getProjects(),
-                clientService.getClients(),
             ]);
+            
+            // Calculate total time for each task from calendar entries
+            const tasksWithTime = tasksData.map(task => {
+                const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
+                    const start = dayjs(entry.start_time);
+                    const end = dayjs(entry.end_time);
+                    return total + end.diff(start, 'minute');
+                }, 0) || 0;
+                
+                return {
+                    ...task,
+                    total_time: Math.round(totalMinutes),
+                };
+            });
+            
+            setTasks(tasksWithTime);
             setProjects(projectsData);
-            setClients(clientsData);
         } catch (error) {
             console.error('Failed to load data:', error);
         } finally {
@@ -76,15 +98,17 @@ export default function ProjectsPage() {
         }
     };
 
-    // Filter data
-    const filteredProjects = useMemo(() => {
-        return projects
-            .filter((project) => {
-                const matchesSearch =
-                    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    project.client?.name?.toLowerCase().includes(searchQuery.toLowerCase());
-                const matchesClient = !clientFilter || project.client_id === clientFilter;
-                return matchesSearch && matchesClient;
+    // Filter data - search by task name OR project name
+    const filteredTasks = useMemo(() => {
+        return tasks
+            .filter((task) => {
+                const query = searchQuery.toLowerCase();
+                const matchesTaskName = task.name.toLowerCase().includes(query);
+                const project = projects.find(p => p.id === task.project_id);
+                const matchesProjectName = project?.name?.toLowerCase().includes(query);
+                const matchesSearch = matchesTaskName || matchesProjectName;
+                const matchesProject = !projectFilter || task.project_id === projectFilter;
+                return matchesSearch && matchesProject;
             })
             .sort((a, b) => {
                 // Pinned items always on top
@@ -92,29 +116,27 @@ export default function ProjectsPage() {
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
-    }, [projects, searchQuery, clientFilter]);
+    }, [tasks, projects, searchQuery, projectFilter]);
 
     // Table columns
-    const columns: Column<Project>[] = useMemo(() => [
+    const columns: Column<TaskWithTime>[] = useMemo(() => [
         {
             field: 'name',
-            label: 'Project',
+            label: 'Task',
             render: (row) => <Typography fontWeight="medium">{row.name}</Typography>,
         },
         {
-            field: 'client',
-            label: 'Client',
-            render: (row) => row.client?.name || '-',
-        },
-        {
-            field: 'start_date',
-            label: 'Start Date',
-            render: (row) => formatDate(row.start_date),
+            field: 'project',
+            label: 'Project',
+            render: (row) => {
+                const project = projects.find(p => p.id === row.project_id);
+                return project?.name || '-';
+            },
         },
         {
             field: 'total_time',
-            label: 'Total Time',
-            render: (row) => formatDuration(row.total_time!),
+            label: 'Hours',
+            render: (row) => formatTotalTime(row.total_time),
         },
         {
             field: 'pinned',
@@ -126,40 +148,40 @@ export default function ProjectsPage() {
                 ) : null,
             align: 'center',
         },
-    ], []);
+    ], [projects]);
 
     // Menu handlers
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, project: Project) => {
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
         setMenuAnchorEl(event.currentTarget);
-        setMenuProject(project);
+        setMenuTask(task);
     };
 
     const handleMenuClose = () => {
         setMenuAnchorEl(null);
-        setMenuProject(null);
+        setMenuTask(null);
     };
 
     const handleEdit = () => {
-        if (menuProject) {
-            setEditingProject(menuProject);
+        if (menuTask) {
+            setEditingTask(menuTask);
             setDialogOpen(true);
         }
         handleMenuClose();
     };
 
     const handleDelete = () => {
-        if (menuProject) {
-            setProjectToDelete(menuProject);
+        if (menuTask) {
+            setTaskToDelete(menuTask);
             setDeleteDialogOpen(true);
         }
         handleMenuClose();
     };
 
     const handleTogglePin = async () => {
-        if (menuProject) {
+        if (menuTask && menuTask.id) {
             try {
-                const updated = await projectService.togglePin(menuProject.id!, !menuProject.pinned);
-                setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                const updated = await taskService.togglePin(menuTask.id, !menuTask.pinned);
+                setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...updated, total_time: t.total_time } : t)));
             } catch (error) {
                 console.error('Failed to toggle pin:', error);
             }
@@ -168,86 +190,99 @@ export default function ProjectsPage() {
     };
 
     const handleConfirmDelete = async () => {
-        if (projectToDelete) {
+        if (taskToDelete && taskToDelete.id) {
             try {
-                await projectService.deleteProject(projectToDelete.id!);
-                setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
+                await taskService.deleteTask(taskToDelete.id);
+                setTasks((prev) => prev.filter((t) => t.id !== taskToDelete.id));
             } catch (error) {
-                console.error('Failed to delete project:', error);
+                console.error('Failed to delete task:', error);
             }
         }
         setDeleteDialogOpen(false);
-        setProjectToDelete(null);
+        setTaskToDelete(null);
     };
 
     const handleBulkDelete = async () => {
         try {
-            await Promise.all(selectedIds.map((id) => projectService.deleteProject(id)));
-            setProjects((prev) => prev.filter((p) => !selectedIds.includes(p.id!)));
+            await Promise.all(selectedIds.map((id) => taskService.deleteTask(id)));
+            setTasks((prev) => prev.filter((t) => !selectedIds.includes(t.id!)));
             setSelectedIds([]);
         } catch (error) {
-            console.error('Failed to delete projects:', error);
+            console.error('Failed to delete tasks:', error);
         }
     };
 
     const handleBulkPin = async (pinned: boolean) => {
         try {
             await Promise.all(
-                selectedIds.map((id) => projectService.togglePin(id, pinned))
+                selectedIds.map((id) => taskService.togglePin(id, pinned))
             );
-            const updatedProjects = await projectService.getProjects();
-            setProjects(updatedProjects);
+            const updatedTasks = await taskService.getTasks();
+            const tasksWithTime = updatedTasks.map(task => {
+                const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
+                    const start = dayjs(entry.start_time);
+                    const end = dayjs(entry.end_time);
+                    return total + end.diff(start, 'minute');
+                }, 0) || 0;
+                
+                return {
+                    ...task,
+                    total_time: Math.round(totalMinutes),
+                };
+            });
+            setTasks(tasksWithTime);
             setSelectedIds([]);
         } catch (error) {
-            console.error('Failed to pin projects:', error);
+            console.error('Failed to pin tasks:', error);
         }
     };
 
-    const handleSaveProject = async (projectData: Project) => {
-        if (editingProject) {
-            const updated = await projectService.updateProject(editingProject.id!, projectData);
-            setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    const handleSaveTask = async (taskData: Task) => {
+        if (editingTask && editingTask.id) {
+            const updated = await taskService.updateTask(editingTask.id, taskData);
+            setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...updated, total_time: t.total_time } : t)));
         } else {
-            const created = await projectService.createProject(projectData as Project);
-            setProjects((prev) => [created, ...prev]);
+            const created = await taskService.createTask(taskData);
+            setTasks((prev) => [{ ...created, total_time: 0 }, ...prev]);
         }
-        setEditingProject(null);
+        setEditingTask(null);
     };
 
-    const handleOpenNewProject = () => {
-        setEditingProject(null);
+    const handleOpenNewTask = () => {
+        setEditingTask(null);
         setDialogOpen(true);
     };
 
     // Row actions renderer
-    const renderRowActions = (project: Project) => (
-        <IconButton size="small" onClick={(e) => handleMenuOpen(e, project)}>
+    const renderRowActions = (task: Task) => (
+        <IconButton size="small" onClick={(e) => handleMenuOpen(e, task)}>
             <MoreVert />
         </IconButton>
     );
 
     return (
         <Box padding={3} height="100%" display="flex" flexDirection="column" borderRadius={2} boxShadow={4} bgcolor="background.default">
-            <PageHeader title="Projects" actionLabel="New Project" onAction={handleOpenNewProject} />
+            <PageHeader title="Tasks" actionLabel="New Task" onAction={handleOpenNewTask} />
 
             <Divider sx={{ mb: 2 }} />
+            
             {/* Search and Filters */}
             <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Search for Projects..."
+                    placeholder="Search tasks or projects..."
                 />
                 <IconButton
                     onClick={(e) => setFilterAnchorEl(e.currentTarget)}
-                    color={clientFilter ? 'primary' : 'default'}
+                    color={projectFilter ? 'primary' : 'default'}
                 >
                     <FilterList />
                 </IconButton>
-                {clientFilter && (
+                {projectFilter && (
                     <Chip
-                        label={`Client: ${clients.find((c) => c.id === clientFilter)?.name}`}
-                        onDelete={() => setClientFilter('')}
+                        label={`Project: ${projects.find((p) => p.id === projectFilter)?.name}`}
+                        onDelete={() => setProjectFilter('')}
                         size="small"
                     />
                 )}
@@ -257,7 +292,7 @@ export default function ProjectsPage() {
 
             {/* Data Table */}
             <DataTable
-                data={filteredProjects}
+                data={filteredTasks}
                 columns={columns}
                 loading={loading}
                 selectable
@@ -265,7 +300,7 @@ export default function ProjectsPage() {
                 onSelectionChange={setSelectedIds}
                 defaultSortField="name"
                 rowActions={renderRowActions}
-                emptyMessage="No projects found"
+                emptyMessage={searchQuery ? 'No tasks match your search' : 'No tasks found'}
                 bulkActions={
                     <>
                         <Divider orientation="vertical" flexItem />
@@ -296,21 +331,21 @@ export default function ProjectsPage() {
                 onClose={() => setFilterAnchorEl(null)}
             >
                 <MenuItem disabled>
-                    <ListItemText>Filter by Client</ListItemText>
+                    <ListItemText>Filter by Project</ListItemText>
                 </MenuItem>
                 <MenuItem
-                    onClick={() => { setClientFilter(''); setFilterAnchorEl(null); }}
-                    selected={!clientFilter}
+                    onClick={() => { setProjectFilter(''); setFilterAnchorEl(null); }}
+                    selected={!projectFilter}
                 >
-                    All Clients
+                    All Projects
                 </MenuItem>
-                {clients.map((client) => (
+                {projects.map((project) => (
                     <MenuItem
-                        key={client.id}
-                        onClick={() => { setClientFilter(client.id || ''); setFilterAnchorEl(null); }}
-                        selected={clientFilter === client.id}
+                        key={project.id}
+                        onClick={() => { setProjectFilter(project.id || ''); setFilterAnchorEl(null); }}
+                        selected={projectFilter === project.id}
                     >
-                        {client.name}
+                        {project.name}
                     </MenuItem>
                 ))}
             </Menu>
@@ -327,9 +362,9 @@ export default function ProjectsPage() {
                 </MenuItem>
                 <MenuItem onClick={handleTogglePin}>
                     <ListItemIcon>
-                        {menuProject?.pinned ? <PushPinOutlined fontSize="small" /> : <PushPin fontSize="small" />}
+                        {menuTask?.pinned ? <PushPinOutlined fontSize="small" /> : <PushPin fontSize="small" />}
                     </ListItemIcon>
-                    <ListItemText>{menuProject?.pinned ? 'Unpin' : 'Pin'}</ListItemText>
+                    <ListItemText>{menuTask?.pinned ? 'Unpin' : 'Pin'}</ListItemText>
                 </MenuItem>
                 <MenuItem onClick={handleDelete}>
                     <ListItemIcon><Delete fontSize="small" color="error" /></ListItemIcon>
@@ -337,22 +372,22 @@ export default function ProjectsPage() {
                 </MenuItem>
             </Menu>
 
-            {/* Create/Edit Project Dialog */}
-            <ProjectDialog
+            {/* Create/Edit Task Dialog */}
+            <TaskDialog
                 open={dialogOpen}
-                onClose={() => { setDialogOpen(false); setEditingProject(null); }}
-                onSave={handleSaveProject}
-                project={editingProject}
-                clients={clients}
+                onClose={() => { setDialogOpen(false); setEditingTask(null); }}
+                onSave={handleSaveTask}
+                task={editingTask}
+                projects={projects}
             />
 
             {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 open={deleteDialogOpen}
-                onClose={() => { setDeleteDialogOpen(false); setProjectToDelete(null); }}
+                onClose={() => { setDeleteDialogOpen(false); setTaskToDelete(null); }}
                 onConfirm={handleConfirmDelete}
-                title="Delete Project"
-                message={`Are you sure you want to delete "${projectToDelete?.name}"? This action cannot be undone.`}
+                title="Delete Task"
+                message={`Are you sure you want to delete "${taskToDelete?.name}"? This action cannot be undone.`}
                 confirmLabel="Delete"
             />
         </Box>

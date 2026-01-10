@@ -1,10 +1,11 @@
-import { Box, IconButton, TextField, Tooltip } from "@mui/material";
+import { Box, IconButton, TextField, Tooltip, Typography } from "@mui/material";
 import { PlayArrow, Stop, AttachMoney } from "@mui/icons-material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
 import ProjectSelector from "../EntryDialog/ProjectSelector";
 import { Project } from "../../../services/projectService";
+import { formatDuration } from "../util/calendarUtility";
 
 const AUTO_SAVE_INTERVAL_MS = 60_000;
 const UI_UPDATE_INTERVAL_MS = 1_000;
@@ -29,6 +30,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
     const [title, setTitle] = useState("");
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [isBillable, setIsBillable] = useState(false);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const recordingRef = useRef<RecordingState | null>(null);
     const timerRef = useRef<number | null>(null);
     
@@ -138,12 +140,15 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
 
         updateLocalEntry(state, startTime);
         setIsRecording(true);
+        setElapsedSeconds(0);
 
         timerRef.current = window.setInterval(() => {
             const currentState = recordingRef.current;
             if (!currentState) return;
 
             const now = dayjs().toISOString();
+            const elapsed = Math.floor(dayjs(now).diff(dayjs(currentState.startTime), 'second'));
+            setElapsedSeconds(elapsed);
             updateLocalEntry(currentState, now);
             autoSaveToDb(currentState, now);
         }, UI_UPDATE_INTERVAL_MS);
@@ -172,7 +177,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                 const updated = await calendarService.updateEntry(state.dbId, { 
                     end_time: endTime,
                     is_billable: currentIsBillable,
-                    project_id: currentProjectId || null,
+                    project_id: currentProjectId || undefined,
                 });
                 // Add title for local display
                 addOrReplaceEntry({
@@ -201,6 +206,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
         setTitle("");
         setSelectedProject(null);
         setIsBillable(false);
+        setElapsedSeconds(0);
     }, [addOrReplaceEntry, clearTimer]);
 
     // Expose startRecording to parent
@@ -216,7 +222,49 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
     }, [isRecording, startRecording, stopRecording]);
 
     return (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 1, borderBottom: theme => `1px solid ${theme.palette.divider}`, pb: 1, mb: 1 }}>
+            <TextField
+                placeholder="What are you working on?"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                size="small"
+                sx={{ 
+                    flexGrow: 1,
+                    minWidth: 120,
+                    "& .MuiInputBase-root": {
+                        height: 36,
+                    }
+                }}
+            />
+
+            <ProjectSelector
+                selectedProjectId={selectedProject?.id}
+                onSelect={setSelectedProject}
+            />
+
+            <Typography 
+                variant="body2" 
+                sx={{ 
+                    minWidth: 70,
+                    fontFamily: 'monospace',
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    color: isRecording ? 'primary.main' : 'text.secondary'
+                }}
+            >
+                {formatDuration(elapsedSeconds)}
+            </Typography>
+
+            <Tooltip title="Billable">
+                <IconButton
+                    color={isBillable ? "success" : "default"}
+                    onClick={() => setIsBillable(!isBillable)}
+                    size="small"
+                >
+                    <AttachMoney />
+                </IconButton>
+            </Tooltip>
+            
             <Tooltip title={isRecording ? "Stop recording" : "Start recording"}>
                 <IconButton
                     onClick={handleClick}
@@ -231,34 +279,6 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                     }}
                 >
                     {isRecording ? <Stop /> : <PlayArrow />}
-                </IconButton>
-            </Tooltip>
-
-            <TextField
-                placeholder="Entry title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                size="small"
-                sx={{ 
-                    minWidth: { xs: 120, sm: 200, md: 280 },
-                    "& .MuiInputBase-root": {
-                        height: 36,
-                    }
-                }}
-            />
-
-            <ProjectSelector
-                selectedProjectId={selectedProject?.id}
-                onSelect={setSelectedProject}
-            />
-
-            <Tooltip title="Billable">
-                <IconButton
-                    color={isBillable ? "success" : "default"}
-                    onClick={() => setIsBillable(!isBillable)}
-                    size="small"
-                >
-                    <AttachMoney />
                 </IconButton>
             </Tooltip>
         </Box>

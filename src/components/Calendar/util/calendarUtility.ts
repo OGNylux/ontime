@@ -54,13 +54,11 @@ export function roundTo15Minutes(minute: number) {
 }
 
 export function formatDuration(minutes: number) {
-    if (!minutes || minutes <= 0) return "0m";
+    if (!minutes || minutes <= 0) return "0:00:00";
     const hrs = Math.floor(minutes / 60);
     const mins = Math.round(minutes % 60);
-    if (hrs > 0) {
-        return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
-    }
-    return `${mins}m`;
+
+    return `${hrs}:${mins.toString().padStart(2, '0')}:00`;
 }
 
 /**

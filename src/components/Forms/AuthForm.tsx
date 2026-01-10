@@ -27,19 +27,19 @@ export default function AuthForm({ title, fields, onSubmit, submitLabel, extra }
     return (
         <Box sx={{ position: 'relative', width: '100%', maxWidth: 500 }}>
             <Box
+                position="absolute"
+                left="50%"
+                top="50%"
+                width="120%"
+                height="120%"
+                zIndex={0}
+                borderRadius={2}
                 sx={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: '120%',
-                    height: '120%',
                     background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
                     filter: 'blur(60px)',
                     opacity: 0.45,
-                    zIndex: 0,
-                    pointerEvents: 'none',
-                    borderRadius: 2,
+                    pointerEvents: 'none'
                 }}
             />
 

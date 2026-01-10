@@ -7,14 +7,12 @@ import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
 
 // Types & Utils
 import { CalendarEntry } from "../../../services/calendarService";
-import { MINUTES_PER_HOUR, formatDuration } from "../util/calendarUtility";
+import { MINUTES_PER_HOUR, ResizeHandlePosition, formatDuration } from "../util/calendarUtility";
 import { useEntryTouch } from "../hooks/useEntryTouch";
 import { useEntryPointer } from "../hooks/useEntryPointer";
-import { edgeType } from "../../oldCalendar/hooks/useEntryResize";
+import { TAILWIND_COLORS } from "../../../services/projectService";
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Types
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface CalendarEntryBlockProps {
     entry: CalendarEntry;
@@ -22,28 +20,26 @@ interface CalendarEntryBlockProps {
     onClick?: (entry: CalendarEntry, ev?: MouseEvent) => void;
     onContextMenu?: (entry: CalendarEntry, ev?: MouseEvent) => void;
     onDragStart?: (clientX: number, clientY: number) => void;
-    onResizeStart?: (handle: edgeType, clientY: number) => void;
+    onResizeStart?: (handle: ResizeHandlePosition, clientY: number) => void;
     isDragging?: boolean;
     isPreview?: boolean;
     widthPercent?: number;
     offsetPercent?: number;
 }
 
-interface EntryLayout {
+export interface EntryLayout extends CalendarEntry {
     visualStartMinute?: number;
     visualDuration?: number;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number) {
     const startTime = dayjs(entry.start_time);
     const endTime = dayjs(entry.end_time);
 
     // Include seconds for more precise positioning
-    const startMinutes = entry.visualStartMinute ?? 
+    const startMinutes = entry.visualStartMinute ??
         (startTime.hour() * MINUTES_PER_HOUR + startTime.minute() + startTime.second() / 60);
     const durationMinutes = entry.visualDuration ?? endTime.diff(startTime, "minute", true);
 
@@ -56,9 +52,7 @@ function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number) {
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Component
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CalendarEntryBlock({
     entry,
@@ -78,9 +72,7 @@ export default function CalendarEntryBlock({
     const isResizingRef = useRef(false);
     const resizeTimestamp = useRef<number>(0);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Click Suppression (after resize)
-    // ─────────────────────────────────────────────────────────────────────────
 
     useEffect(() => {
         const el = paperRef.current;
@@ -101,16 +93,12 @@ export default function CalendarEntryBlock({
         return () => el.removeEventListener("click", suppressClick, true);
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Drag Hooks (pointer + touch fallback)
-    // ─────────────────────────────────────────────────────────────────────────
 
     useEntryPointer({ paperRef: paperRef as React.RefObject<HTMLDivElement>, onDragStart });
     useEntryTouch({ paperRef: paperRef as React.RefObject<HTMLDivElement>, onDragStart });
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Event Handlers
-    // ─────────────────────────────────────────────────────────────────────────
 
     const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
@@ -145,7 +133,7 @@ export default function CalendarEntryBlock({
         window.addEventListener("mouseup", onUp);
     }, [isPreview, isDragging, onDragStart]);
 
-    const handleResize = useCallback((handle: edgeType, clientY: number) => {
+    const handleResize = useCallback((handle: ResizeHandlePosition, clientY: number) => {
         isResizingRef.current = true;
         resizeTimestamp.current = Date.now();
         onResizeStart?.(handle, clientY);
@@ -174,21 +162,17 @@ export default function CalendarEntryBlock({
         onClick?.(entry, e as MouseEvent<HTMLDivElement>);
     }, [entry, onClick]);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Layout Calculations
-    // ─────────────────────────────────────────────────────────────────────────
 
     const { top, height, durationMinutes } = computeLayout(entry as CalendarEntry & EntryLayout, hourHeight);
-    const backgroundColor = entry.task?.color || "#1976d2";
+    const backgroundColor = entry.task?.color || 0;
     const title = entry.task?.name || "";
     const duration = formatDuration(durationMinutes);
     const showDuration = height >= 40;
     const showTitle = height >= 15;
     const showResizeHandles = !isPreview && !isDragging;
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <Box
@@ -196,21 +180,21 @@ export default function CalendarEntryBlock({
             onMouseDown={handleMouseDown}
             onClick={handleClick}
             onContextMenu={handleContextMenu}
+            className={`${TAILWIND_COLORS[backgroundColor].secondary} border-l-3 ${TAILWIND_COLORS[backgroundColor].border} `}
+            position="absolute"
+            top={top}
+            height={height}
+            left={`${offsetPercent}%`}
+            width={`${widthPercent}%`}
+            borderRadius={1}
+            padding={height < 15 ? 0 : 0.5}
+            overflow="hidden"
+            boxSizing="border-box"
+            zIndex={isDragging || isPreview ? 100 : 10}
+            boxShadow={isDragging ? 4 : 1}
             sx={{
                 touchAction: "none",
-                position: "absolute",
-                top,
-                left: `${offsetPercent}%`,
-                width: `${widthPercent}%`,
-                height,
-                backgroundColor,
-                borderRadius: 1,
-                padding: height < 15 ? 0 : 0.5,
-                overflow: "hidden",
-                boxSizing: "border-box",
                 cursor: isDragging ? "grabbing" : "pointer",
-                zIndex: isDragging || isPreview ? 100 : 10,
-                boxShadow: isDragging ? 4 : 1,
                 opacity: isDragging ? 0.3 : isPreview ? 0.8 : 1,
                 transition: isDragging ? "none" : "box-shadow 0.2s",
                 "&:hover": {
@@ -234,31 +218,41 @@ export default function CalendarEntryBlock({
             {showTitle && (
                 <Typography
                     variant="caption"
-                    sx={{
-                        color: "white",
-                        fontWeight: 600,
-                        display: "block",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: height < 40 ? "0.65rem" : "0.75rem",
-                    }}
+                    color="primary.contrastText"
+                    fontWeight={600}
+                    display="block"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                    fontSize={height < 40 ? "0.65rem" : "0.75rem"}
                 >
                     {title}
                 </Typography>
             )}
-
+            {(entry.project?.name && entry.project?.client?.name) && showTitle && (
+                <Typography
+                    variant="caption"
+                    color="primary.contrastText"
+                    display="block"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                    fontSize={height < 40 ? "0.6rem" : "0.7rem"}
+                    sx={{ opacity: 0.9 }}
+                >
+                    {`${entry.project?.name}  • ${entry.project?.client?.name}`}
+                </Typography>
+            )}
             {showDuration && (
                 <Typography
                     variant="caption"
-                    sx={{
-                        color: "rgba(255, 255, 255, 0.9)",
-                        display: "block",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "0.65rem",
-                    }}
+                    color="primary.contrastText"
+                    display="block"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                    fontSize="0.65rem"
+                    sx={{ position: 'absolute', bottom: 4, left: 6 }}
                 >
                     {duration}
                 </Typography>

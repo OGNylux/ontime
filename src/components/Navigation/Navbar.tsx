@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { AppBar, Toolbar, Typography, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Typography, IconButton, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Menu as MenuIcon } from '@mui/icons-material';
+import ThemeToggler from './ThemeToggler';
 
 interface NavbarProps {
     showMenuButton?: boolean;
@@ -46,6 +47,9 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                         OnTime
                     </Link>
                 </Typography>
+                <Box>
+                    <ThemeToggler />
+                </Box>
             </Toolbar>
         </AppBar>
     );

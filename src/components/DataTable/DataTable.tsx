@@ -14,14 +14,14 @@ import {
 import SortHeader, { Order } from './SortHeader';
 
 export interface Column<T> {
-    field: string;
+    field: string | (keyof T & string);
     label: string;
     sortable?: boolean;
     render?: (row: T) => ReactNode;
     align?: 'left' | 'center' | 'right';
 }
 
-interface DataTableProps<T extends { id?: string }> {
+interface DataTableProps<T extends { id?: string; pinned?: boolean }> {
     data: T[];
     columns: Column<T>[];
     loading?: boolean;
@@ -29,16 +29,17 @@ interface DataTableProps<T extends { id?: string }> {
     selectedIds?: string[];
     onSelectionChange?: (ids: string[]) => void;
     rowsPerPage?: number;
-    defaultSortField?: string;
+    defaultSortField?: string | (keyof T & string);
     defaultSortOrder?: Order;
     onRowClick?: (row: T) => void;
     rowActions?: (row: T) => ReactNode;
     emptyMessage?: string;
     getRowId?: (row: T) => string;
     bulkActions?: ReactNode;
+    isRowSelectable?: (row: T) => boolean;
 }
 
-export default function DataTable<T extends { id?: string }>({
+export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     data,
     columns,
     loading = false,
@@ -52,43 +53,50 @@ export default function DataTable<T extends { id?: string }>({
     emptyMessage = 'No data found',
     getRowId = (row) => row.id ?? '',
     bulkActions,
+    isRowSelectable = () => true,
 }: DataTableProps<T>) {
     const [order, setOrder] = useState<Order>(defaultSortOrder);
-    const [orderBy, setOrderBy] = useState<string>(defaultSortField || columns[0]?.field || '');
+    type OrderBy = (keyof T & string) | '';
+    const [orderBy, setOrderBy] = useState<OrderBy>((defaultSortField as OrderBy) || '');
     const [page, setPage] = useState(1);
 
     const handleSort = (field: string) => {
         const isAsc = orderBy === field && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
-        setOrderBy(field);
+        setOrderBy(field as OrderBy);
     };
 
     const sortedData = useMemo(() => {
         if (!orderBy) return data;
         return [...data].sort((a, b) => {
             // Check if items have a 'pinned' property and always sort pinned items to the top
-            const aPinned = (a as Record<string, unknown>).pinned;
-            const bPinned = (b as Record<string, unknown>).pinned;
+            const aPinned = (a as T).pinned;
+            const bPinned = (b as T).pinned;
             
             if (aPinned && !bPinned) return -1;
             if (!aPinned && bPinned) return 1;
             
             // If both have same pinned status, sort by the selected column
-            const aVal = (a as Record<string, unknown>)[orderBy];
-            const bVal = (b as Record<string, unknown>)[orderBy];
-            
+            const aVal = (a as T)[orderBy as keyof T] as OrderBy;
+            const bVal = (b as T)[orderBy as keyof T] as OrderBy;
+
             if (aVal === undefined || aVal === null) return order === 'asc' ? 1 : -1;
             if (bVal === undefined || bVal === null) return order === 'asc' ? -1 : 1;
-            
+
             if (typeof aVal === 'string' && typeof bVal === 'string') {
-                return order === 'asc' 
-                    ? aVal.localeCompare(bVal) 
+                return order === 'asc'
+                    ? aVal.localeCompare(bVal)
                     : bVal.localeCompare(aVal);
             }
-            
-            if (aVal < bVal) return order === 'asc' ? -1 : 1;
-            if (aVal > bVal) return order === 'asc' ? 1 : -1;
-            return 0;
+
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return order === 'asc' ? (aVal - bVal) : (bVal - aVal);
+            }
+
+            // Fallback: compare string representations
+            const aStr = String(aVal);
+            const bStr = String(bVal);
+            return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
         });
     }, [data, orderBy, order]);
 
@@ -101,7 +109,8 @@ export default function DataTable<T extends { id?: string }>({
 
     const handleSelectAll = (checked: boolean) => {
         if (!onSelectionChange) return;
-        onSelectionChange(checked ? paginatedData.map(getRowId) : []);
+        const selectableRows = paginatedData.filter(isRowSelectable);
+        onSelectionChange(checked ? selectableRows.map(getRowId) : []);
     };
 
     const handleSelectRow = (id: string) => {
@@ -113,11 +122,12 @@ export default function DataTable<T extends { id?: string }>({
         );
     };
 
-    const allSelected = paginatedData.length > 0 && paginatedData.every((row) => selectedIds.includes(getRowId(row)));
-    const someSelected = paginatedData.some((row) => selectedIds.includes(getRowId(row))) && !allSelected;
+    const selectableRows = paginatedData.filter(isRowSelectable);
+    const allSelected = selectableRows.length > 0 && selectableRows.every((row) => selectedIds.includes(getRowId(row)));
+    const someSelected = selectableRows.some((row) => selectedIds.includes(getRowId(row))) && !allSelected;
 
     return (
-        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+        <Box display="flex" flexDirection="column" flex={1} minHeight={0}>
             <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: { xs: 'auto', md: 'visible' } }}>
                 <Table stickyHeader sx={{ minWidth: 700, '& .MuiTableRow-root': { borderBottom: '1px solid', borderColor: 'divider' } }}>
                     <TableHead>
@@ -191,6 +201,7 @@ export default function DataTable<T extends { id?: string }>({
                             paginatedData.map((row) => {
                                 const rowId = getRowId(row);
                                 const isSelected = selectedIds.includes(rowId);
+                                const rowSelectable = isRowSelectable(row);
                                 return (
                                     <TableRow
                                         key={rowId}
@@ -204,23 +215,27 @@ export default function DataTable<T extends { id?: string }>({
                                     >
                                         {selectable && (
                                             <TableCell padding="checkbox" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-                                                <Checkbox
-                                                    className="row-checkbox"
-                                                    sx={{
-                                                        opacity: isSelected ? 1 : 0,
-                                                        transition: 'opacity 150ms ease',
-                                                        pointerEvents: isSelected ? 'auto' : 'none',
-                                                    }}
-                                                    checked={isSelected}
-                                                    onChange={() => handleSelectRow(rowId)}
-                                                />
+                                                {rowSelectable ? (
+                                                    <Checkbox
+                                                        className="row-checkbox"
+                                                        sx={{
+                                                            opacity: isSelected ? 1 : 0,
+                                                            transition: 'opacity 150ms ease',
+                                                            pointerEvents: isSelected ? 'auto' : 'none',
+                                                        }}
+                                                        checked={isSelected}
+                                                        onChange={() => handleSelectRow(rowId)}
+                                                    />
+                                                ) : null}
                                             </TableCell>
                                         )}
                                         {columns.map((col) => (
                                             <TableCell key={col.field} align={col.align || 'left'} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
                                                 {col.render 
                                                     ? col.render(row) 
-                                                    : String((row as Record<string, unknown>)[col.field] ?? '-')}
+                                                    : (typeof col.field === 'string' && col.field in (row as unknown as Record<string, unknown>))
+                                                        ? String((row as any)[col.field] ?? '-')
+                                                        : '-'}
                                             </TableCell>
                                         ))}
                                         {rowActions && (
@@ -237,7 +252,7 @@ export default function DataTable<T extends { id?: string }>({
             </TableContainer>
 
             {totalPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Box display="flex" justifyContent="center" mt={2}>
                     <Pagination
                         count={totalPages}
                         page={page}

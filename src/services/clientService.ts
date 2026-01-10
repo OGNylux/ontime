@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { Project } from "./projectService";
 
 export interface ClientInfo {
     id?: string;
@@ -14,6 +15,8 @@ export interface Client {
     name: string;
     info_id?: string;
     info?: ClientInfo;
+    projects?: Project[];
+    pinned?: boolean;
 }
 
 export const clientService = {
@@ -22,7 +25,8 @@ export const clientService = {
             .from('ontime_client')
             .select(`
                 *,
-                info:ontime_client_info(*)
+                info:ontime_client_info(*),
+                projects:ontime_project(*)
             `)
             .order('created_at', { ascending: false });
 
@@ -67,19 +71,40 @@ export const clientService = {
     },
 
     async updateClient(request: Client): Promise<Client> {
-        if (request.info && request.info_id) {
-            const { id, ...infoUpdates } = request.info;
-            const { error: infoError } = await supabase
-                .from('ontime_client_info')
-                .update(infoUpdates)
-                .eq('id', request.info_id);
-            if (infoError) throw infoError;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated");
+
+        let infoId = request.info_id;
+
+        // If info data is provided
+        if (request.info) {
+            const { id, ...infoData } = request.info;
+            
+            if (request.info_id) {
+                // Update existing info
+                const { error: infoError } = await supabase
+                    .from('ontime_client_info')
+                    .update(infoData)
+                    .eq('id', request.info_id);
+                if (infoError) throw infoError;
+            } else {
+                // Create new info
+                const { data: newInfo, error: infoError } = await supabase
+                    .from('ontime_client_info')
+                    .insert({ ...infoData, created_by: user.id })
+                    .select()
+                    .single();
+                
+                if (infoError) throw infoError;
+                infoId = newInfo.id;
+            }
         }
 
         const { data, error } = await supabase
             .from('ontime_client')
             .update({
                 name: request.name,
+                info_id: infoId,
             })
             .eq('id', request.id)
             .select(`
@@ -98,5 +123,21 @@ export const clientService = {
             .delete()
             .eq('id', id);
         if (error) throw error;
+    },
+
+    async togglePin(id: string, pinned: boolean): Promise<Client> {
+        const { data, error } = await supabase
+            .from('ontime_client')
+            .update({ pinned })
+            .eq('id', id)
+            .select(`
+                *,
+                info:ontime_client_info(*),
+                projects:ontime_project(*)
+            `)
+            .single();
+
+        if (error) throw error;
+        return data as Client;
     }
 };

@@ -11,15 +11,15 @@ import {
     Typography,
 } from '@mui/material';
 import {
-    Home as HomeIcon,
-    CalendarMonth as TimerIcon,
-    Notifications as NotificationsIcon,
-    Settings as SettingsIcon,
-    Add as AddIcon,
-    Close as CloseIcon,
-    People as PeopleIcon,
-    Folder as FolderIcon,
-    Task as TaskIcon,
+    Home,
+    CalendarMonth,
+    Notifications,
+    Settings,
+    Add,
+    Close,
+    People,
+    Folder,
+    Task,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -65,7 +65,7 @@ export default function BottomAppBar() {
     };
 
     return (
-        <Paper
+        <Paper 
             sx={{
                 position: 'fixed',
                 bottom: 0,
@@ -81,18 +81,18 @@ export default function BottomAppBar() {
             {/* Quick Actions Overlay */}
             <Collapse in={fabOpen}>
                 <Box
+                    display="flex"
+                    justifyContent="center"
+                    gap={3}
+                    py={2}
+                    px={2}
+                    bgcolor="background.paper"
+                    borderTop={1}
+                    borderColor="divider"
+                    overflow="hidden"
                     sx={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        gap: 3,
-                        py: 2,
-                        px: 2,
-                        bgcolor: 'background.paper',
-                        borderTop: 1,
-                        borderColor: 'divider',
                         borderTopLeftRadius: 12,
-                        borderTopRightRadius: 12,
-                        overflow: 'hidden',
+                        borderTopRightRadius: 12
                     }}
                 >
                     <Stack alignItems="center" spacing={0.5}>
@@ -104,7 +104,7 @@ export default function BottomAppBar() {
                                 '&:hover': { bgcolor: 'primary.main' },
                             }}
                         >
-                            <PeopleIcon />
+                            <People />
                         </IconButton>
                         <Typography variant="caption">Client</Typography>
                     </Stack>
@@ -118,7 +118,7 @@ export default function BottomAppBar() {
                                 '&:hover': { bgcolor: 'primary.main' },
                             }}
                         >
-                            <FolderIcon />
+                            <Folder />
                         </IconButton>
                         <Typography variant="caption">Project</Typography>
                     </Stack>
@@ -132,7 +132,7 @@ export default function BottomAppBar() {
                                 '&:hover': { bgcolor: 'primary.main' },
                             }}
                         >
-                            <TaskIcon />
+                            <Task />
                         </IconButton>
                         <Typography variant="caption">Task</Typography>
                     </Stack>
@@ -153,12 +153,12 @@ export default function BottomAppBar() {
                         },
                     }}
                 >
-                    <BottomNavigationAction label="Home" icon={<HomeIcon />} />
-                    <BottomNavigationAction label="Timer" icon={<TimerIcon />} />
+                    <BottomNavigationAction label="Home" icon={<Home />} />
+                    <BottomNavigationAction label="Timer" icon={<CalendarMonth />} />
                     {/* Spacer for FAB */}
                     <Box sx={{ width: 72 }} />
-                    <BottomNavigationAction label="Notifications" icon={<NotificationsIcon />} />
-                    <BottomNavigationAction label="Settings" icon={<SettingsIcon />} />
+                    <BottomNavigationAction label="Notifications" icon={<Notifications />} />
+                    <BottomNavigationAction label="Settings" icon={<Settings />} />
                 </BottomNavigation>
 
                 {/* Floating Action Button */}
@@ -177,7 +177,7 @@ export default function BottomAppBar() {
                         border: `2px solid ${theme.palette.background.paper}`,
                     })}
                 >
-                    {fabOpen ? <CloseIcon /> : <AddIcon />}
+                    {fabOpen ? <Close /> : <Add />}
                 </Fab>
             </Box>
         </Paper>

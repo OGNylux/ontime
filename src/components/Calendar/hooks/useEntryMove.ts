@@ -46,7 +46,7 @@ const lockBody = (): BodyStyles => {
         overflow: document.body.style.overflow,
         touchAction: document.body.style.touchAction,
         userSelect: document.body.style.userSelect,
-        webkitUserSelect: (document.body.style as any).webkitUserSelect || "",
+        webkitUserSelect: (document.body.style as CSSStyleDeclaration).webkitUserSelect || "",
     };
     Object.assign(document.body.style, {
         overflow: "hidden",

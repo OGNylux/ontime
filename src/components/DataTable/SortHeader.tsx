@@ -15,9 +15,9 @@ export default function SortHeader({ label, field, orderBy, order, onSort }: Sor
     return (
         <Box
             onClick={() => onSort(field)}
+            display="inline-flex"
+            alignItems="center"
             sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
                 cursor: 'pointer',
                 userSelect: 'none',
                 '&:hover': { opacity: 0.7 },
@@ -26,19 +26,19 @@ export default function SortHeader({ label, field, orderBy, order, onSort }: Sor
             <Typography component="span">
                 {label}
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', ml: 0.5}}>
+            <Box display="flex" flexDirection="column" ml={0.5}>
                 <ExpandLess
+                    color={orderBy === field && order === 'asc' ? 'primary' : 'disabled'}
                     sx={{
                         fontSize: 20,
-                        mb: -0.6,
-                        color: orderBy === field && order === 'asc' ? 'primary.main' : 'action.disabled',
+                        mb: -0.6
                     }}
                 />
                 <ExpandMore
+                    color={orderBy === field && order === 'desc' ? 'primary' : 'disabled'}
                     sx={{
                         fontSize: 20,
-                        mt: -0.65,
-                        color: orderBy === field && order === 'desc' ? 'primary.main' : 'action.disabled',
+                        mt: -0.65
                     }}
                 />
             </Box>

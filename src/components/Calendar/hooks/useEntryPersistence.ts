@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
 import { taskService } from "../../../services/taskService";
+import { projectService } from "../../../services/projectService";
 
 interface UseEntryPersistenceProps {
     entriesByDate: Record<string, CalendarEntry[]>;
@@ -82,10 +83,22 @@ export function useEntryPersistence({
             let task = await taskService.getTaskByName(data.taskName.trim(), data.projectId);
             
             if (!task) {
+                // Fetch project color if a project is selected
+                let projectColor: number | undefined = undefined;
+                if (data.projectId) {
+                    try {
+                        const project = await projectService.getProject(data.projectId);
+                        projectColor = project.color;
+                    } catch (err) {
+                        console.error("Failed to fetch project color:", err);
+                    }
+                }
+                
                 // Create new task if not found
                 task = await taskService.createTask({ 
                     name: data.taskName.trim(),
-                    project_id: data.projectId ?? undefined
+                    project_id: data.projectId ?? undefined,
+                    color: projectColor
                 });
             }
             taskId = task.id;
@@ -153,10 +166,22 @@ export function useEntryPersistence({
             let task = await taskService.getTaskByName(data.taskName.trim(), data.projectId);
             
             if (!task) {
+                // Fetch project color if a project is selected
+                let projectColor: number | undefined = undefined;
+                if (data.projectId) {
+                    try {
+                        const project = await projectService.getProject(data.projectId);
+                        projectColor = project.color;
+                    } catch (err) {
+                        console.error("Failed to fetch project color:", err);
+                    }
+                }
+                
                 // Create new task if not found
                 task = await taskService.createTask({ 
                     name: data.taskName.trim(),
-                    project_id: data.projectId ?? undefined
+                    project_id: data.projectId ?? undefined,
+                    color: projectColor
                 });
             }
             taskId = task.id;

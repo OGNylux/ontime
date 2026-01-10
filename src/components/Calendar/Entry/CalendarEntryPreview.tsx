@@ -26,47 +26,43 @@ export default function CalendarEntryPreview({ title, startIso, endIso, top, hei
 
     return (
         <Box
+            position="absolute"
+            top={top}
+            left={left}
+            right={right}
+            height={Math.max(height, 5)}
+            bgcolor="secondary.main"
+            borderRadius={1}
+            zIndex={zIndex}
+            padding={height < 15 ? 0 : 0.5}
+            boxSizing="border-box"
+            display="flex"
+            flexDirection="column"
+            justifyContent="flex-start"
             sx={{
-                position: "absolute",
-                top,
-                left,
-                right,
-                height: Math.max(height, 5),
-                backgroundColor: "primary.main",
                 opacity: 0.5,
-                borderRadius: 1,
-                zIndex,
-                padding: height < 15 ? 0 : 0.5,
-                boxSizing: "border-box",
-                pointerEvents: "none",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "flex-start",
+                pointerEvents: "none"
             }}
         >
             <Typography
                 variant="caption"
-                sx={{
-                    color: "white",
-                    fontWeight: 600,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontSize: height < 40 ? "0.65rem" : "0.75rem",
-                }}
+                color="primary.contrastText"
+                fontWeight={600}
+                overflow="hidden"
+                textOverflow="ellipsis"
+                whiteSpace="nowrap"
+                fontSize={height < 40 ? "0.65rem" : "0.75rem"}
             >
                 {title}
             </Typography>
             {height >= 40 && (
                 <Typography
                     variant="caption"
-                    sx={{
-                        color: "rgba(255, 255, 255, 0.9)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "0.65rem",
-                    }}
+                    color="primary.contrastText"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                    fontSize="0.65rem"
                 >
                     {timeDisplay}
                 </Typography>

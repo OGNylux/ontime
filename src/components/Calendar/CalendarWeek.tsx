@@ -1,6 +1,6 @@
 import { Box, Stack, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
 
 // Components
@@ -12,6 +12,7 @@ import Recorder from "./TopBar/Recorder";
 import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
 import EntryContextMenu from "./EntryDialog/EntryContextMenu";
 import ConfirmDialog from "../Forms/ConfirmDialog";
+import ProjectTimelineBar from "./ProjectTimelineBar";
 
 // Hooks
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
@@ -22,12 +23,10 @@ import { useEntryPersistence } from "./hooks/useEntryPersistence";
 
 // Types & Utils
 import { CalendarEntry } from "../../services/calendarService";
-import { minutesToTime, ResizeHandlePosition } from "./util/calendarUtility";
+import { formatDuration, minutesToTime, ResizeHandlePosition } from "./util/calendarUtility";
 import { GapSize } from "./TopBar/CalendarZoom";
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Types
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface DialogState {
     open: boolean;
@@ -59,18 +58,14 @@ const INITIAL_DIALOG_STATE: DialogState = {
     editingEntry: null,
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Component
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CalendarWeek() {
     const theme = useTheme();
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // State
-    // ─────────────────────────────────────────────────────────────────────────
     
     const [gapSize, setGapSize] = useState<GapSize>(60);
     const [dialogState, setDialogState] = useState<DialogState>(INITIAL_DIALOG_STATE);
@@ -80,9 +75,7 @@ export default function CalendarWeek() {
     const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
     const [startRecordingFn, setStartRecordingFn] = useState<(() => void) | null>(null);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Data Hooks
-    // ─────────────────────────────────────────────────────────────────────────
     
     const { weekDays, nextWeek, prevWeek, goToToday, viewMode, setViewMode } = useCalendarWeekState();
     const { entriesByDate, refetch, addOrReplaceEntry, removeEntryLocal } = useCalendarEntries(weekDays);
@@ -97,9 +90,7 @@ export default function CalendarWeek() {
     const { moveState, beginMove } = useEntryMove(entriesByDate, persistence.updateEntryTimes);
     const { resizeState, beginResize } = useEntryResize(entriesByDate, persistence.updateEntryTimes);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Scroll Lock (during drag/resize)
-    // ─────────────────────────────────────────────────────────────────────────
     
     useEffect(() => {
         if (!moveState && !resizeState) return;
@@ -130,9 +121,7 @@ export default function CalendarWeek() {
         };
     }, [moveState, resizeState]);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Dialog Handlers
-    // ─────────────────────────────────────────────────────────────────────────
     
     const openCreateDialog = useCallback((
         dateStr: string,
@@ -219,9 +208,7 @@ export default function CalendarWeek() {
         closeDialog();
     }, [dialogState.dateStr, persistence, closeDialog]);
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Entry Interaction Handlers
-    // ─────────────────────────────────────────────────────────────────────────
     
     const handleEntryClick = useCallback((entry: CalendarEntry, ev?: React.MouseEvent) => {
         openEditDialog(entry, ev ? { top: ev.clientY, left: ev.clientX } : null);
@@ -247,52 +234,68 @@ export default function CalendarWeek() {
         }
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // Calculate total week time
+    const totalWeekTime = useMemo(() => {
+        const allEntries = Object.values(entriesByDate).flat();
+        const totalMinutes = allEntries.reduce((sum, entry) => {
+            const start = dayjs(entry.start_time);
+            const end = dayjs(entry.end_time);
+            return sum + end.diff(start, 'minute');
+        }, 0);
+        
+        return formatDuration(totalMinutes);
+    }, [entriesByDate]);
+
     // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default" }}>
             {/* Top Bar */}
-            <Box
-                sx={{
-                    py: 1,
-                    borderBottom: t => `1px solid ${t.palette.divider}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 2,
-                    flexWrap: { xs: "wrap", lg: "nowrap" },
-                }}
-            >
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                    <CalendarNavigation onPrev={prevWeek} onNext={nextWeek} onToday={goToToday} />
-                </Stack>
-
-                <Box sx={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}>
+            
+                <Box sx={{ display: "flex", px: 1, pt: 1 }}>
                     <Recorder 
                         addOrReplaceEntry={addOrReplaceEntry} 
                         onRecordingStart={(fn) => setStartRecordingFn(() => fn)}
                     />
                 </Box>
+            <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+                gap={2}
+                pb={1}
+                px={1}
+                flexWrap={{ xs: "wrap", lg: "nowrap"}}
+                mx={1}
+                borderBottom={t => `1px solid ${t.palette.divider}`}
+            >
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                    <CalendarNavigation 
+                        onPrev={prevWeek} 
+                        onNext={nextWeek} 
+                        onToday={goToToday}
+                        totalWeekTime={totalWeekTime}
+                    />
+                </Stack>
 
                 <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                     <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
                 </Box>
             </Box>
 
+            {/* Project Timeline Bar */}
+            <ProjectTimelineBar
+                entries={Object.values(entriesByDate).flat()}
+            />
+
             {/* Calendar Grid */}
             <Box
                 ref={scrollContainerRef}
                 className="scrollbar-hide"
-                sx={{
-                    flex: 1,
-                    overflowX: "auto",
-                    overflowY: "auto",
-                    pb: { xs: 1, md: 2 },
-                    WebkitOverflowScrolling: "touch",
-                    ...(moveState && { overflow: "hidden", touchAction: "none" }),
-                }}
+                flex={1}
+                overflow="auto"
+                {...(moveState && { overflow: "hidden", touchAction: "none" })}
+                sx={{ WebkitOverflowScrolling: "touch" }}
             >
                 <Stack direction="row" sx={{ minHeight: "100%" }}>
                     <CalendarTime isCompact={isCompact} gapSize={gapSize} onGapSizeChange={setGapSize} />
@@ -341,6 +344,7 @@ export default function CalendarWeek() {
                 dateStr={dialogState.dateStr}
                 initialTitle={dialogState.editingEntry?.task?.name}
                 initialIsBillable={dialogState.editingEntry?.is_billable || false}
+                initialProjectId={dialogState.editingEntry?.project_id ?? dialogState.editingEntry?.project?.id ?? null}
                 isEdit={Boolean(dialogState.editingEntry)}
                 editingEntryId={dialogState.editingEntry?.id || null}
                 onDelete={handleDelete}

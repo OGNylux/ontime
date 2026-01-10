@@ -35,7 +35,7 @@ export default function CalendarZoom({ gapSize, onGapSizeChange }: CalendarZoomP
                         onClick={handleZoomOut}
                         disabled={!canZoomOut}
                         size="small"
-                        sx={{ border: 1, borderColor: 'divider', p: 0.4, width: 32, height: 32, minWidth: 32 }}
+                        sx={{ border: 1, borderColor: 'divider', p: 0.4, width: { xs: 24, sm: 28, md: 32 }, height: { xs: 24, sm: 28, md: 32 } }}
                     >
                         <Remove sx={{ fontSize: 18 }} />
                     </IconButton>
@@ -47,7 +47,7 @@ export default function CalendarZoom({ gapSize, onGapSizeChange }: CalendarZoomP
                         onClick={handleZoomIn}
                         disabled={!canZoomIn}
                         size="small"
-                        sx={{ border: 1, borderColor: 'divider', p: 0.4, width: 32, height: 32, minWidth: 32 }}
+                        sx={{ border: 1, borderColor: 'divider', p: 0.4, width: { xs: 24, sm: 28, md: 32 }, height: { xs: 24, sm: 28, md: 32 } }}
                     >
                         <Add sx={{ fontSize: 18 }} />
                     </IconButton>

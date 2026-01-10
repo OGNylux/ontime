@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry } from "../../../services/calendarService";
-import { clamp, clampMinute, MINUTES_PER_DAY, snap } from "../util/calendarUtility";
+import { clamp, clampMinute, MINUTES_PER_DAY, ResizeHandlePosition, snap } from "../util/calendarUtility";
 
 export interface ResizeState {
     entry: CalendarEntry;
-    handle: 'top' | 'bottom';
+    handle: ResizeHandlePosition;
     dateStr: string; // The day where the resize started (usually the day column)
     originalStartMinute: number;
     originalEndMinute: number;
@@ -16,7 +16,7 @@ export interface ResizeState {
 export interface EntryResizeStartPayload {
     dateStr: string;
     entryId: string;
-    handle: 'top' | 'bottom';
+    handle: ResizeHandlePosition;
     clientY: number;
 }
 
