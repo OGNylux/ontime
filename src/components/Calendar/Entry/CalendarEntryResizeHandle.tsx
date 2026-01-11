@@ -1,5 +1,6 @@
 import { useRef, useCallback } from "react";
 import { ResizeHandlePosition } from "../util/calendarUtility";
+import { Box, Typography } from "@mui/material";
 
 interface CalendarEntryResizeHandleProps {
     position: ResizeHandlePosition;
@@ -63,13 +64,19 @@ export default function CalendarEntryResizeHandle({ position, onMouseDown, onCli
     }, [onMouseDown, onClick]);
 
     return (
-        <div
+        <Box
             onPointerDown={handlePointerDown}
-            className={`resize-handle absolute left-0 right-0 h-3 flex items-center justify-center cursor-ns-resize pointer-events-auto select-none`}
-            style={{ [position]: 0 }}
+            position="absolute"
+            left={0}
+            right={0}
+            height={12}
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            sx={{ cursor: 'ns-resize', pointerEvents: 'auto', userSelect: 'none', [position]: 0 }}
             aria-hidden={false}
         >
-            <span style={{ opacity: 0.85, fontSize: 10 }}>--</span>
-        </div>
+            <Typography fontSize={10} color="background.default" sx={{opacity: 0.85}}>--</Typography>
+        </Box>
     );
 }

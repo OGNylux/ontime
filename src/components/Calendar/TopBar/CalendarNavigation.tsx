@@ -12,7 +12,7 @@ interface CalendarNavigationProps {
 
 export default function CalendarNavigation({ onPrev, onNext, onToday, isRecording, onToggleRecording, totalWeekTime }: CalendarNavigationProps) {
     return (
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ height: 40 }}>
             {onToggleRecording && (
                 <IconButton 
                     onClick={onToggleRecording} 
@@ -23,18 +23,18 @@ export default function CalendarNavigation({ onPrev, onNext, onToday, isRecordin
                     {isRecording ? <Stop /> : <PlayArrow />}
                 </IconButton>
             )}
-            <IconButton onClick={onPrev} size="small">
+            <IconButton onClick={onPrev} size="small" sx={{ height: 40, width: 40 }}>
                 <ChevronLeft />
             </IconButton>
             <Button 
                 onClick={onToday} 
                 variant="outlined" 
                 size="small" 
-                sx={{ minWidth: 'auto', px: 2 }}
+                sx={{ minWidth: 'auto', px: 2, height: 40 }}
             >
                 Today
             </Button>
-            <IconButton onClick={onNext} size="small">
+            <IconButton onClick={onNext} size="small" sx={{ height: 40, width: 40 }}>
                 <ChevronRight />
             </IconButton>
             {totalWeekTime && (

@@ -1,7 +1,8 @@
 import { Box, IconButton, Tooltip } from "@mui/material";
 import { PlayArrow } from "@mui/icons-material";
 import { useEffect, useState } from "react";
-import dayjs from "dayjs";
+import { dayjs } from "../../lib/timezone";
+import { useUserTimezone } from "../../hooks/useUserTimezone";
 
 interface CalendarCurrentTimeLineProps {
     pixelsPerMinute: number;
@@ -9,21 +10,30 @@ interface CalendarCurrentTimeLineProps {
 }
 
 export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecording }: CalendarCurrentTimeLineProps) {
-    const [currentMinute, setCurrentMinute] = useState(() => {
-        const now = dayjs();
-        return now.hour() * 60 + now.minute() + now.second() / 60;
-    });
+    const { timezone, loading } = useUserTimezone();
+    const [currentMinute, setCurrentMinute] = useState<number | null>(null);
 
     // Update current time every second for smooth movement
     useEffect(() => {
+        if (loading) return;
+        
         const updateTime = () => {
-            const now = dayjs();
+            // Get current time in user's timezone
+            const now = dayjs().tz(timezone);
             setCurrentMinute(now.hour() * 60 + now.minute() + now.second() / 60);
         };
+        
+        // Initial update
+        updateTime();
 
         const interval = setInterval(updateTime, 1000); // Update every second
         return () => clearInterval(interval);
-    }, []);
+    }, [timezone, loading]);
+
+    // Don't render until timezone is loaded and we have a valid minute
+    if (loading || currentMinute === null) {
+        return null;
+    }
 
     const topPosition = currentMinute * pixelsPerMinute;
     const containerHeight = 28;

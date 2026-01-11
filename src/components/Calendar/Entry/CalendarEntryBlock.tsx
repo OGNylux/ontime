@@ -1,6 +1,7 @@
 import { Box, Typography } from "@mui/material";
 import { MouseEvent, useEffect, useRef, useCallback } from "react";
-import dayjs from "dayjs";
+import { toUserTimezone } from "../../../lib/timezone";
+import { useUserTimezone } from "../../../hooks/useUserTimezone";
 
 // Components
 import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
@@ -34,9 +35,10 @@ export interface EntryLayout extends CalendarEntry {
 
 // Helpers
 
-function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number) {
-    const startTime = dayjs(entry.start_time);
-    const endTime = dayjs(entry.end_time);
+function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number, timezone: string) {
+    // Convert UTC times to user's timezone for display
+    const startTime = toUserTimezone(entry.start_time, timezone);
+    const endTime = toUserTimezone(entry.end_time, timezone);
 
     // Include seconds for more precise positioning
     const startMinutes = entry.visualStartMinute ??
@@ -66,6 +68,7 @@ export default function CalendarEntryBlock({
     widthPercent = 100,
     offsetPercent = 0,
 }: CalendarEntryBlockProps) {
+    const { timezone } = useUserTimezone();
     const paperRef = useRef<HTMLDivElement>(null);
     const dragStartPos = useRef<{ x: number; y: number } | null>(null);
     const isDraggingRef = useRef(false);
@@ -164,7 +167,7 @@ export default function CalendarEntryBlock({
 
     // Layout Calculations
 
-    const { top, height, durationMinutes } = computeLayout(entry as CalendarEntry & EntryLayout, hourHeight);
+    const { top, height, durationMinutes } = computeLayout(entry as CalendarEntry & EntryLayout, hourHeight, timezone);
     const backgroundColor = entry.task?.color || 0;
     const title = entry.task?.name || "";
     const duration = formatDuration(durationMinutes);
@@ -180,7 +183,8 @@ export default function CalendarEntryBlock({
             onMouseDown={handleMouseDown}
             onClick={handleClick}
             onContextMenu={handleContextMenu}
-            className={`${TAILWIND_COLORS[backgroundColor].secondary} border-l-3 ${TAILWIND_COLORS[backgroundColor].border} `}
+            borderLeft={`3px solid ${TAILWIND_COLORS[backgroundColor].value}`}
+            bgcolor={`${TAILWIND_COLORS[backgroundColor].secondary}`}
             position="absolute"
             top={top}
             height={height}
@@ -218,7 +222,7 @@ export default function CalendarEntryBlock({
             {showTitle && (
                 <Typography
                     variant="caption"
-                    color="primary.contrastText"
+                    color="background.default"
                     fontWeight={600}
                     display="block"
                     overflow="hidden"
@@ -232,7 +236,7 @@ export default function CalendarEntryBlock({
             {(entry.project?.name && entry.project?.client?.name) && showTitle && (
                 <Typography
                     variant="caption"
-                    color="primary.contrastText"
+                    color="background.default"
                     display="block"
                     overflow="hidden"
                     textOverflow="ellipsis"
@@ -246,7 +250,7 @@ export default function CalendarEntryBlock({
             {showDuration && (
                 <Typography
                     variant="caption"
-                    color="primary.contrastText"
+                    color="background.default"
                     display="block"
                     overflow="hidden"
                     textOverflow="ellipsis"

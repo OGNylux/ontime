@@ -30,7 +30,7 @@ export default function BottomAppBar() {
 
     // Map paths to nav values
     const getNavValue = () => {
-        if (location.pathname === '/' || location.pathname === '/home') return 0;
+        if (location.pathname === '/' || location.pathname === '/overview') return 0;
         if (location.pathname === '/timer') return 1;
         if (location.pathname === '/notifications') return 3;
         if (location.pathname === '/settings') return 4;
@@ -41,12 +41,13 @@ export default function BottomAppBar() {
         setFabOpen(false);
         switch (newValue) {
             case 0:
-                navigate('/');
+                navigate('/overview');
                 break;
             case 1:
                 navigate('/timer');
                 break;
             case 3:
+                // On mobile navigate to the notifications page
                 navigate('/notifications');
                 break;
             case 4:
@@ -180,6 +181,7 @@ export default function BottomAppBar() {
                     {fabOpen ? <Close /> : <Add />}
                 </Fab>
             </Box>
+            {/* Mobile opens a dedicated notifications page at /notifications */}
         </Paper>
     );
 }

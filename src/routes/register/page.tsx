@@ -5,7 +5,7 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import Link from '@mui/material/Link';
 import AuthForm from "../../components/Forms/AuthForm";
 import { authService, User } from "../../services/authService";
@@ -14,6 +14,7 @@ import { Alert } from "@mui/material";
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [_, setSuccess] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export default function RegisterPage() {
         await authService.register(request);
         setSuccess("Registration successful! Please check your email.");
         setError(null);
+        navigate("/login", { replace: true });
       } catch (error: any) {
         setError(error.message || "Registration denied with provided credentials");
         setSuccess(null);

@@ -93,13 +93,9 @@ export default function ClientsPage() {
                 return false;
             })
             : clients;
-        
-        // Sort by pinned status
-        return filtered.sort((a, b) => {
-            if (a.pinned && !b.pinned) return -1;
-            if (!a.pinned && b.pinned) return 1;
-            return 0;
-        });
+
+        // Keep original order here; sorting will be handled by DataTable with grouping
+        return filtered;
     }, [clients, searchQuery]);
 
     const toggleExpansion = (clientId: string) => {
@@ -130,6 +126,7 @@ export default function ClientsPage() {
                         id: `${client.id}-${project.id}`,
                         type: 'project',
                         project,
+                        client,
                         name: project.name,
                     });
                 });
@@ -371,7 +368,8 @@ export default function ClientsPage() {
                 emptyMessage={searchQuery ? 'No clients or projects match your search' : 'No clients found'}
                 getRowId={(row) => row.id}
                 isRowSelectable={(row) => row.type === 'client'}
-                defaultSortField="name"
+                 defaultSortField="name"
+                 groupBy={(row) => row.type === 'client' ? row.id : row.client?.id}
                 bulkActions={
                     <>
                         <Divider orientation="vertical" flexItem />

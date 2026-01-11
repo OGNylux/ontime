@@ -1,6 +1,7 @@
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { useMemo } from "react";
-import dayjs from "dayjs";
+import { dayjs, toUserTimezone } from "../../lib/timezone";
+import { useUserTimezone } from "../../hooks/useUserTimezone";
 import CalendarEntryBlock, { EntryLayout } from "./Entry/CalendarEntryBlock";
 import CalendarEntryPreview from "./Entry/CalendarEntryPreview";
 import CalendarCurrentTimeLine from "./CalendarCurrentTimeLine";
@@ -42,13 +43,15 @@ interface CalendarDayProps {
 
 // Helpers
 
-function computeTotalMinutes(entries: CalendarEntry[], dateStr: string): number {
-    const dayStart = dayjs(dateStr).startOf("day");
+function computeTotalMinutes(entries: CalendarEntry[], dateStr: string, timezone: string): number {
+    // Parse dateStr as user's timezone
+    const dayStart = dayjs.tz(dateStr, timezone).startOf("day");
     const dayEnd = dayStart.endOf("day");
 
     return entries.reduce((total, entry) => {
-        const start = dayjs(entry.start_time);
-        const end = dayjs(entry.end_time);
+        // Convert UTC entry times to user's timezone
+        const start = toUserTimezone(entry.start_time, timezone);
+        const end = toUserTimezone(entry.end_time, timezone);
         if (end.isBefore(dayStart) || start.isAfter(dayEnd)) return total;
 
         const clampedStart = start.isBefore(dayStart) ? dayStart : start;
@@ -87,10 +90,14 @@ export default function CalendarDay({
     moveState,
     resizeState,
 }: CalendarDayProps) {
+    const { timezone } = useUserTimezone();
     const theme = useTheme();
     const isSmallWindow = useMediaQuery(theme.breakpoints.down("md"));
-    const isTouchDevice = useMediaQuery("(pointer: coarse)") || useMediaQuery("(hover: none)");
-    const isToday = dayjs().format("YYYY-MM-DD") === dateStr;
+    const isPointerCoarse = useMediaQuery("(pointer: coarse)");
+    const isHoverNone = useMediaQuery("(hover: none)");
+    const isTouchDevice = isPointerCoarse || isHoverNone;
+    // Check if this day is "today" in the user's timezone
+    const isToday = dayjs().tz(timezone).format("YYYY-MM-DD") === dateStr;
 
     // Zoom/Layout Calculations
 
@@ -100,7 +107,7 @@ export default function CalendarDay({
     const slotHeight = baseHourHeight;
 
     const timeSlots = useMemo(() => generateTimeSlots(gapSize), [gapSize]);
-    const totalMinutes = useMemo(() => computeTotalMinutes(entries, dateStr), [entries, dateStr]);
+    const totalMinutes = useMemo(() => computeTotalMinutes(entries, dateStr, timezone), [entries, dateStr, timezone]);
     const laidOutEntries = useMemo(
         () => assignEntryLayout(entries, pixelsPerHour, 30, dateStr),
         [entries, pixelsPerHour, dateStr]
@@ -274,21 +281,15 @@ export default function CalendarDay({
 
     return (
         <Box
-            flex={1}
+            flex="1 1 0"
             bgcolor="background.default"
             position="relative"
             overflow="visible"
-            flexShrink={isCompact ? 1 : 0}
-            {...(!isCompact && {
-                minWidth: { xs: 140, md: 176 },
-            })
-            }
+            minWidth={0}
             {...(isCompact && {
-                minWidth: 0,
                 flexBasis: `${widthPercent}%`,
                 maxWidth: `${widthPercent}%`,
-            })
-            }
+            })}
         >
             <CalendarDayHeader
                 dayOfTheWeek={dayOfTheWeek}

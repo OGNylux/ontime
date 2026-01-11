@@ -71,7 +71,7 @@ export default function TaskDialog({ open, onClose, onSave, task, projects }: Ta
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
             <form onSubmit={handleSubmit}>
                 <DialogTitle variant='h5' fontWeight="bold">{task ? 'Edit Task' : 'New Task'}</DialogTitle>
                 <DialogContent>
@@ -90,11 +90,12 @@ export default function TaskDialog({ open, onClose, onSave, task, projects }: Ta
                         </Box>
 
                         <Box>
-                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Project</Typography>
+                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Project *</Typography>
                             <FormControl fullWidth>
                                 <Select
                                     value={projectId}
                                     displayEmpty
+                                    required
                                     onChange={(e: SelectChangeEvent) => {
                                         const newProjectId = e.target.value;
                                         setProjectId(newProjectId);

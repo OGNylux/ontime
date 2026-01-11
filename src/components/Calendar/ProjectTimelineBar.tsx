@@ -94,7 +94,7 @@ const TimelineBar = ({ segments }: { segments: ProjectSegment[] }) => (
             <Box
                 key={segment.projectId}
                 title={`${segment.projectName} - ${formatDuration(segment.minutes)}`}
-                className={segment.color}
+                bgcolor={`${segment.color}`}
                 sx={{
                     width: `${segment.percentage}%`,
                     ...(index === 0 && { borderTopLeftRadius: 8, borderBottomLeftRadius: 8 }),

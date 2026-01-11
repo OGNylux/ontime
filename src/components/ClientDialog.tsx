@@ -78,7 +78,7 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
             <form onSubmit={handleSubmit}>
                 <DialogTitle variant='h5' fontWeight="bold">{client ? 'Edit Client' : 'New Client'}</DialogTitle>
                 <DialogContent>

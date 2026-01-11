@@ -13,7 +13,7 @@ export default function CalendarDayHeader({ dayOfTheWeek, dayOfTheMonth, totalMi
             elevation={0}
             square
             sx={{
-                height: { xs: 56, sm: 64 },
+                height: 64,
                 position: "sticky",
                 top: 0,
                 zIndex: 50,

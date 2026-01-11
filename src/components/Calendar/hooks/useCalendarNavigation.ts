@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from "react";
-import dayjs from "dayjs";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { dayjs } from "../../../lib/timezone";
+import { useUserTimezone } from "../../../hooks/useUserTimezone";
 
 export type ViewMode = 'day' | 'work_week' | 'week';
 
@@ -11,8 +12,20 @@ export interface WeekDayInfo {
 }
 
 export function useCalendarNavigation() {
-    const [currentDate, setCurrentDate] = useState(dayjs());
+    const { timezone, loading: tzLoading } = useUserTimezone();
+    const [currentDate, setCurrentDate] = useState(() => dayjs());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
+    const [initialized, setInitialized] = useState(false);
+
+    // Initialize and update currentDate when timezone loads/changes
+    useEffect(() => {
+        if (!tzLoading) {
+            // Get current time in user's timezone
+            const now = dayjs().tz(timezone);
+            setCurrentDate(now);
+            setInitialized(true);
+        }
+    }, [timezone, tzLoading]);
 
     const weekDays = useMemo(() => {
         if (viewMode === 'day') {
@@ -24,8 +37,8 @@ export function useCalendarNavigation() {
             }] as WeekDayInfo[];
         }
 
-        // Ensure the calendar week starts on Monday.
-        const start = currentDate.startOf("week").add(1, "day");
+        // Ensure the calendar week starts on Monday (using ISO week where Monday = day 1)
+        const start = currentDate.startOf("isoWeek");
         const length = viewMode === 'work_week' ? 5 : 7;
 
         return Array.from({ length }).map((_, index) => {
@@ -55,7 +68,7 @@ export function useCalendarNavigation() {
         }
     }, [viewMode]);
 
-    const goToToday = useCallback(() => setCurrentDate(dayjs()), []);
+    const goToToday = useCallback(() => setCurrentDate(dayjs().tz(timezone)), [timezone]);
 
     return {
         currentDate,
@@ -64,6 +77,7 @@ export function useCalendarNavigation() {
         weekDays,
         handleNext,
         handlePrev,
-        goToToday
+        goToToday,
+        loading: !initialized || tzLoading,
     };
 }

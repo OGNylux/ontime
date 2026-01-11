@@ -48,7 +48,7 @@ export default function ColorSelector({ value, onChange }: ColorSelectorProps) {
                                 borderColor="primary.main"
                                 boxSizing="border-box"
                             >
-                                <div className={`w-6 h-6 rounded-full ${colorObj?.value}`} />
+                                <Box width={24} height={24} bgcolor={colorObj?.value} borderRadius="100%" />
                             </Box>
                         </Box>
                     );
@@ -91,7 +91,7 @@ export default function ColorSelector({ value, onChange }: ColorSelectorProps) {
                                     },
                                 }}
                             >
-                                <div className={`w-6 h-6 rounded-full ${colorOption.value}`} />
+                                <Box width={24} height={24} bgcolor={colorOption.value} borderRadius="50%" />
                             </Box>
                         </Tooltip>
                     </MenuItem>

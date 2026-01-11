@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "ontime",
+        "title": "OnTime",
         "width": 800,
         "height": 600
       }

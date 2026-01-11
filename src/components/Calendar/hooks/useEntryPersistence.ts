@@ -1,6 +1,7 @@
 import { useCallback } from "react";
-import dayjs from "dayjs";
+import { dayjs, parseAsUserTimezone } from "../../../lib/timezone";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
+import { useUserTimezone } from "../../../hooks/useUserTimezone";
 import { taskService } from "../../../services/taskService";
 import { projectService } from "../../../services/projectService";
 
@@ -17,6 +18,7 @@ export function useEntryPersistence({
     removeEntryLocal,
     refetch,
 }: UseEntryPersistenceProps) {
+    const { timezone } = useUserTimezone();
     
     // Find an entry by ID across all dates
     const findEntry = useCallback((entryId: string): CalendarEntry | undefined => {
@@ -34,26 +36,29 @@ export function useEntryPersistence({
         startMinute: number,
         endMinute: number
     ) => {
-        const startDateTime = dayjs(dateStr).startOf('day').add(startMinute, 'minute').toISOString();
-        const endDateTime = dayjs(dateStr).startOf('day').add(endMinute, 'minute').toISOString();
+        // Parse dateStr in user's timezone, add minutes, then convert to UTC
+        const startDateTime = parseAsUserTimezone(`${dateStr}T00:00:00`, timezone);
+        const endDateTime = parseAsUserTimezone(`${dateStr}T00:00:00`, timezone);
+        const startUTC = dayjs.utc(startDateTime).add(startMinute, 'minute').toISOString();
+        const endUTC = dayjs.utc(endDateTime).add(endMinute, 'minute').toISOString();
 
         // Optimistic update
         const existing = findEntry(entryId);
         if (existing) {
-            addOrReplaceEntry({ ...existing, start_time: startDateTime, end_time: endDateTime });
+            addOrReplaceEntry({ ...existing, start_time: startUTC, end_time: endUTC });
         }
 
         try {
             const updated = await calendarService.updateEntry(entryId, {
-                start_time: startDateTime,
-                end_time: endDateTime,
+                start_time: startUTC,
+                end_time: endUTC,
             });
             addOrReplaceEntry(updated);
         } catch (err) {
             console.error("Failed to update entry times:", err);
             refetch();
         }
-    }, [findEntry, addOrReplaceEntry, refetch]);
+    }, [findEntry, addOrReplaceEntry, refetch, timezone]);
 
     // Create a new entry
     const createEntry = useCallback(async (data: {
@@ -65,16 +70,15 @@ export function useEntryPersistence({
         projectId?: string | null;
         taskId?: string;
     }) => {
-        const startDateTime = dayjs(data.dateStr)
-            .hour(parseInt(data.startTime.split(":")[0]))
-            .minute(parseInt(data.startTime.split(":")[1]))
-            .second(0)
-            .toISOString();
-        const endDateTime = dayjs(data.dateStr)
-            .hour(parseInt(data.endTime.split(":")[0]))
-            .minute(parseInt(data.endTime.split(":")[1]))
-            .second(0)
-            .toISOString();
+        // Parse times in user's timezone, then convert to UTC
+        const startDateTime = parseAsUserTimezone(
+            `${data.dateStr}T${data.startTime}:00`,
+            timezone
+        );
+        const endDateTime = parseAsUserTimezone(
+            `${data.dateStr}T${data.endTime}:00`,
+            timezone
+        );
 
         // Resolve task
         let taskId: string | undefined = data.taskId;
@@ -130,7 +134,7 @@ export function useEntryPersistence({
             console.error("Failed to create entry:", err);
             refetch();
         }
-    }, [addOrReplaceEntry, removeEntryLocal, refetch]);
+    }, [addOrReplaceEntry, removeEntryLocal, refetch, timezone]);
 
     // Update an existing entry
     const updateEntry = useCallback(async (
@@ -148,16 +152,15 @@ export function useEntryPersistence({
         const existing = findEntry(entryId);
         if (!existing) return;
 
-        const startDateTime = dayjs(data.dateStr)
-            .hour(parseInt(data.startTime.split(":")[0]))
-            .minute(parseInt(data.startTime.split(":")[1]))
-            .second(0)
-            .toISOString();
-        const endDateTime = dayjs(data.dateStr)
-            .hour(parseInt(data.endTime.split(":")[0]))
-            .minute(parseInt(data.endTime.split(":")[1]))
-            .second(0)
-            .toISOString();
+        // Parse times in user's timezone, then convert to UTC
+        const startDateTime = parseAsUserTimezone(
+            `${data.dateStr}T${data.startTime}:00`,
+            timezone
+        );
+        const endDateTime = parseAsUserTimezone(
+            `${data.dateStr}T${data.endTime}:00`,
+            timezone
+        );
 
         // Resolve task
         let taskId: string | undefined = data.taskId;
@@ -210,7 +213,7 @@ export function useEntryPersistence({
             console.error("Failed to update entry:", err);
             refetch();
         }
-    }, [findEntry, addOrReplaceEntry, refetch]);
+    }, [findEntry, addOrReplaceEntry, refetch, timezone]);
 
     // Duplicate an entry
     const duplicateEntry = useCallback(async (entry: CalendarEntry) => {

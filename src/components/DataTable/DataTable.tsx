@@ -37,6 +37,8 @@ interface DataTableProps<T extends { id?: string; pinned?: boolean }> {
     getRowId?: (row: T) => string;
     bulkActions?: ReactNode;
     isRowSelectable?: (row: T) => boolean;
+    disableSorting?: boolean;
+    groupBy?: (row: T) => string | undefined;
 }
 
 export default function DataTable<T extends { id?: string; pinned?: boolean }>({
@@ -54,29 +56,89 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     getRowId = (row) => row.id ?? '',
     bulkActions,
     isRowSelectable = () => true,
+    disableSorting = false,
+    groupBy,
 }: DataTableProps<T>) {
     const [order, setOrder] = useState<Order>(defaultSortOrder);
     type OrderBy = (keyof T & string) | '';
-    const [orderBy, setOrderBy] = useState<OrderBy>((defaultSortField as OrderBy) || '');
+    const [orderBy, setOrderBy] = useState<OrderBy>(disableSorting ? '' : ((defaultSortField as OrderBy) || ''));
     const [page, setPage] = useState(1);
 
     const handleSort = (field: string) => {
+        if (disableSorting) return;
         const isAsc = orderBy === field && order === 'asc';
         setOrder(isAsc ? 'desc' : 'asc');
         setOrderBy(field as OrderBy);
     };
 
     const sortedData = useMemo(() => {
-        if (!orderBy) return data;
+        if (disableSorting || !orderBy) return data;
+
+        // When grouping is enabled, sort by parent row but keep group rows together
+        if (groupBy) {
+            type Group = { rows: T[] };
+            const groups: Group[] = [];
+            const groupIndex = new Map<string, number>();
+
+            data.forEach((row) => {
+                const key = groupBy(row);
+                if (!key) {
+                    // Ungrouped row: its own group to preserve relative position
+                    groups.push({ rows: [row] });
+                    return;
+                }
+
+                let idx = groupIndex.get(key);
+                if (idx === undefined) {
+                    idx = groups.length;
+                    groupIndex.set(key, idx);
+                    groups.push({ rows: [] });
+                }
+                groups[idx]!.rows.push(row);
+            });
+
+            groups.sort((ga, gb) => {
+                const a = ga.rows[0];
+                const b = gb.rows[0];
+
+                const aPinned = (a as T).pinned;
+                const bPinned = (b as T).pinned;
+
+                if (aPinned && !bPinned) return -1;
+                if (!aPinned && bPinned) return 1;
+
+                const aVal = (a as T)[orderBy as keyof T] as OrderBy;
+                const bVal = (b as T)[orderBy as keyof T] as OrderBy;
+
+                if (aVal === undefined || aVal === null) return order === 'asc' ? 1 : -1;
+                if (bVal === undefined || bVal === null) return order === 'asc' ? -1 : 1;
+
+                if (typeof aVal === 'string' && typeof bVal === 'string') {
+                    return order === 'asc'
+                        ? aVal.localeCompare(bVal)
+                        : bVal.localeCompare(aVal);
+                }
+
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return order === 'asc' ? (aVal - bVal) : (bVal - aVal);
+                }
+
+                const aStr = String(aVal);
+                const bStr = String(bVal);
+                return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+            });
+
+            return groups.flatMap((g) => g.rows);
+        }
+
+        // Default flat sorting
         return [...data].sort((a, b) => {
-            // Check if items have a 'pinned' property and always sort pinned items to the top
             const aPinned = (a as T).pinned;
             const bPinned = (b as T).pinned;
             
             if (aPinned && !bPinned) return -1;
             if (!aPinned && bPinned) return 1;
             
-            // If both have same pinned status, sort by the selected column
             const aVal = (a as T)[orderBy as keyof T] as OrderBy;
             const bVal = (b as T)[orderBy as keyof T] as OrderBy;
 
@@ -93,12 +155,11 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                 return order === 'asc' ? (aVal - bVal) : (bVal - aVal);
             }
 
-            // Fallback: compare string representations
             const aStr = String(aVal);
             const bStr = String(bVal);
             return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
         });
-    }, [data, orderBy, order]);
+    }, [data, orderBy, order, disableSorting, groupBy]);
 
     const paginatedData = useMemo(() => {
         const start = (page - 1) * rowsPerPage;
@@ -128,8 +189,8 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
 
     return (
         <Box display="flex" flexDirection="column" flex={1} minHeight={0}>
-            <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: { xs: 'auto', md: 'visible' } }}>
-                <Table stickyHeader sx={{ minWidth: 700, '& .MuiTableRow-root': { borderBottom: '1px solid', borderColor: 'divider' } }}>
+            <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: 'auto', width: '100%' }}>
+                <Table stickyHeader sx={{ minWidth: '100%', width: '100%', tableLayout: 'auto', '& .MuiTableRow-root': { borderBottom: '1px solid', borderColor: 'divider' }, '& td, & th': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }}>
                     <TableHead>
                         {selectedIds.length > 0 && bulkActions ? (
                             <TableRow>
@@ -167,7 +228,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                 )}
                                 {columns.map((col) => (
                                     <TableCell key={col.field} align={col.align || 'left'} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-                                        {col.sortable !== false ? (
+                                        {col.sortable !== false && !disableSorting ? (
                                             <SortHeader
                                                 label={col.label}
                                                 field={col.field}

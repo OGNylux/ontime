@@ -8,6 +8,8 @@ import RegisterPage from "./routes/register/page";
 import ProjectsPage from "./routes/projects/page";
 import ClientsPage from "./routes/clients/page";
 import TasksPage from "./routes/tasks/page";
+import OverviewPage from "./routes/overview/page";
+import SettingsPage from "./routes/settings/page";
 import Navbar from "./components/Navigation/Navbar";
 import Sidebar from "./components/Navigation/Sidebar";
 import BottomAppBar from "./components/Navigation/BottomAppBar";
@@ -17,6 +19,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, Box, useMediaQuery, useTheme } from "@mui/material";
 import theme from "./theme";
 import { platform } from "@tauri-apps/plugin-os";
+import NotificationsPage from "./routes/notifications/page";
 
 function AppLayout() {
   const muiTheme = useTheme();
@@ -47,16 +50,24 @@ function AppLayout() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!mounted) return;
       setUser(user);
-      if (!user && location.pathname !== "/login" && location.pathname !== "/register") {
-        navigate("/login", { replace: true });
+      if (!user) {
+        if (location.pathname !== "/login" && location.pathname !== "/register") {
+          navigate("/login", { replace: true });
+        }
+      } else if (location.pathname === "/") {
+        navigate("/timer", { replace: true });
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (!u && location.pathname !== "/login" && location.pathname !== "/register") {
-        navigate("/login", { replace: true });
+      if (!u) {
+        if (location.pathname !== "/login" && location.pathname !== "/register") {
+          navigate("/login", { replace: true });
+        }
+      } else if (location.pathname === "/") {
+        navigate("/timer", { replace: true });
       }
     });
 
@@ -89,7 +100,7 @@ function AppLayout() {
           />
         )}
         
-        <Box component="main" display="flex" flex={1} flexDirection="column" overflow="hidden" minWidth={0} minHeight={0} padding={1.5}>
+        <Box component="main" display="flex" flex={1} flexDirection="column" overflow="auto" minWidth={0} minHeight={0} padding={1.5}>
           <Routes>
             <Route path="/" element={<Timer />} />
             <Route path="/timer" element={<Timer />} />
@@ -98,6 +109,9 @@ function AppLayout() {
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/overview" element={<OverviewPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
           </Routes>
         </Box>
       </Box>

@@ -5,6 +5,9 @@ import { supabase } from '../../lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import ThemeToggler from './ThemeToggler';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import Popover from '@mui/material/Popover';
+import { NotificationsList } from './NotificationsDialog';
 
 interface NavbarProps {
     showMenuButton?: boolean;
@@ -13,6 +16,7 @@ interface NavbarProps {
 
 export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarProps) {
     const [_, setUser] = useState<User | null>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
     useEffect(() => {
         // Get initial session
@@ -29,8 +33,9 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
     }, []);
 
     return (
-        <AppBar position="fixed" className='shadow-md' sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, bgcolor: 'background.default', color: 'text.primary' }}>
-            <Toolbar>
+        <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: 'text.primary' }}>
+            <Box bgcolor="background.default" height="100%">
+                <Toolbar>
                 {showMenuButton && (
                     <IconButton
                         color="inherit"
@@ -47,10 +52,31 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                         OnTime
                     </Link>
                 </Typography>
-                <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <IconButton
+                        color="inherit"
+                        onClick={(e) => {
+                            setAnchorEl(e.currentTarget as HTMLElement);
+                        }}
+                        aria-label="open notifications"
+                        aria-haspopup="true"
+                    >
+                        <NotificationsIcon />
+                    </IconButton>
                     <ThemeToggler />
                 </Box>
+                <Popover
+                    open={Boolean(anchorEl)}
+                    anchorEl={anchorEl}
+                    onClose={() => setAnchorEl(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                    PaperProps={{ sx: { p: 0 } }}
+                >
+                    <NotificationsList />
+                </Popover>
             </Toolbar>
+            </Box>
         </AppBar>
     );
 }

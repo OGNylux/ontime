@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
+  Settings,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { userService } from '../../services/userService';
@@ -125,22 +126,46 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         sx={{ '& .MuiBackdrop-root': { top: { xs: '56px', md: '64px' } } }}
       >
         <Box display="flex" alignItems="center" px={2} py={2}>
-          <Typography variant="h5" fontWeight="bold" color="text.primary">
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            color="text.primary"
+            noWrap
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%',
+            }}
+          >
             {userName}'s Workspace
           </Typography>
         </Box>
         <Divider />
-        <Box overflow="auto">
-          <SidebarContent
-            navItems={NAV_ITEMS}
-            navSections={NAV_SECTIONS}
-            currentPath={location.pathname}
-            sectionStates={sectionStates}
-            onSectionToggle={(label: string) =>
-              setSectionStates((prev) => ({ ...prev, [label]: !prev[label] }))
-            }
-            onNavigate={handleNavigate}
-          />
+        <Box display="flex" flexDirection="column" height="100%">
+          <Box flex={1} overflow="auto">
+            <SidebarContent
+              navItems={NAV_ITEMS}
+              navSections={NAV_SECTIONS}
+              currentPath={location.pathname}
+              sectionStates={sectionStates}
+              onSectionToggle={(label: string) =>
+                setSectionStates((prev) => ({ ...prev, [label]: !prev[label] }))
+              }
+              onNavigate={handleNavigate}
+            />
+          </Box>
+          <Divider />
+          <Box px={1} py={1}>
+            <SidebarContent
+              navItems={[{ label: 'Settings', path: '/settings', icon: <Settings /> }]}
+              navSections={[]}
+              currentPath={location.pathname}
+              sectionStates={{}}
+              onSectionToggle={() => {}}
+              onNavigate={handleNavigate}
+            />
+          </Box>
         </Box>
       </Drawer>
     );
@@ -169,7 +194,18 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     >
       <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
         {!collapsed && (
-          <Typography variant="h5" fontWeight="bold" color="text.primary">
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            color="text.primary"
+            noWrap
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '100%',
+            }}
+          >
             {userName}'s Workspace
           </Typography>
         )}
@@ -178,7 +214,21 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         </IconButton>
       </Box>
       <Divider />
-      <Box overflow={collapsed ? 'hidden' : 'auto'}>{sidebarContent}</Box>
+      <Box display="flex" flexDirection="column" height="100%">
+        <Box flex={1} overflow={collapsed ? 'hidden' : 'auto'}>{sidebarContent}</Box>
+        <Divider />
+        <Box px={1} py={1}>
+          <SidebarContent
+            navItems={[{ label: 'Settings', path: '/settings', icon: <Settings /> }]}
+            navSections={[]}
+            currentPath={location.pathname}
+            collapsed={collapsed}
+            sectionStates={{}}
+            onSectionToggle={() => {}}
+            onNavigate={handleNavigate}
+          />
+        </Box>
+      </Box>
     </Drawer>
   );
 }

@@ -8,7 +8,8 @@ export function useCalendarWeekState() {
         weekDays,
         handleNext,
         handlePrev,
-        goToToday
+        goToToday,
+        loading,
     } = useCalendarNavigation();
     return {
         weekDays,
@@ -17,6 +18,7 @@ export function useCalendarWeekState() {
         goToToday,
         currentDate,
         viewMode,
-        setViewMode
+        setViewMode,
+        loading,
     };
 }

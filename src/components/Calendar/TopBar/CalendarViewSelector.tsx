@@ -13,12 +13,13 @@ export default function CalendarViewSelector({ viewMode, onChange }: CalendarVie
     };
 
     return (
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small" sx={{ minWidth: 120, height: 40 }}>
             <Select
                 value={viewMode}
                 onChange={handleChange}
                 displayEmpty
                 inputProps={{ 'aria-label': 'View mode' }}
+                sx={{ height: 40 }}
             >
                 <MenuItem value="day">Day</MenuItem>
                 <MenuItem value="work_week">5 Days</MenuItem>

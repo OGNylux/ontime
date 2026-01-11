@@ -83,7 +83,7 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
             <form onSubmit={handleSubmit}>
                 <DialogTitle variant='h5' fontWeight="bold">{project ? 'Edit Project' : 'New Project'}</DialogTitle>
                 <DialogContent>

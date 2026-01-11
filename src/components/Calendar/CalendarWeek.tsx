@@ -1,4 +1,4 @@
-import { Box, Stack, useMediaQuery } from "@mui/material";
+import { Box, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import dayjs from "dayjs";
@@ -13,6 +13,7 @@ import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
 import EntryContextMenu from "./EntryDialog/EntryContextMenu";
 import ConfirmDialog from "../Forms/ConfirmDialog";
 import ProjectTimelineBar from "./ProjectTimelineBar";
+import LoadingBanner from "../Shared/LoadingBanner";
 
 // Hooks
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
@@ -77,7 +78,7 @@ export default function CalendarWeek() {
 
     // Data Hooks
     
-    const { weekDays, nextWeek, prevWeek, goToToday, viewMode, setViewMode } = useCalendarWeekState();
+    const { weekDays, nextWeek, prevWeek, goToToday, viewMode, setViewMode, loading: calendarLoading } = useCalendarWeekState();
     const { entriesByDate, refetch, addOrReplaceEntry, removeEntryLocal } = useCalendarEntries(weekDays);
     
     const persistence = useEntryPersistence({
@@ -248,6 +249,15 @@ export default function CalendarWeek() {
 
     // Render
 
+    // Show loading state while timezone is being resolved
+    if (calendarLoading) {
+        return (
+            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default", alignItems: "center", justifyContent: "center" }}>
+                <LoadingBanner message="Loading calendar..." />
+            </Box>
+        );
+    }
+
     return (
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default" }}>
             {/* Top Bar */}
@@ -260,7 +270,7 @@ export default function CalendarWeek() {
                 </Box>
             <Box
                 display="flex"
-                alignItems="center"
+                alignItems="flex-start"
                 justifyContent="space-between"
                 gap={2}
                 pb={1}
@@ -269,16 +279,28 @@ export default function CalendarWeek() {
                 mx={1}
                 borderBottom={t => `1px solid ${t.palette.divider}`}
             >
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "flex-start", md: "center" }, gap: { xs: 0, md: 2 }, minWidth: 0 }}>
                     <CalendarNavigation 
                         onPrev={prevWeek} 
                         onNext={nextWeek} 
                         onToday={goToToday}
-                        totalWeekTime={totalWeekTime}
                     />
-                </Stack>
+                    {totalWeekTime && (
+                        <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ 
+                                mt: { xs: 0.5, md: 0 },
+                                fontSize: { xs: '0.75rem', md: '0.875rem' },
+                                fontWeight: { md: 500 }
+                            }}
+                        >
+                            {`WEEK TOTAL: ${totalWeekTime}`}
+                        </Typography>
+                    )}
+                </Box>
 
-                <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Box sx={{ display: "flex", justifyContent: "flex-end", flexShrink: 0, alignSelf: "flex-start" }}>
                     <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
                 </Box>
             </Box>
