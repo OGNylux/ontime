@@ -1,4 +1,4 @@
-import { Box, Typography, Container } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { NotificationsList } from '../../components/Navigation/NotificationsDialog';
 
 export default function NotificationsPage() {
