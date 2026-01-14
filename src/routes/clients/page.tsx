@@ -149,7 +149,7 @@ export default function ClientsPage() {
                 return (
                     <IconButton 
                         size="small" 
-                        color="primary"
+                        color="secondary"
                         onClick={(e) => {
                             e.stopPropagation();
                             toggleExpansion(row.id);
@@ -207,7 +207,7 @@ export default function ClientsPage() {
                     <Chip 
                         label={projectCount} 
                         size="small" 
-                        color={projectCount > 0 ? "primary" : "default"}
+                        color={projectCount > 0 ? "secondary" : "default"}
                         variant={projectCount > 0 ? "filled" : "outlined"}
                     />
                 );
@@ -220,7 +220,7 @@ export default function ClientsPage() {
             render: (row) => {
                 if (row.type === 'project') return null;
                 return row.client?.pinned ? (
-                    <PushPin color="primary" fontSize="small" />
+                    <PushPin color="secondary" fontSize="small" />
                 ) : null;
             },
             align: 'center',
@@ -374,7 +374,7 @@ export default function ClientsPage() {
                     <>
                         <Divider orientation="vertical" flexItem />
                         <IconButton
-                            color="primary"
+                            color="secondary"
                             onClick={() => handleBulkPin(true)}
                             title="Pin selected"
                             size="small"

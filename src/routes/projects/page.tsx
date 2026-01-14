@@ -122,7 +122,7 @@ export default function ProjectsPage() {
             sortable: false,
             render: (row) =>
                 row.pinned ? (
-                    <PushPin color="primary" fontSize="small" />
+                    <PushPin color="secondary" fontSize="small" />
                 ) : null,
             align: 'center',
         },
@@ -270,7 +270,7 @@ export default function ProjectsPage() {
                     <>
                         <Divider orientation="vertical" flexItem />
                         <IconButton
-                            color="primary"
+                            color="secondary"
                             onClick={() => handleBulkPin(true)}
                             title="Pin selected"
                             size="small"

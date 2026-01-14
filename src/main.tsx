@@ -80,12 +80,12 @@ function AppLayout() {
   return (
     <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
       {/* Desktop: Top Navbar */}
-      {!isTauriMobile && !hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
+      {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
       
       <Box 
         display="flex"
         flexDirection="row"
-        pt={(!isTauriMobile && !hideNav) ? { xs: 7, md: 8 } : 0}
+        pt={!hideNav ? { xs: 7, md: 8 } : 0}
         pb={(isTauriMobile && !hideNav) ? '80px' : 0}
         flex={1}
         minHeight={0}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Box, Container, TextField, Typography, Button, Divider, Grid, Alert, ToggleButtonGroup, ToggleButton, Autocomplete } from "@mui/material";
 import PageHeader from "../../components/PageHeader";
-import LoadingBanner from "../../components/Shared/LoadingBanner";
+import LoadingBanner from "../../components/Loading/LoadingBanner";
 import { userService, OntimeUser } from "../../services/userService";
 import { useThemeMode } from "../../hooks/useThemeMode";
 import { TIMEZONE_OPTIONS, getBrowserTimezone } from "../../lib/timezone";
@@ -89,9 +89,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 3 }}>
-        <LoadingBanner message="Loading settings..." />
-      </Container>
+      <LoadingBanner message="Loading settings..." />
     );
   }
 
@@ -196,7 +194,7 @@ export default function SettingsPage() {
             </Grid>
 
             <Box mt={3} display="flex" justifyContent="flex-end">
-              <Button variant="outlined" onClick={handlePasswordSave}>
+              <Button variant="contained" onClick={handlePasswordSave}>
                 Update Password
               </Button>
             </Box>

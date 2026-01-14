@@ -5,11 +5,13 @@ import {
     DialogActions,
     Button,
     List,
-    ListItem,
-    ListItemText,
     ListItemAvatar,
     Avatar,
     Typography,
+    Paper,
+    Box,
+    useTheme,
+    useMediaQuery,
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 
@@ -27,44 +29,59 @@ const fakeNotification: Notification = {
     date: new Date().toISOString(),
 };
 
+    export function NotificationsList({ notifications, variant = 'popover' }: { notifications?: Notification[]; variant?: 'popover' | 'dialog' }) {
+        const items = notifications ?? [fakeNotification];
+        const theme = useTheme();
+        const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+        const listSx = variant === 'popover'
+            ? { width: isMobile ? '100%' : 360, maxWidth: '100%', p: 0, m: 0 }
+            : { width: '100%', maxWidth: '100%', p: 0, m: 0 };
+
+        return (
+            <List sx={listSx}>
+                {items.map((n) => {
+                    const paperSx = variant === 'dialog' && isMobile
+                        ? { m: 0, p: 2, border: '1px solid', borderColor: 'divider', width: '100%' }
+                        : { m: 1, p: 2, border: '1px solid', borderColor: 'divider', width: 'auto' };
+
+                    return (
+                        <li key={n.id} style={{ listStyle: 'none' }}>
+                            <Paper elevation={2} sx={paperSx}>
+                                <Box display="flex" gap={2}>
+                                    <ListItemAvatar>
+                                        <Avatar>{n.title.charAt(0)}</Avatar>
+                                    </ListItemAvatar>
+                                    <Box>
+                                        <Typography variant="subtitle1">{n.title}</Typography>
+                                        <Typography variant="body2" color="text.primary" sx={{ mt: 0.5 }}>
+                                            {n.body}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                            {new Date(n.date).toLocaleString()}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            </Paper>
+                        </li>
+                    );
+                })}
+            </List>
+        );
+    }
+
 interface Props {
     open: boolean;
     onClose: () => void;
 }
 
-export function NotificationsList({ notifications }: { notifications?: Notification[] }) {
-    const items = notifications ?? [fakeNotification];
-    return (
-        <List sx={{ width: 360, maxWidth: '100%' }}>
-            {items.map((n) => (
-                <ListItem key={n.id} alignItems="flex-start">
-                    <ListItemAvatar>
-                        <Avatar>{n.title.charAt(0)}</Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                        primary={n.title}
-                        secondary={
-                            <>
-                                <Typography variant="body2" color="text.primary">
-                                    {n.body}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    {new Date(n.date).toLocaleString()}
-                                </Typography>
-                            </>
-                        }
-                    />
-                </ListItem>
-            ))}
-        </List>
-    );
-}
-
 export default function NotificationsDialog({ open, onClose }: Props) {
     const notifications: Notification[] = [fakeNotification];
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" fullScreen={isMobile}>
             <DialogTitle>
                 <ListItemAvatar>
                     <Avatar>
@@ -76,7 +93,7 @@ export default function NotificationsDialog({ open, onClose }: Props) {
                 </Typography>
             </DialogTitle>
             <DialogContent dividers>
-                <NotificationsList notifications={notifications} />
+                <NotificationsList notifications={notifications} variant="dialog" />
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Close</Button>

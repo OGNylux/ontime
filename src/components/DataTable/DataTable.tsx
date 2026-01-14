@@ -11,6 +11,7 @@ import {
     Pagination,
     Typography,
 } from '@mui/material';
+import LoadingBanner from '../Loading/LoadingBanner';
 import SortHeader, { Order } from './SortHeader';
 
 export interface Column<T> {
@@ -248,8 +249,8 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0)} align="center" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-                                    Loading...
+                                <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0)} align="center" sx={{ borderBottom: '1px solid', borderColor: 'divider', p: 2 }}>
+                                    <LoadingBanner message="Loading..." />
                                 </TableCell>
                             </TableRow>
                         ) : paginatedData.length === 0 ? (
@@ -318,7 +319,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                         count={totalPages}
                         page={page}
                         onChange={(_, value) => setPage(value)}
-                        color="primary"
+                        color="secondary"
                         showFirstButton
                         showLastButton
                     />

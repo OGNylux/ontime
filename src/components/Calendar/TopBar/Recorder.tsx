@@ -249,7 +249,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                     fontFamily: 'monospace',
                     fontSize: '0.95rem',
                     fontWeight: 500,
-                    color: isRecording ? 'primary.main' : 'text.secondary'
+                    color: isRecording ? 'secondary.main' : 'text.secondary'
                 }}
             >
                 {formatDuration(elapsedSeconds)}
@@ -257,7 +257,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
 
             <Tooltip title="Billable">
                 <IconButton
-                    color={isBillable ? "success" : "default"}
+                    color={isBillable ? "primary" : "default"}
                     onClick={() => setIsBillable(!isBillable)}
                     size="small"
                 >
@@ -270,10 +270,10 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                     onClick={handleClick}
                     disabled={!!recordingRef.current && !isRecording}
                     size="small"
-                    color={isRecording ? "error" : "primary"}
+                    color={isRecording ? "error" : "secondary"}
                     sx={{
                         border: 1,
-                        borderColor: "divider",
+                        borderColor: "secondary.main",
                         transition: "transform 0.12s ease",
                         "&:hover": { transform: "scale(1.18)" },
                     }}

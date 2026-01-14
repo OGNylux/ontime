@@ -13,7 +13,7 @@ import CreateEntryDialog from "./EntryDialog/CreateEntryDialog";
 import EntryContextMenu from "./EntryDialog/EntryContextMenu";
 import ConfirmDialog from "../Forms/ConfirmDialog";
 import ProjectTimelineBar from "./ProjectTimelineBar";
-import LoadingBanner from "../Shared/LoadingBanner";
+import LoadingBanner from "../Loading/LoadingBanner";
 
 // Hooks
 import { useCalendarWeekState } from "./hooks/useCalendarWeek";
@@ -252,7 +252,7 @@ export default function CalendarWeek() {
     // Show loading state while timezone is being resolved
     if (calendarLoading) {
         return (
-            <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default", alignItems: "center", justifyContent: "center" }}>
+            <Box display="flex" flexDirection="column" height="100%" bgcolor="background.default" alignItems="center" justifyContent="center">
                 <LoadingBanner message="Loading calendar..." />
             </Box>
         );

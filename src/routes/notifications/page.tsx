@@ -1,24 +1,29 @@
-import { Box, Typography, Container, AppBar, Toolbar, IconButton } from '@mui/material';
-import ArrowBack from '@mui/icons-material/ArrowBack';
-import { useNavigate } from 'react-router-dom';
+import { Box, Typography, Container } from '@mui/material';
 import { NotificationsList } from '../../components/Navigation/NotificationsDialog';
 
 export default function NotificationsPage() {
-    const navigate = useNavigate();
-
     return (
-        <Box>
-            <AppBar position="static" color="default" elevation={1}>
-                <Toolbar>
-                    <IconButton edge="start" onClick={() => navigate(-1)} aria-label="back">
-                        <ArrowBack />
-                    </IconButton>
-                    <Typography variant="h6">Notifications</Typography>
-                </Toolbar>
-            </AppBar>
-            <Container sx={{ py: 2 }}>
+        <Box
+            height="100%"
+            display="flex"
+            flexDirection="column"
+            >
+            <Box
+                borderRadius={2}
+                boxShadow={4}
+                bgcolor="background.default"
+            >
+                <Box pl={3} py={2}>
+                    <Typography variant="h4" fontWeight="bold">
+                        Notifications
+                    </Typography>
+                </Box>
+            </Box>
+
+            <Box sx={{ pb: 2, width: '100%' }}>
                 <NotificationsList />
-            </Container>
+            </Box>
         </Box>
+
     );
 }

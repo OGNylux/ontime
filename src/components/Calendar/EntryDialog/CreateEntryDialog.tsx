@@ -222,7 +222,16 @@ export default function CreateEntryDialog({
                     fullWidth
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
+                    slotProps={{ 
+                        inputLabel: { shrink: true },
+                        input: {
+                            sx: {
+                                '& input[type="time"]::-webkit-calendar-picker-indicator': {
+                                    filter: (theme) => theme.palette.mode === 'dark' ? 'invert(0.5)' : 'opacity(0.5)',
+                                },
+                            },
+                        },
+                    }}
                     size="small"
                 />
                 <TextField
@@ -231,7 +240,16 @@ export default function CreateEntryDialog({
                     fullWidth
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
+                    slotProps={{ 
+                        inputLabel: { shrink: true },
+                        input: {
+                            sx: {
+                                '& input[type="time"]::-webkit-calendar-picker-indicator': {
+                                    filter: (theme) => theme.palette.mode === 'dark' ? 'invert(0.5)' : 'opacity(0.5)',
+                                },
+                            },
+                        },
+                    }}
                     size="small"
                 />
             </Stack>
@@ -279,7 +297,7 @@ export default function CreateEntryDialog({
                     title="Delete Entry"
                     message="Are you sure you want to delete this entry?"
                     confirmLabel="Delete"
-                    confirmColor="error"
+                    confirmColor="secondary"
                 />
             </SwipeableDrawer>
         );
@@ -296,6 +314,7 @@ export default function CreateEntryDialog({
                     vertical: 'center',
                     horizontal: 'left',
                 }}
+                PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}
             >
                 {content}
             </Popover>
@@ -307,7 +326,7 @@ export default function CreateEntryDialog({
                 title="Delete Entry"
                 message="Are you sure you want to delete this entry?"
                 confirmLabel="Delete"
-                confirmColor="error"
+                confirmColor="secondary"
             />
         </>
     );

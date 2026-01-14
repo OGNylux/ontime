@@ -148,7 +148,16 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
                                     fullWidth
-                                    slotProps={{ inputLabel: { shrink: true } }}
+                                    slotProps={{
+                                        inputLabel: { shrink: true },
+                                        input: {
+                                            sx: {
+                                                '& input[type="date"]::-webkit-calendar-picker-indicator': {
+                                                    filter: (theme) => theme.palette.mode === 'dark' ? 'invert(0.6)' : 'opacity(0.6)'
+                                                }
+                                            }
+                                        }
+                                    }}
                                 />
                             </Box>
                         </Box>

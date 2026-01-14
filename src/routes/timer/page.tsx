@@ -1,11 +1,13 @@
+import { Box } from "@mui/material";
 import Calendar from "../../components/Calendar/CalendarWeek";
 
 export default function Timer() {
     return (
-        <div className="w-full h-full">
-            <div className="w-full h-full shadow-lg overflow-hidden rounded-lg">
+        <Box width='100%' height='100%'>
+            <Box width='100%' height='100%' overflow="hidden" borderRadius={2} boxShadow={4}>
                 <Calendar />
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 }
+

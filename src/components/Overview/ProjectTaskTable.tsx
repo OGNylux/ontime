@@ -88,7 +88,7 @@ export default function ProjectTaskTable({
                     return (
                         <IconButton
                             size="small"
-                            color="primary"
+                            color="secondary"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onToggleProject(row.id);
@@ -166,7 +166,7 @@ export default function ProjectTaskTable({
                         <Chip
                             label={count}
                             size="small"
-                            color={count > 0 ? 'primary' : 'default'}
+                            color={count > 0 ? 'secondary' : 'default'}
                             variant={count > 0 ? 'filled' : 'outlined'}
                         />
                     );

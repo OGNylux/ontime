@@ -28,14 +28,14 @@ export default function SortHeader({ label, field, orderBy, order, onSort }: Sor
             </Typography>
             <Box display="flex" flexDirection="column" ml={0.5}>
                 <ExpandLess
-                    color={orderBy === field && order === 'asc' ? 'primary' : 'disabled'}
+                    color={orderBy === field && order === 'asc' ? 'secondary' : 'disabled'}
                     sx={{
                         fontSize: 20,
                         mb: -0.6
                     }}
                 />
                 <ExpandMore
-                    color={orderBy === field && order === 'desc' ? 'primary' : 'disabled'}
+                    color={orderBy === field && order === 'desc' ? 'secondary' : 'disabled'}
                     sx={{
                         fontSize: 20,
                         mt: -0.65

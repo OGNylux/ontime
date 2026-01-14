@@ -42,17 +42,17 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                         aria-label="open drawer"
                         edge="start"
                         onClick={onMenuClick}
-                        sx={{ mr: 2 }}
+                        sx={{ mr: 2, display: { xs: 'none', sm: 'inline-flex' } }}
                     >
                         <MenuIcon />
                     </IconButton>
                 )}
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-                    <Link to="/" style={{ textDecoration: 'none' }}>
-                        OnTime
+                <Typography variant="h6" component="div" sx={{ flexGrow: 1, textAlign: { xs: 'center', sm: 'left' } }}>
+                    <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                        Ontime
                     </Link>
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
                     <IconButton
                         color="inherit"
                         onClick={(e) => {

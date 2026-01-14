@@ -62,7 +62,7 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
                         size="small"
                         sx={{
                             pointerEvents: "auto",
-                            bgcolor: "error.main",
+                            bgcolor: "secondary.main",
                             color: "white",
                             width: 24,
                             height: 24,
@@ -70,7 +70,7 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
                             transformOrigin: 'center',
                             '&:hover': {
                                 transform: 'scale(1.2)',
-                                bgcolor: 'error.dark',
+                                bgcolor: 'secondary.dark',
                             },
                             boxShadow: 1,
                             flex: '0 0 auto',
@@ -85,7 +85,7 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
             <Box
                 flex={1}
                 height={2}
-                bgcolor="error.main"
+                bgcolor="secondary.main"
                 sx={{ pointerEvents: 'none' }}
             />
 
@@ -94,7 +94,7 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
                 width={8}
                 height={8}
                 borderRadius="50%"
-                bgcolor="error.main"
+                bgcolor="secondary.main"
                 flex="0 0 auto"
                 sx={{ pointerEvents: 'none' }}
             />
