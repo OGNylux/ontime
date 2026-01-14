@@ -66,6 +66,7 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
                     vertical: 'top',
                     horizontal: 'left',
                 }}
+                PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}
             >
                 <Box sx={{ p: 2, width: 300, maxHeight: 400, display: 'flex', flexDirection: 'column' }}>
                     <TextField

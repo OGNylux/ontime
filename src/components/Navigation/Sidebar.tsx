@@ -156,7 +156,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
             />
           </Box>
           <Divider />
-          <Box px={1} py={1}>
+          <Box px={0} py={1}>
             <SidebarContent
               navItems={[{ label: 'Settings', path: '/settings', icon: <Settings /> }]}
               navSections={[]}
@@ -217,7 +217,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
       <Box display="flex" flexDirection="column" height="100%">
         <Box flex={1} overflow={collapsed ? 'hidden' : 'auto'}>{sidebarContent}</Box>
         <Divider />
-        <Box px={1} py={1}>
+        <Box py={1}>
           <SidebarContent
             navItems={[{ label: 'Settings', path: '/settings', icon: <Settings /> }]}
             navSections={[]}

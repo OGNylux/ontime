@@ -176,11 +176,11 @@ export default function SidebarContent({
                                                 <ListItemButton
                                                     sx={{
                                                         flex: 1,
-                                                        bgcolor: subItemActive ? 'primary.light' : 'transparent',
+                                                        bgcolor: subItemActive ? 'primary.main' : 'transparent',
                                                         borderRadius: 2,
                                                         mr: 2,
                                                         '&:hover': {
-                                                            bgcolor: subItemActive ? 'primary.main' : 'action.hover',
+                                                            bgcolor: subItemActive ? 'primary.dark' : 'action.hover',
                                                         },
                                                     }}
                                                     onClick={() => onNavigate(subItem.path)}

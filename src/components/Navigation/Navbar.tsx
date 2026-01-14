@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppBar, Toolbar, Typography, IconButton, Box } from '@mui/material';
+import { AppBar, Toolbar, IconButton, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { User } from '@supabase/supabase-js';
@@ -8,6 +8,7 @@ import ThemeToggler from './ThemeToggler';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import Popover from '@mui/material/Popover';
 import { NotificationsList } from './NotificationsDialog';
+import WordLogo from '../../assets/Word Logo.svg';
 
 interface NavbarProps {
     showMenuButton?: boolean;
@@ -47,11 +48,9 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                         <MenuIcon />
                     </IconButton>
                 )}
-                <Typography variant="h6" component="div" sx={{ flexGrow: 1, textAlign: { xs: 'center', sm: 'left' } }}>
-                    <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                        Ontime
+                <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-flex', alignItems: 'center', flexGrow: 1 }}>
+                        <Box component="img" src={WordLogo} alt="OnTime" sx={{ height: 64, display: { xs: 'block' } }} />
                     </Link>
-                </Typography>
                 <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
                     <IconButton
                         color="inherit"

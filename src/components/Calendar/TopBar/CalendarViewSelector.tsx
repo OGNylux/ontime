@@ -1,4 +1,4 @@
-import { FormControl, MenuItem, Select, SelectChangeEvent, OutlinedInput } from "@mui/material";
+import { FormControl, MenuItem, Select, SelectChangeEvent } from "@mui/material";
 
 type ViewMode = "day" | "work_week" | "week";
 
@@ -19,18 +19,26 @@ export default function CalendarViewSelector({ viewMode, onChange }: CalendarVie
                 onChange={handleChange}
                 displayEmpty
                 inputProps={{ 'aria-label': 'View mode' }}
-                sx={{ 
+                MenuProps={{
+                    PaperProps: {
+                        sx: {
+                            bgcolor: (theme) => theme.palette.background.default,
+                            backgroundImage: 'none',
+                        }
+                    }
+                }}
+                sx={{
                     height: 40,
                     color: 'primary.main',
-                    '& .MuiOutlinedInput-notchedOutline': { 
+                    '& .MuiOutlinedInput-notchedOutline': {
                         borderColor: 'primary.main',
                     },
-                    '& .MuiSvgIcon-root': { 
+                    '& .MuiSvgIcon-root': {
                         color: 'primary.main',
                     },
                     '&:hover': {
                         bgcolor: (theme) => `${theme.palette.primary.main}20`,
-                        '& .MuiOutlinedInput-notchedOutline': { 
+                        '& .MuiOutlinedInput-notchedOutline': {
                             borderColor: 'primary.main',
                         },
                     },

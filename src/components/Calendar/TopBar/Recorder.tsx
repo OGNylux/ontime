@@ -257,7 +257,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
 
             <Tooltip title="Billable">
                 <IconButton
-                    color={isBillable ? "primary" : "default"}
+                    color={isBillable ? "secondary" : "default"}
                     onClick={() => setIsBillable(!isBillable)}
                     size="small"
                 >
