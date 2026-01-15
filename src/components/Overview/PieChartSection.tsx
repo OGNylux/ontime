@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import ChartTooltip from './ChartTooltip';
@@ -17,6 +17,8 @@ interface PieChartSectionProps {
 
 export default function PieChartSection({ data, projectNames }: PieChartSectionProps) {
     const theme = useTheme();
+    const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
+    const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
 
     return (
         <Box
@@ -32,7 +34,7 @@ export default function PieChartSection({ data, projectNames }: PieChartSectionP
             <Typography variant="subtitle1" fontWeight="bold" mb={2}>
                 Project Distribution
             </Typography>
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={isSmall ? 180 : isNarrow ? 200 : 240}>
                 <PieChart>
                     <Pie
                         data={data}
@@ -40,8 +42,8 @@ export default function PieChartSection({ data, projectNames }: PieChartSectionP
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
+                        innerRadius={isSmall ? 44 : isNarrow ? 52 : 70}
+                        outerRadius={isSmall ? 72 : isNarrow ? 86 : 120}
                         stroke={theme.palette.background.default}
                         strokeWidth={2}
                         cornerRadius={4}
@@ -51,7 +53,7 @@ export default function PieChartSection({ data, projectNames }: PieChartSectionP
                                 component="text"
                                 x={x}
                                 y={y}
-                                sx={{ fill: theme.palette.text.primary, fontSize: 14 }}
+                                sx={{ fill: theme.palette.text.primary, fontSize: isSmall ? 12 : isNarrow ? 13 : 14 }}
                                 style={{ textAnchor: 'middle', dominantBaseline: 'central' }}
                             >
                                 {`${((percent ?? 0) * 100).toFixed(0)}%`}

@@ -8,6 +8,7 @@ export interface Project {
     name: string;
     description?: string;
     color?: number;
+    hourly_rate?: number;
     client?: Client;
     pinned?: boolean;
     start_date?: string;
@@ -112,6 +113,7 @@ export const projectService = {
                 description: request.description,
                 color: request.color,
                 start_date: request.start_date,
+                hourly_rate: request.hourly_rate,
             })
             .eq('id', id)
             .select()

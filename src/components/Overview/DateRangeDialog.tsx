@@ -12,6 +12,7 @@ import {
     IconButton,
     Typography,
     useTheme,
+    useMediaQuery,
 } from '@mui/material';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import dayjs, { Dayjs } from 'dayjs';
@@ -73,6 +74,7 @@ interface CalendarMonthProps {
     onDateClick: (date: Dayjs) => void;
     hoveredDate: Dayjs | null;
     onDateHover: (date: Dayjs | null) => void;
+    cellSize?: number;
 }
 
 function CalendarMonth({
@@ -82,6 +84,7 @@ function CalendarMonth({
     onDateClick,
     hoveredDate,
     onDateHover,
+    cellSize = 32,
 }: CalendarMonthProps) {
     const theme = useTheme();
     const startOfMonth = month.startOf('month');
@@ -155,8 +158,8 @@ function CalendarMonth({
                             onMouseEnter={() => onDateHover(date)}
                             onMouseLeave={() => onDateHover(null)}
                             sx={{
-                                width: 32,
-                                height: 32,
+                                width: cellSize,
+                                height: cellSize,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -204,6 +207,10 @@ export default function DateRangeDialog({
     const [hoveredDate, setHoveredDate] = useState<Dayjs | null>(null);
     const [selectedPreset, setSelectedPreset] = useState<string | null>('This Week');
 
+    const theme = useTheme();
+    const isSmall = useMediaQuery(theme.breakpoints.down('md'));
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
     const handlePresetClick = (preset: PresetOption) => {
         const [start, end] = preset.getRange();
         setSelectedStart(start);
@@ -236,19 +243,48 @@ export default function DateRangeDialog({
     const nextMonth = useMemo(() => calendarMonth.add(1, 'month'), [calendarMonth]);
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            fullScreen={isMobile}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}
+        >
             <DialogTitle>Select Date Range</DialogTitle>
             <DialogContent>
-                <Box display="flex" gap={3}>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: 3,
+                        flexDirection: isSmall ? 'column' : 'row',
+                    }}
+                >
                     {/* Preset Options */}
-                    <Box minWidth={150}>
-                        <List dense>
+                    <Box sx={{ minWidth: isSmall ? 'auto' : 150 }}>
+                        <List
+                            dense
+                            sx={{
+                                display: isSmall ? 'flex' : 'block',
+                                flexDirection: isSmall ? 'row' : 'column',
+                                overflowX: isSmall ? 'auto' : 'visible',
+                                gap: isSmall ? 1 : 0,
+                                pb: isSmall ? 1 : 0,
+                                '&::-webkit-scrollbar': {
+                                    height: 6,
+                                },
+                            }}
+                        >
                             {presetOptions.map((preset) => (
                                 <ListItemButton
                                     key={preset.label}
                                     selected={selectedPreset === preset.label}
                                     onClick={() => handlePresetClick(preset)}
-                                    sx={{ borderRadius: 2 }}
+                                    sx={{
+                                        borderRadius: 2,
+                                        minWidth: isSmall ? 'auto' : undefined,
+                                        whiteSpace: isSmall ? 'nowrap' : 'normal',
+                                    }}
                                 >
                                     <ListItemText primary={preset.label} />
                                 </ListItemButton>
@@ -262,9 +298,13 @@ export default function DateRangeDialog({
                             <IconButton onClick={() => setCalendarMonth((m) => m.subtract(1, 'month'))}>
                                 <ChevronLeft />
                             </IconButton>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                                {selectedStart?.format('MMM D, YYYY') || 'Start'} -{' '}
-                                {selectedEnd?.format('MMM D, YYYY') || 'End'}
+                            <Typography
+                                variant={isMobile ? 'body2' : 'subtitle1'}
+                                fontWeight="bold"
+                                sx={{ textAlign: 'center', px: 1 }}
+                            >
+                                {selectedStart?.format(isMobile ? 'MMM D' : 'MMM D, YYYY') || 'Start'} -{' '}
+                                {selectedEnd?.format(isMobile ? 'MMM D' : 'MMM D, YYYY') || 'End'}
                             </Typography>
                             <IconButton onClick={() => setCalendarMonth((m) => m.add(1, 'month'))}>
                                 <ChevronRight />
@@ -278,20 +318,24 @@ export default function DateRangeDialog({
                                 onDateClick={handleDateClick}
                                 hoveredDate={hoveredDate}
                                 onDateHover={setHoveredDate}
+                                cellSize={isMobile ? 36 : isSmall ? 28 : 32}
                             />
-                            <CalendarMonth
-                                month={nextMonth}
-                                selectedStart={selectedStart}
-                                selectedEnd={selectedEnd}
-                                onDateClick={handleDateClick}
-                                hoveredDate={hoveredDate}
-                                onDateHover={setHoveredDate}
-                            />
+                            {!isSmall && (
+                                <CalendarMonth
+                                    month={nextMonth}
+                                    selectedStart={selectedStart}
+                                    selectedEnd={selectedEnd}
+                                    onDateClick={handleDateClick}
+                                    hoveredDate={hoveredDate}
+                                    onDateHover={setHoveredDate}
+                                    cellSize={32}
+                                />
+                            )}
                         </Box>
                     </Box>
                 </Box>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2 }}>
+            <DialogActions sx={{ px: 3, py: 2, pb: isMobile ? 8 : 0 }}>
                 <Button onClick={onClose}>Cancel</Button>
                 <Button
                     onClick={handleApply}

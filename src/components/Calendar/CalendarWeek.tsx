@@ -365,7 +365,7 @@ export default function CalendarWeek() {
                 initialEndTime={dialogState.endTime}
                 dateStr={dialogState.dateStr}
                 initialTitle={dialogState.editingEntry?.task?.name}
-                initialIsBillable={dialogState.editingEntry?.is_billable || false}
+                initialIsBillable={dialogState.editingEntry?.is_billable ?? true}
                 initialProjectId={dialogState.editingEntry?.project_id ?? dialogState.editingEntry?.project?.id ?? null}
                 isEdit={Boolean(dialogState.editingEntry)}
                 editingEntryId={dialogState.editingEntry?.id || null}

@@ -49,7 +49,7 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
             <Tooltip title={selectedProject ? selectedProject.name : "Select Project"}>
                 <IconButton 
                     onClick={(e) => setAnchorEl(e.currentTarget)}
-                    color={selectedProject ? "primary" : "default"}
+                    color={selectedProject ? "secondary" : "default"}
                 >
                     <Folder />
                 </IconButton>
@@ -89,7 +89,7 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
                         {sortedClients.map((client) => (
                             <li key={client}>
                                 <ul>
-                                    <ListSubheader>{client}</ListSubheader>
+                                    <ListSubheader sx={{ bgcolor: "background.default" }}>{client}</ListSubheader>
                                     {projectsByClient[client].map((project) => (
                                         <ListItemButton 
                                             key={project.id} 
@@ -99,7 +99,7 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
                                             }}
                                             selected={selectedProject?.id === project.id}
                                         >
-                                            <ListItemText primary={project.name} />
+                                            <ListItemText sx={{ ml: 2 }} primary={project.name} />
                                         </ListItemButton>
                                     ))}
                                 </ul>

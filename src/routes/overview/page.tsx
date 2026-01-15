@@ -178,15 +178,23 @@ export default function OverviewPage() {
                                     PaperProps={{ sx: { bgcolor: 'background.default', width: 260, p: 1 } }}
                                 >
                                     <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
-                                        {projects.map((p) => (
-                                            <MenuItem key={p.id} onClick={() => toggleProjectFilter(p.id!)}>
-                                                <Checkbox checked={selectedProjectIds.includes(p.id!)} />
-                                                <ListItemText primary={p.name} />
-                                            </MenuItem>
-                                        ))}
-                                        {projects.length === 0 && (
+                                        {projects
+                                            .filter((p) =>
+                                                selectedClientIds.length === 0 ||
+                                                (p.client_id && selectedClientIds.includes(p.client_id))
+                                            )
+                                            .map((p) => (
+                                                <MenuItem key={p.id} onClick={() => toggleProjectFilter(p.id!)}>
+                                                    <Checkbox checked={selectedProjectIds.includes(p.id!)} />
+                                                    <ListItemText primary={p.name} />
+                                                </MenuItem>
+                                            ))}
+                                        {projects.filter((p) =>
+                                            selectedClientIds.length === 0 ||
+                                            (p.client_id && selectedClientIds.includes(p.client_id))
+                                        ).length === 0 && (
                                             <MenuItem disabled>
-                                                <ListItemText primary="No projects" />
+                                                <ListItemText primary={selectedClientIds.length > 0 ? "No projects in selected clients" : "No projects"} />
                                             </MenuItem>
                                         )}
                                     </Box>

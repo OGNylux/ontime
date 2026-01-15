@@ -85,7 +85,7 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
 
                 if (entry.is_billable) {
                     billableMinutes += duration;
-                    const hourlyRate = (entry.project as any)?.hourly_rate || 50;
+                    const hourlyRate = (entry.project as Project)?.hourly_rate ?? 0;
                     revenue += (duration / 60) * hourlyRate;
                 }
             }

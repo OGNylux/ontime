@@ -48,7 +48,7 @@ export default function CreateEntryDialog({
     initialStartTime = "09:00",
     initialEndTime = "10:00",
     initialTitle,
-    initialIsBillable = false,
+    initialIsBillable = true,
     initialProjectId = null,
     isEdit = false,
     editingEntryId,
@@ -61,7 +61,7 @@ export default function CreateEntryDialog({
     const [title, setTitle] = useState(initialTitle || "");
     const [startTime, setStartTime] = useState(initialStartTime);
     const [endTime, setEndTime] = useState(initialEndTime);
-    const [isBillable, setIsBillable] = useState(initialIsBillable || false);
+    const [isBillable, setIsBillable] = useState(initialIsBillable ?? true);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [options, setOptions] = useState<Task[]>([]);
     const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export default function CreateEntryDialog({
             setStartTime(initialStartTime);
             setEndTime(initialEndTime);
             setTitle(initialTitle || "");
-            setIsBillable(initialIsBillable || false);
+            setIsBillable(initialIsBillable ?? true);
             setOptions([]);
             setSelectedTaskId(undefined);
             setSelectedProject(initialProjectId ? { id: initialProjectId } as Project : null);
@@ -207,7 +207,7 @@ export default function CreateEntryDialog({
 
                 <Tooltip title="Billable">
                     <IconButton
-                        color={isBillable ? "success" : "default"}
+                        color={isBillable ? "secondary" : "default"}
                         onClick={() => setIsBillable(!isBillable)}
                     >
                         <AttachMoney />
@@ -274,6 +274,8 @@ export default function CreateEntryDialog({
                     sx: {
                         borderTopLeftRadius: 16,
                         borderTopRightRadius: 16,
+                        bgcolor: 'background.default', backgroundImage: 'none',
+                        paddingBottom: 6    
                     }
                 }}
             >

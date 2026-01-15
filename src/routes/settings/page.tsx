@@ -3,6 +3,8 @@ import { Box, Container, TextField, Typography, Button, Divider, Grid, Alert, To
 import PageHeader from "../../components/PageHeader";
 import LoadingBanner from "../../components/Loading/LoadingBanner";
 import { userService, OntimeUser } from "../../services/userService";
+import { authService } from "../../services/authService";
+import { useNavigate } from 'react-router-dom';
 import { useThemeMode } from "../../hooks/useThemeMode";
 import { TIMEZONE_OPTIONS, getBrowserTimezone } from "../../lib/timezone";
 import { notifyTimezoneChange } from "../../hooks/useUserTimezone";
@@ -22,6 +24,7 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const { mode, setLightMode, setDarkMode, setSystemMode } = useThemeMode();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const load = async () => {
@@ -222,6 +225,26 @@ export default function SettingsPage() {
               <ToggleButton value="system">System</ToggleButton>
             </ToggleButtonGroup>
           </Box>
+        </Grid>
+        
+          
+        <Grid size={{ xs: 12, sm: 8 }}>
+          <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default" display="flex" justifyContent="center" alignItems="center" height="100%">
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={async () => {
+                  try {
+                    await authService.logout();
+                    navigate('/login');
+                  } catch (e: any) {
+                    setError(e.message || 'Failed to logout');
+                  }
+                }}
+              >
+                Logout
+              </Button>
+            </Box>
         </Grid>
       </Grid>
     </Container>

@@ -76,6 +76,7 @@ export default function BottomAppBar() {
                 pb: 'env(safe-area-inset-bottom)',
                 borderTopLeftRadius: 12,
                 borderTopRightRadius: 12,
+                bgcolor: 'background.default', backgroundImage: 'none',
             }}
             elevation={3}
         >
@@ -87,7 +88,7 @@ export default function BottomAppBar() {
                     gap={3}
                     py={2}
                     px={2}
-                    bgcolor="background.paper"
+                    bgcolor="background.default"
                     borderTop={1}
                     borderColor="divider"
                     overflow="hidden"
@@ -141,12 +142,14 @@ export default function BottomAppBar() {
             </Collapse>
 
             {/* Bottom Navigation */}
-            <Box sx={{ position: 'relative' }}>
+            <Box position="relative">
                 <BottomNavigation
                     value={getNavValue()}
                     onChange={handleNavChange}
                     showLabels
                     sx={{
+                        
+                        bgcolor: 'background.default',
                         height: 64,
                         '& .MuiBottomNavigationAction-root': {
                             minWidth: 'auto',
@@ -175,7 +178,7 @@ export default function BottomAppBar() {
                         height: 56,
                         boxShadow: 3,
                         transition: 'transform 0.2s',
-                        border: `2px solid ${theme.palette.background.paper}`,
+                        border: `2px solid ${theme.palette.background.default}`,
                     })}
                 >
                     {fabOpen ? <Close /> : <Add />}

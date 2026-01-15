@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AppBar, Toolbar, IconButton, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { User } from '@supabase/supabase-js';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import ThemeToggler from './ThemeToggler';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import Popover from '@mui/material/Popover';
 import { NotificationsList } from './NotificationsDialog';
 import WordLogo from '../../assets/Word Logo.svg';
+import { platform } from '@tauri-apps/plugin-os';
 
 interface NavbarProps {
     showMenuButton?: boolean;
@@ -16,65 +15,73 @@ interface NavbarProps {
 }
 
 export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarProps) {
-    const [_, setUser] = useState<User | null>(null);
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [isTauriMobile, setIsTauriMobile] = useState(false);
 
+    // Check if running in Tauri mobile app
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            setUser(user);
-        });
-
-        // Listen for changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-        });
-
-        return () => subscription.unsubscribe();
+        const checkPlatform = async () => {
+            try {
+                const platformType = await platform();
+                setIsTauriMobile(platformType === 'android' || platformType === 'ios');
+            } catch {
+                // Not running in Tauri
+                setIsTauriMobile(false);
+            }
+        };
+        checkPlatform();
     }, []);
 
     return (
         <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, color: 'text.primary' }}>
             <Box bgcolor="background.default" height="100%">
                 <Toolbar>
-                {showMenuButton && (
-                    <IconButton
-                        color="inherit"
-                        aria-label="open drawer"
-                        edge="start"
-                        onClick={onMenuClick}
-                        sx={{ mr: 2, display: { xs: 'none', sm: 'inline-flex' } }}
-                    >
-                        <MenuIcon />
-                    </IconButton>
-                )}
-                <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'inline-flex', alignItems: 'center', flexGrow: 1 }}>
-                        <Box component="img" src={WordLogo} alt="OnTime" sx={{ height: 64, display: { xs: 'block' } }} />
+                    {showMenuButton && (
+                        <IconButton
+                            color="inherit"
+                            aria-label="open drawer"
+                            edge="start"
+                            onClick={onMenuClick}
+                            sx={{ mr: 2, display: { xs: 'none', sm: 'inline-flex' } }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                    )}
+                    <Link to="/" style={{ textDecoration: 'none', color: 'inherit', alignItems: 'center' }}>
+                        <Box
+                            component="img"
+                            src={WordLogo}
+                            alt="OnTime"
+                            sx={{
+                                height: 48,
+                                pt: isTauriMobile ? 1.5 : 0,
+                            }}
+                        />
                     </Link>
-                <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
-                    <IconButton
-                        color="inherit"
-                        onClick={(e) => {
-                            setAnchorEl(e.currentTarget as HTMLElement);
-                        }}
-                        aria-label="open notifications"
-                        aria-haspopup="true"
+                    <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexGrow: 1, alignItems: 'center', gap: 1, justifyContent: 'flex-end' }}>
+                        <IconButton
+                            color="inherit"
+                            onClick={(e) => {
+                                setAnchorEl(e.currentTarget as HTMLElement);
+                            }}
+                            aria-label="open notifications"
+                            aria-haspopup="true"
+                        >
+                            <NotificationsIcon />
+                        </IconButton>
+                        <ThemeToggler />
+                    </Box>
+                    <Popover
+                        open={Boolean(anchorEl)}
+                        anchorEl={anchorEl}
+                        onClose={() => setAnchorEl(null)}
+                        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        PaperProps={{ sx: { p: 0 } }}
                     >
-                        <NotificationsIcon />
-                    </IconButton>
-                    <ThemeToggler />
-                </Box>
-                <Popover
-                    open={Boolean(anchorEl)}
-                    anchorEl={anchorEl}
-                    onClose={() => setAnchorEl(null)}
-                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                    PaperProps={{ sx: { p: 0 } }}
-                >
-                    <NotificationsList />
-                </Popover>
-            </Toolbar>
+                        <NotificationsList />
+                    </Popover>
+                </Toolbar>
             </Box>
         </AppBar>
     );

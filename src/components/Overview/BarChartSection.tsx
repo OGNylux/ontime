@@ -32,6 +32,27 @@ export default function BarChartSection({
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
 
+    const renderLegend = (props: any) => {
+        const { payload } = props;
+        return (
+            <Box display="flex" justifyContent="center" flexWrap="wrap" gap={2} mt={1}>
+                {payload.map((entry: any, index: number) => (
+                    <Box key={`item-${index}`} display="flex" alignItems="center" gap={0.5}>
+                        <Box
+                            width={12}
+                            height={12}
+                            bgcolor={entry.color}
+                            borderRadius={0.5}
+                        />
+                        <Typography variant="body2" color="text.primary">
+                            {projectNames[entry.value] || entry.value}
+                        </Typography>
+                    </Box>
+                ))}
+            </Box>
+        );
+    };
+
     return (
         <Box
             flex={2}
@@ -72,7 +93,7 @@ export default function BarChartSection({
                         }
                         cursor={{ fill: theme.palette.background.paper }}
                     />
-                    <Legend formatter={(value: string) => projectNames[value] || value} />
+                    <Legend content={renderLegend} />
                     {projectIds.map((projectId, idx) => (
                         <Bar
                             key={projectId}

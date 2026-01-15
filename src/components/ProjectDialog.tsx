@@ -33,6 +33,7 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
     const [name, setName] = useState('');
     const [colorIndex, setColorIndex] = useState(0);
     const [clientId, setClientId] = useState('');
+    const [hourlyRate, setHourlyRate] = useState<number | ''>(0);
     const [startDate, setStartDate] = useState('');
     const [description, setDescription] = useState('');
     const [error, setError] = useState('');
@@ -44,12 +45,14 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                 setName(project.name || '');
                 setColorIndex(project.color ?? 0);
                 setClientId(project.client_id || '');
+                setHourlyRate(project.hourly_rate ?? 0);
                 setStartDate(project.start_date ? dayjs(project.start_date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
                 setDescription(project.description || '');
             } else {
                 setName('');
                 setColorIndex(0);
                 setClientId('');
+                setHourlyRate(50);
                 setStartDate(dayjs().format('YYYY-MM-DD'));
                 setDescription('');
             }
@@ -70,6 +73,7 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                     name: name.trim(),
                     color: colorIndex,
                     client_id: clientId,
+                    hourly_rate: hourlyRate ? hourlyRate : undefined,
                     start_date: startDate,
                     description: description.trim() || undefined,
                 }
@@ -110,6 +114,18 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                                 fullWidth
                                 multiline
                                 minRows={3}
+                            />
+                        </Box>
+
+                        <Box>
+                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Hourly Rate (€)</Typography>
+                            <TextField
+                                placeholder="e.g. 50"
+                                type="number"
+                                inputProps={{ min: 0, step: '0.01' }}
+                                value={hourlyRate}
+                                onChange={(e) => setHourlyRate(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                fullWidth
                             />
                         </Box>
                         
