@@ -6,7 +6,7 @@ import ThemeToggler from './ThemeToggler';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import Popover from '@mui/material/Popover';
 import { NotificationsList } from './NotificationsDialog';
-import WordLogo from '../../assets/Word Logo.svg';
+import WordLogo from '../../assets/WordLogo.svg';
 import { platform } from '@tauri-apps/plugin-os';
 
 interface NavbarProps {
@@ -18,14 +18,12 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [isTauriMobile, setIsTauriMobile] = useState(false);
 
-    // Check if running in Tauri mobile app
     useEffect(() => {
         const checkPlatform = async () => {
             try {
                 const platformType = await platform();
                 setIsTauriMobile(platformType === 'android' || platformType === 'ios');
             } catch {
-                // Not running in Tauri
                 setIsTauriMobile(false);
             }
         };

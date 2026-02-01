@@ -27,12 +27,10 @@ import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import TaskDialog from '../../components/TaskDialog';
 import dayjs from 'dayjs';
 
-// Extended Task type with calculated total time
 interface TaskWithTime extends Task {
     total_time?: number;
 }
 
-// ============ Helpers ============
 const formatTotalTime = (minutes?: number) => {
     if (!minutes) return '0h';
     const hours = Math.floor(minutes / 60);
@@ -41,7 +39,6 @@ const formatTotalTime = (minutes?: number) => {
     return `${hours}.${String(Math.round((mins / 60) * 100)).padStart(2, '0')}h`;
 };
 
-// ============ Main Component ============
 export default function TasksPage() {
     const [tasks, setTasks] = useState<TaskWithTime[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
@@ -49,18 +46,15 @@ export default function TasksPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     
-    // Menu state
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuTask, setMenuTask] = useState<Task | null>(null);
     
-    // Dialog state
-    const [dialogOpen, setDialogOpen] = useState(false);
+        const [dialogOpen, setDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     
-    // Filter state
-    const [projectFilter, setProjectFilter] = useState('');
+        const [projectFilter, setProjectFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
@@ -75,8 +69,7 @@ export default function TasksPage() {
                 projectService.getProjects(),
             ]);
             
-            // Calculate total time for each task from calendar entries
-            const tasksWithTime = tasksData.map(task => {
+                        const tasksWithTime = tasksData.map(task => {
                 const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
                     const start = dayjs(entry.start_time);
                     const end = dayjs(entry.end_time);
@@ -98,8 +91,7 @@ export default function TasksPage() {
         }
     };
 
-    // Filter data - search by task name OR project name
-    const filteredTasks = useMemo(() => {
+        const filteredTasks = useMemo(() => {
         return tasks
             .filter((task) => {
                 const query = searchQuery.toLowerCase();
@@ -111,15 +103,13 @@ export default function TasksPage() {
                 return matchesSearch && matchesProject;
             })
             .sort((a, b) => {
-                // Pinned items always on top
-                if (a.pinned && !b.pinned) return -1;
+                                if (a.pinned && !b.pinned) return -1;
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
     }, [tasks, projects, searchQuery, projectFilter]);
 
-    // Table columns
-    const columns: Column<TaskWithTime>[] = useMemo(() => [
+        const columns: Column<TaskWithTime>[] = useMemo(() => [
         {
             field: 'name',
             label: 'Task',
@@ -150,8 +140,7 @@ export default function TasksPage() {
         },
     ], [projects]);
 
-    // Menu handlers
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
+        const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuTask(task);
     };
@@ -253,8 +242,7 @@ export default function TasksPage() {
         setDialogOpen(true);
     };
 
-    // Row actions renderer
-    const renderRowActions = (task: Task) => (
+        const renderRowActions = (task: Task) => (
         <IconButton size="small" onClick={(e) => handleMenuOpen(e, task)}>
             <MoreVert />
         </IconButton>

@@ -182,8 +182,7 @@ export default function CalendarDay({
         const isMoving = moveState?.entry.id === entry.id;
         const isResizing = resizeState?.entry.id === entry.id;
 
-        // Show ghost of original position when moving
-        if (isMoving) {
+                if (isMoving) {
             return (
                 <CalendarEntryBlock
                     key={entry.id}

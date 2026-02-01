@@ -28,8 +28,7 @@ export default function BottomAppBar() {
     const location = useLocation();
     const [fabOpen, setFabOpen] = useState(false);
 
-    // Map paths to nav values
-    const getNavValue = () => {
+        const getNavValue = () => {
         if (location.pathname === '/' || location.pathname === '/overview') return 0;
         if (location.pathname === '/timer') return 1;
         if (location.pathname === '/notifications') return 3;
@@ -47,8 +46,7 @@ export default function BottomAppBar() {
                 navigate('/timer');
                 break;
             case 3:
-                // On mobile navigate to the notifications page
-                navigate('/notifications');
+                                navigate('/notifications');
                 break;
             case 4:
                 navigate('/settings');

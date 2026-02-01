@@ -17,8 +17,7 @@ export interface CalendarContextValue {
     openEditDialog: (entry: CalendarEntry, position: { top: number; left: number } | null) => void;
     openContextMenu?: (entry: CalendarEntry, anchor: { top: number; left: number }) => void;
 
-    // Shared move/resize state for cross-day previews
-    moveState: MoveState | null;
+        moveState: MoveState | null;
     beginMove: (payload: EntryDragStartPayload) => void;
     resizeState: ResizeState | null;
     beginResize: (payload: EntryResizeStartPayload) => void;

@@ -34,7 +34,6 @@ const formatDate = (dateStr?: string) => {
     return dayjs(dateStr).format('MMM D');
 };
 
-// ============ Main Component ============
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -42,18 +41,15 @@ export default function ProjectsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     
-    // Menu state
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuProject, setMenuProject] = useState<Project | null>(null);
     
-    // Dialog state
-    const [dialogOpen, setDialogOpen] = useState(false);
+        const [dialogOpen, setDialogOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
     
-    // Filter state
-    const [clientFilter, setClientFilter] = useState('');
+        const [clientFilter, setClientFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
@@ -76,8 +72,7 @@ export default function ProjectsPage() {
         }
     };
 
-    // Filter data
-    const filteredProjects = useMemo(() => {
+        const filteredProjects = useMemo(() => {
         return projects
             .filter((project) => {
                 const matchesSearch =
@@ -87,15 +82,13 @@ export default function ProjectsPage() {
                 return matchesSearch && matchesClient;
             })
             .sort((a, b) => {
-                // Pinned items always on top
-                if (a.pinned && !b.pinned) return -1;
+                                if (a.pinned && !b.pinned) return -1;
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
     }, [projects, searchQuery, clientFilter]);
 
-    // Table columns
-    const columns: Column<Project>[] = useMemo(() => [
+        const columns: Column<Project>[] = useMemo(() => [
         {
             field: 'name',
             label: 'Project',
@@ -128,8 +121,7 @@ export default function ProjectsPage() {
         },
     ], []);
 
-    // Menu handlers
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, project: Project) => {
+        const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, project: Project) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuProject(project);
     };
@@ -219,8 +211,7 @@ export default function ProjectsPage() {
         setDialogOpen(true);
     };
 
-    // Row actions renderer
-    const renderRowActions = (project: Project) => (
+        const renderRowActions = (project: Project) => (
         <IconButton size="small" onClick={(e) => handleMenuOpen(e, project)}>
             <MoreVert />
         </IconButton>

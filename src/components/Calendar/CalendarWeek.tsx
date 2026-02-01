@@ -56,8 +56,7 @@ export default function CalendarWeek() {
         refetch,
     });
 
-    // Shared move/resize state for cross-day drag preview
-    const { moveState, beginMove } = useEntryMove(entriesByDate, persistence.updateEntryTimes);
+        const { moveState, beginMove } = useEntryMove(entriesByDate, persistence.updateEntryTimes);
     const { resizeState, beginResize } = useEntryResize(entriesByDate, persistence.updateEntryTimes);
 
     const openCreateDialog = useCallback((

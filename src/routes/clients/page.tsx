@@ -26,12 +26,10 @@ import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import ClientDialog from '../../components/ClientDialog';
 
-// Extended Client type to track expansion state
 interface ClientWithExpansion extends Client {
     _expanded?: boolean;
 }
 
-// Row type that can be either a client or a project
 interface TableRow {
     id: string;
     type: 'client' | 'project';
@@ -42,19 +40,16 @@ interface TableRow {
     pinned?: boolean;
 }
 
-// ============ Main Component ============
 export default function ClientsPage() {
     const [clients, setClients] = useState<ClientWithExpansion[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-    // Menu state
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuClient, setMenuClient] = useState<Client | null>(null);
 
-    // Dialog state
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+        const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [clientDialogOpen, setClientDialogOpen] = useState(false);
     const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
@@ -75,17 +70,14 @@ export default function ClientsPage() {
         }
     };
 
-    // Filter data - search in client name OR project names
-    const filteredClients = useMemo(() => {
+        const filteredClients = useMemo(() => {
         const filtered = searchQuery 
             ? clients.filter((client) => {
                 const query = searchQuery.toLowerCase();
-                // Match client name
-                if (client.name.toLowerCase().includes(query)) {
+                                if (client.name.toLowerCase().includes(query)) {
                     return true;
                 }
-                // Match any project name under this client
-                if (client.projects?.some(project => 
+                                if (client.projects?.some(project => 
                     project.name.toLowerCase().includes(query)
                 )) {
                     return true;
@@ -94,8 +86,7 @@ export default function ClientsPage() {
             })
             : clients;
 
-        // Keep original order here; sorting will be handled by DataTable with grouping
-        return filtered;
+                return filtered;
     }, [clients, searchQuery]);
 
     const toggleExpansion = (clientId: string) => {
@@ -104,13 +95,11 @@ export default function ClientsPage() {
         ));
     };
 
-    // Flatten clients and their projects into table rows
-    const tableRows = useMemo(() => {
+        const tableRows = useMemo(() => {
         const rows: TableRow[] = [];
         
         filteredClients.forEach(client => {
-            // Add client row
-            rows.push({
+                        rows.push({
                 id: client.id!,
                 type: 'client',
                 client,
@@ -119,8 +108,7 @@ export default function ClientsPage() {
                 pinned: client.pinned,
             });
             
-            // Add project rows if expanded
-            if (client._expanded && client.projects) {
+                        if (client._expanded && client.projects) {
                 client.projects.forEach(project => {
                     rows.push({
                         id: `${client.id}-${project.id}`,
@@ -136,8 +124,7 @@ export default function ClientsPage() {
         return rows;
     }, [filteredClients]);
 
-    // Table columns
-    const columns: Column<TableRow>[] = useMemo(() => [
+        const columns: Column<TableRow>[] = useMemo(() => [
         {
             field: 'expand',
             label: '',
@@ -227,8 +214,7 @@ export default function ClientsPage() {
         },
     ], []);
 
-    // Menu handlers
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, client: Client) => {
+        const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, client: Client) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuClient(client);
     };
@@ -317,8 +303,7 @@ export default function ClientsPage() {
         }
     };
 
-    // Row actions renderer - only show for client rows
-    const renderRowActions = (row: TableRow) => {
+        const renderRowActions = (row: TableRow) => {
         if (row.type === 'project') return null;
         return (
             <IconButton size="small" onClick={(e) => handleMenuOpen(e, row.client!)}>

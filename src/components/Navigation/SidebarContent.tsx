@@ -90,7 +90,7 @@ export default function SidebarContent({
                                     minWidth: collapsed ? 0 : 56,
                                     display: 'flex',
                                     justifyContent: 'center',
-                                    color: 'inherit',
+                                    color: 'text.secondary',
                                 }}
                             >
                                 {item.icon}
@@ -131,11 +131,11 @@ export default function SidebarContent({
                                 }}
                             >
                                 <ListItemIcon
-                                    color='inherit'
                                     sx={{
                                         minWidth: collapsed ? 0 : 56,
                                         display: 'flex',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        color: 'text.secondary',
                                     }}
                                 >
                                     {section.icon}

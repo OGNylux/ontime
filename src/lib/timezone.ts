@@ -7,17 +7,13 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isoWeek);
 
-// Common IANA timezones grouped by region
 export const TIMEZONE_OPTIONS = [
-  // UTC
-  { value: "UTC", label: "UTC" },
-  // Africa
-  { value: "Africa/Cairo", label: "Africa/Cairo (EET)" },
+    { value: "UTC", label: "UTC" },
+    { value: "Africa/Cairo", label: "Africa/Cairo (EET)" },
   { value: "Africa/Johannesburg", label: "Africa/Johannesburg (SAST)" },
   { value: "Africa/Lagos", label: "Africa/Lagos (WAT)" },
   { value: "Africa/Nairobi", label: "Africa/Nairobi (EAT)" },
-  // Americas
-  { value: "America/Anchorage", label: "America/Anchorage (AKST)" },
+    { value: "America/Anchorage", label: "America/Anchorage (AKST)" },
   { value: "America/Chicago", label: "America/Chicago (CST)" },
   { value: "America/Denver", label: "America/Denver (MST)" },
   { value: "America/Los_Angeles", label: "America/Los_Angeles (PST)" },
@@ -26,8 +22,7 @@ export const TIMEZONE_OPTIONS = [
   { value: "America/Sao_Paulo", label: "America/Sao_Paulo (BRT)" },
   { value: "America/Toronto", label: "America/Toronto (EST)" },
   { value: "America/Vancouver", label: "America/Vancouver (PST)" },
-  // Asia
-  { value: "Asia/Bangkok", label: "Asia/Bangkok (ICT)" },
+    { value: "Asia/Bangkok", label: "Asia/Bangkok (ICT)" },
   { value: "Asia/Dubai", label: "Asia/Dubai (GST)" },
   { value: "Asia/Hong_Kong", label: "Asia/Hong_Kong (HKT)" },
   { value: "Asia/Kolkata", label: "Asia/Kolkata (IST)" },
@@ -35,13 +30,11 @@ export const TIMEZONE_OPTIONS = [
   { value: "Asia/Shanghai", label: "Asia/Shanghai (CST)" },
   { value: "Asia/Singapore", label: "Asia/Singapore (SGT)" },
   { value: "Asia/Tokyo", label: "Asia/Tokyo (JST)" },
-  // Australia
-  { value: "Australia/Brisbane", label: "Australia/Brisbane (AEST)" },
+    { value: "Australia/Brisbane", label: "Australia/Brisbane (AEST)" },
   { value: "Australia/Melbourne", label: "Australia/Melbourne (AEST)" },
   { value: "Australia/Perth", label: "Australia/Perth (AWST)" },
   { value: "Australia/Sydney", label: "Australia/Sydney (AEST)" },
-  // Europe
-  { value: "Europe/Amsterdam", label: "Europe/Amsterdam (CET)" },
+    { value: "Europe/Amsterdam", label: "Europe/Amsterdam (CET)" },
   { value: "Europe/Berlin", label: "Europe/Berlin (CET)" },
   { value: "Europe/Brussels", label: "Europe/Brussels (CET)" },
   { value: "Europe/Dublin", label: "Europe/Dublin (GMT)" },
@@ -57,8 +50,7 @@ export const TIMEZONE_OPTIONS = [
   { value: "Europe/Vienna", label: "Europe/Vienna (CET)" },
   { value: "Europe/Warsaw", label: "Europe/Warsaw (CET)" },
   { value: "Europe/Zurich", label: "Europe/Zurich (CET)" },
-  // Pacific
-  { value: "Pacific/Auckland", label: "Pacific/Auckland (NZST)" },
+    { value: "Pacific/Auckland", label: "Pacific/Auckland (NZST)" },
   { value: "Pacific/Honolulu", label: "Pacific/Honolulu (HST)" },
 ];
 

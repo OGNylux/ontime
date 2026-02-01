@@ -26,8 +26,7 @@ export default function RegisterPage() {
   const [passwordRepeat, setPasswordRepeat] = useState("");
 
   const checkAvailability = async () => {
-    // Only check if we have values to check
-    if (!email && !name) return;
+        if (!email && !name) return;
 
     try {
       const result = await authService.checkAvailability(email, name);
@@ -51,8 +50,7 @@ export default function RegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // Don't submit if there are validation errors
-    if (emailError || nameError) return;
+        if (emailError || nameError) return;
 
     if (password == passwordRepeat) {
       try {

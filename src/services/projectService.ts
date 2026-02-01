@@ -49,21 +49,19 @@ export const projectService = {
             .order('created_at', { ascending: false });
         if (error) throw error;
 
-        // Calculate total time in minutes for each project from calendar entries
-        const projectsWithTime = (data as any[]).map(project => {
+                const projectsWithTime = (data as any[]).map(project => {
             const entries = project.calendar_entries || [];
             const totalMinutes = entries.reduce((sum: number, entry: CalendarEntry) => {
                 if (entry.start_time && entry.end_time) {
                     const start = new Date(entry.start_time).getTime();
                     const end = new Date(entry.end_time).getTime();
                     const durationMs = end - start;
-                    return sum + (durationMs / 1000 / 60); // Convert ms to minutes
+                    return sum + (durationMs / 1000 / 60);
                 }
                 return sum;
             }, 0);
 
-            // Remove calendar_entries from the returned object
-            const { calendar_entries, ...projectData } = project;
+                        const { calendar_entries, ...projectData } = project;
             return {
                 ...projectData,
                 total_time: Math.round(totalMinutes)

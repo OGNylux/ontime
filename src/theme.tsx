@@ -1,6 +1,5 @@
 import { createTheme } from '@mui/material/styles';
 
-// Figma Design Tokens
 const theme = createTheme({
   typography: {
     fontFamily: 'Roboto, Inter, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif',

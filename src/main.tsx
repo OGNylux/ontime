@@ -31,15 +31,13 @@ function AppLayout() {
   const [isTauriMobile, setIsTauriMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Check if running in Tauri mobile app
-  useEffect(() => {
+    useEffect(() => {
     const checkPlatform = async () => {
       try {
         const platformType = await platform();
         setIsTauriMobile(platformType === 'android' || platformType === 'ios');
       } catch {
-        // Not running in Tauri
-        setIsTauriMobile(false);
+                setIsTauriMobile(false);
       }
     };
     checkPlatform();
