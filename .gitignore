@@ -25,3 +25,7 @@ dist-ssr
 
 .vscode
 .env
+
+*.apk
+*.idsig
+*.keystore

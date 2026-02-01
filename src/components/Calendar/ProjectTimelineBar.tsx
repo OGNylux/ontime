@@ -5,7 +5,6 @@ import { CalendarEntry } from "../../services/calendarService";
 import { TAILWIND_COLORS } from "../../services/projectService";
 import { formatDuration } from "./util/calendarUtility";
 
-// Types
 
 interface ProjectTimelineBarProps {
     entries: CalendarEntry[];
@@ -20,10 +19,6 @@ interface ProjectSegment {
 }
 
 type ViewMode = "day" | "week";
-
-// Constants
-
-// Helpers
 
 const calculateSegments = (entries: CalendarEntry[]): ProjectSegment[] => {
     const projectTimeMap = new Map<string, { name: string; color: string; minutes: number }>();
@@ -57,7 +52,6 @@ const calculateSegments = (entries: CalendarEntry[]): ProjectSegment[] => {
         .sort((a, b) => b.minutes - a.minutes);
 };
 
-// Sub-components
 
 const SegmentLabels = ({ segments }: { segments: ProjectSegment[] }) => (
     <Box sx={{ display: "flex", mb: 0.5, minHeight: "20px" }}>
@@ -105,8 +99,6 @@ const TimelineBar = ({ segments }: { segments: ProjectSegment[] }) => (
     </Box>
 );
 
-// Main Component
-
 export default function ProjectTimelineBar({ entries }: ProjectTimelineBarProps) {
     const [viewMode, _] = useState<ViewMode>("week");
 
@@ -124,25 +116,6 @@ export default function ProjectTimelineBar({ entries }: ProjectTimelineBarProps)
 
     return (
         <Box px={1} py={1.5}>
-            {/* <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={(_, newMode) => newMode && setViewMode(newMode)}
-                size="small"
-                sx={{
-                    mb: 1,
-                    "& .MuiToggleButton-root": {
-                        px: 1,
-                        py: 0.25,
-                        fontSize: "0.7rem",
-                        textTransform: "none",
-                    },
-                }}
-            >
-                <ToggleButton value="day">Day</ToggleButton>
-                <ToggleButton value="week">Week</ToggleButton>
-            </ToggleButtonGroup> */}
-
             <SegmentLabels segments={segments} />
             <TimelineBar segments={segments} />
         </Box>

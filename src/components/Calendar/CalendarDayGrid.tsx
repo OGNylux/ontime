@@ -7,7 +7,6 @@ interface CalendarDayGridProps {
 }
 
 export default function CalendarDayGrid({ hourHeight, gapSize }: CalendarDayGridProps) {
-    // Generate time slots based on gap size
     const timeSlots: number[] = [];
     for (let minute = 0; minute < MINUTES_PER_DAY; minute += gapSize) {
         timeSlots.push(minute);

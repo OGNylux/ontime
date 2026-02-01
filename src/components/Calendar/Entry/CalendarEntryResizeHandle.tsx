@@ -9,7 +9,7 @@ interface CalendarEntryResizeHandleProps {
     onClick?: (e: React.MouseEvent) => void;
 }
 
-const DRAG_THRESHOLD = 5; // pixels of movement before considered a drag
+const DRAG_THRESHOLD = 5;
 
 export default function CalendarEntryResizeHandle({ position, onMouseDown, onClick }: CalendarEntryResizeHandleProps) {
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -20,7 +20,6 @@ export default function CalendarEntryResizeHandle({ position, onMouseDown, onCli
         e.stopPropagation();
         e.preventDefault();
         
-        // Capture pointer to prevent parent handlers from taking over
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
         
         startPosRef.current = { x: e.clientX, y: e.clientY };
@@ -32,7 +31,6 @@ export default function CalendarEntryResizeHandle({ position, onMouseDown, onCli
             const dx = ev.clientX - startPosRef.current.x;
             const dy = ev.clientY - startPosRef.current.y;
             
-            // If moved beyond threshold, start resize (only once)
             if (!didDragRef.current && (dx * dx + dy * dy > DRAG_THRESHOLD * DRAG_THRESHOLD)) {
                 didDragRef.current = true;
                 resizeStartedRef.current = true;
@@ -42,12 +40,10 @@ export default function CalendarEntryResizeHandle({ position, onMouseDown, onCli
 
         const onUp = (_: PointerEvent) => {
             cleanup();
-            // Release pointer capture
             try {
                 (e.target as HTMLElement).releasePointerCapture(e.pointerId);
             } catch (_) {}
             
-            // If we didn't drag, it's a click - trigger onClick
             if (!didDragRef.current && onClick) {
                 onClick(e as any);
             }

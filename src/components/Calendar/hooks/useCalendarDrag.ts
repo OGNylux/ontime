@@ -37,10 +37,7 @@ export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, gapSize, o
     }, [pixelsPerMinute]);
 
     const handleMouseDown = useCallback((e: MouseEvent) => {
-        // Disable drag on touch devices
         if (isTouchDevice) return;
-        
-        // Only handle left click
         if (e.button !== 0) return;
 
         const minute = getMinuteFromY(e.clientY);
@@ -70,25 +67,20 @@ export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, gapSize, o
         const startMinute = Math.min(dragState.startMinute, endMinute);
         const finalEndMinute = Math.max(dragState.startMinute, endMinute);
 
-        // If it's a click (no drag), default to gap size duration
         const isClick = Math.abs(finalEndMinute - startMinute) < INTERVAL_MINUTES;
         const adjustedEndMinute = isClick 
             ? clampMinute(startMinute + gapSize) 
             : finalEndMinute;
 
-        // Get anchor position for the popover
         const anchorPosition = {
             top: e.clientY,
             left: e.clientX,
         };
 
-        // Notify parent to keep drag preview
-            // Notify parent to keep drag preview, with actual start/end minutes
             if (onDragEnd) {
                 onDragEnd({ startMinute, endMinute: adjustedEndMinute });
             }
 
-        // Reset local drag state; parent will render persistent preview
         onCreateEntry(dateStr, startMinute, adjustedEndMinute, anchorPosition);
         setDragState({
             isDragging: false,
@@ -99,7 +91,6 @@ export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, gapSize, o
     }, [dragState.isDragging, dragState.startMinute, getMinuteFromY, dateStr, onCreateEntry, isTouchDevice, onDragEnd]);
 
     const handleClick = useCallback((e: MouseEvent) => {
-        // On touch devices, handle tap for opening dialog
         if (!isTouchDevice) return;
 
         const minute = getMinuteFromY(e.clientY);
@@ -114,13 +105,11 @@ export function useCalendarDrag({ hourHeight, dateStr, isTouchDevice, gapSize, o
         onCreateEntry(dateStr, startMinute, endMinute, anchorPosition);
     }, [isTouchDevice, getMinuteFromY, dateStr, onCreateEntry]);
 
-    // Calculate drag preview dimensions
     const dragPreview = dragState.isDragging ? {
         top: Math.min(dragState.startMinute, dragState.currentMinute) * pixelsPerMinute,
         height: Math.abs(dragState.currentMinute - dragState.startMinute) * pixelsPerMinute,
     } : null;
 
-    // Add a method to clear drag state
     const clearDrag = () => setDragState({
         isDragging: false,
         startY: 0,

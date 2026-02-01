@@ -13,31 +13,25 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
     const { timezone, loading } = useUserTimezone();
     const [currentMinute, setCurrentMinute] = useState<number | null>(null);
 
-    // Update current time every second for smooth movement
     useEffect(() => {
         if (loading) return;
         
         const updateTime = () => {
-            // Get current time in user's timezone
             const now = dayjs().tz(timezone);
             setCurrentMinute(now.hour() * 60 + now.minute() + now.second() / 60);
         };
         
-        // Initial update
         updateTime();
-
-        const interval = setInterval(updateTime, 1000); // Update every second
+        const interval = setInterval(updateTime, 1000); 
         return () => clearInterval(interval);
     }, [timezone, loading]);
 
-    // Don't render until timezone is loaded and we have a valid minute
     if (loading || currentMinute === null) {
         return null;
     }
 
     const topPosition = currentMinute * pixelsPerMinute;
     const containerHeight = 28;
-    // Offset to center the container on the actual time position
     const centeredTop = topPosition - containerHeight / 2;
 
     return (
@@ -53,8 +47,6 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
             flexDirection="row"
             sx={{ pointerEvents: "none" }}
         >
-            
-            {/* Play button */}
             {onStartRecording && (
                 <Tooltip title="Start recording from now">
                     <IconButton
@@ -80,16 +72,12 @@ export default function CalendarCurrentTimeLine({ pixelsPerMinute, onStartRecord
                     </IconButton>
                 </Tooltip>
             )}
-
-            {/* Line that stretches between marker and button */}
             <Box
                 flex={1}
                 height={2}
                 bgcolor="secondary.main"
                 sx={{ pointerEvents: 'none' }}
             />
-
-            {/* Left marker */}
             <Box
                 width={8}
                 height={8}

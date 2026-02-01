@@ -20,7 +20,6 @@ export function useEntryPersistence({
 }: UseEntryPersistenceProps) {
     const { timezone } = useUserTimezone();
     
-    // Find an entry by ID across all dates
     const findEntry = useCallback((entryId: string): CalendarEntry | undefined => {
         for (const entries of Object.values(entriesByDate)) {
             const found = entries.find(e => e.id === entryId);
@@ -29,20 +28,18 @@ export function useEntryPersistence({
         return undefined;
     }, [entriesByDate]);
 
-    // Update entry times (used by move and resize)
     const updateEntryTimes = useCallback(async (
         dateStr: string,
         entryId: string,
         startMinute: number,
         endMinute: number
     ) => {
-        // Parse dateStr in user's timezone, add minutes, then convert to UTC
         const startDateTime = parseAsUserTimezone(`${dateStr}T00:00:00`, timezone);
         const endDateTime = parseAsUserTimezone(`${dateStr}T00:00:00`, timezone);
         const startUTC = dayjs.utc(startDateTime).add(startMinute, 'minute').toISOString();
         const endUTC = dayjs.utc(endDateTime).add(endMinute, 'minute').toISOString();
 
-        // Optimistic update
+        
         const existing = findEntry(entryId);
         if (existing) {
             addOrReplaceEntry({ ...existing, start_time: startUTC, end_time: endUTC });
@@ -60,7 +57,7 @@ export function useEntryPersistence({
         }
     }, [findEntry, addOrReplaceEntry, refetch, timezone]);
 
-    // Create a new entry
+    
     const createEntry = useCallback(async (data: {
         dateStr: string;
         startTime: string;
@@ -70,7 +67,6 @@ export function useEntryPersistence({
         projectId?: string | null;
         taskId?: string;
     }) => {
-        // Parse times in user's timezone, then convert to UTC
         const startDateTime = parseAsUserTimezone(
             `${data.dateStr}T${data.startTime}:00`,
             timezone
@@ -80,14 +76,11 @@ export function useEntryPersistence({
             timezone
         );
 
-        // Resolve task
         let taskId: string | undefined = data.taskId;
         if (!taskId && data.taskName?.trim()) {
-            // Try to find existing task with same name AND project
             let task = await taskService.getTaskByName(data.taskName.trim(), data.projectId);
             
             if (!task) {
-                // Fetch project color if a project is selected
                 let projectColor: number | undefined = undefined;
                 if (data.projectId) {
                     try {
@@ -98,7 +91,6 @@ export function useEntryPersistence({
                     }
                 }
                 
-                // Create new task if not found
                 task = await taskService.createTask({ 
                     name: data.taskName.trim(),
                     project_id: data.projectId ?? undefined,
@@ -108,7 +100,7 @@ export function useEntryPersistence({
             taskId = task.id;
         }
 
-        // Optimistic create
+        
         const tempId = `temp-${Date.now()}`;
         const tempEntry: CalendarEntry = {
             id: tempId,
@@ -136,7 +128,6 @@ export function useEntryPersistence({
         }
     }, [addOrReplaceEntry, removeEntryLocal, refetch, timezone]);
 
-    // Update an existing entry
     const updateEntry = useCallback(async (
         entryId: string,
         data: {
@@ -152,7 +143,6 @@ export function useEntryPersistence({
         const existing = findEntry(entryId);
         if (!existing) return;
 
-        // Parse times in user's timezone, then convert to UTC
         const startDateTime = parseAsUserTimezone(
             `${data.dateStr}T${data.startTime}:00`,
             timezone
@@ -162,14 +152,11 @@ export function useEntryPersistence({
             timezone
         );
 
-        // Resolve task
         let taskId: string | undefined = data.taskId;
         if (!taskId && data.taskName?.trim()) {
-            // Try to find existing task with same name AND project
             let task = await taskService.getTaskByName(data.taskName.trim(), data.projectId);
             
             if (!task) {
-                // Fetch project color if a project is selected
                 let projectColor: number | undefined = undefined;
                 if (data.projectId) {
                     try {
@@ -180,7 +167,6 @@ export function useEntryPersistence({
                     }
                 }
                 
-                // Create new task if not found
                 task = await taskService.createTask({ 
                     name: data.taskName.trim(),
                     project_id: data.projectId ?? undefined,
@@ -190,7 +176,7 @@ export function useEntryPersistence({
             taskId = task.id;
         }
 
-        // Optimistic update
+        
         addOrReplaceEntry({
             ...existing,
             start_time: startDateTime,
@@ -215,7 +201,7 @@ export function useEntryPersistence({
         }
     }, [findEntry, addOrReplaceEntry, refetch, timezone]);
 
-    // Duplicate an entry
+    
     const duplicateEntry = useCallback(async (entry: CalendarEntry) => {
         try {
             await calendarService.createEntry({
@@ -231,7 +217,7 @@ export function useEntryPersistence({
         }
     }, [refetch]);
 
-    // Delete an entry
+    
     const deleteEntry = useCallback(async (entryId: string) => {
         try {
             await calendarService.deleteEntry(entryId);

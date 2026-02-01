@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry } from "../../../services/calendarService";
-import { clamp, clampMinute, MINUTES_PER_DAY, snap } from "../util/calendarUtility";
+import { clamp, clampMinute, MINUTES_PER_DAY, snap, findDayElement, lockBody, unlockBody, BodyStyles } from "../util/calendarUtility";
 
 export interface MoveState {
     entry: CalendarEntry;
@@ -23,51 +23,6 @@ export interface EntryDragStartPayload {
 
 export type EntriesByDay = Record<string, CalendarEntry[]>;
 
-interface BodyStyles {
-    overflow: string;
-    touchAction: string;
-    userSelect: string;
-    webkitUserSelect: string;
-}
-
-/** Find the nearest day column element under the pointer */
-const findDayElement = (clientX: number, clientY: number): HTMLElement | null => {
-    if (typeof document === "undefined") return null;
-    for (const el of document.elementsFromPoint(clientX, clientY)) {
-        const dayEl = el.closest<HTMLElement>("[data-date]");
-        if (dayEl) return dayEl;
-    }
-    return null;
-};
-
-/** Lock body scroll/selection during drag */
-const lockBody = (): BodyStyles => {
-    const original: BodyStyles = {
-        overflow: document.body.style.overflow,
-        touchAction: document.body.style.touchAction,
-        userSelect: document.body.style.userSelect,
-        webkitUserSelect: (document.body.style as CSSStyleDeclaration).webkitUserSelect || "",
-    };
-    Object.assign(document.body.style, {
-        overflow: "hidden",
-        touchAction: "none",
-        userSelect: "none",
-        webkitUserSelect: "none",
-    });
-    return original;
-};
-
-/** Restore body styles after drag */
-const unlockBody = (original: BodyStyles) => {
-    Object.assign(document.body.style, {
-        overflow: original.overflow,
-        touchAction: original.touchAction,
-        userSelect: original.userSelect,
-        webkitUserSelect: original.webkitUserSelect,
-    });
-};
-
-/** Find an entry by ID across all days */
 const findEntry = (entriesByDay: EntriesByDay, dateStr: string, entryId: string): CalendarEntry | undefined => {
     return entriesByDay[dateStr]?.find(e => e.id === entryId)
         ?? Object.values(entriesByDay).flat().find(e => e.id === entryId);
@@ -81,7 +36,6 @@ export function useEntryMove(
     const rafIdRef = useRef<number | null>(null);
     const originalStylesRef = useRef<BodyStyles | null>(null);
 
-    /** Calculate position from pointer coordinates */
     const calcPosition = useCallback((clientX: number, clientY: number, state: MoveState) => {
         const dayEl = findDayElement(clientX, clientY);
         const dateStr = dayEl?.getAttribute("data-date");
@@ -95,7 +49,6 @@ export function useEntryMove(
         return { targetDateStr: dateStr, startMinute, endMinute: startMinute + state.duration };
     }, []);
 
-    /** Commit the move, handling day boundary overflow */
     const commitMove = useCallback(async (state: MoveState) => {
         let { currentDateStr: dateStr, startMinute, endMinute } = state;
 
@@ -112,7 +65,6 @@ export function useEntryMove(
         await onMoveCommit(dateStr, state.entry.id, startMinute, endMinute);
     }, [onMoveCommit]);
 
-    /** Update state with new position if changed */
     const updatePosition = useCallback((clientX: number, clientY: number) => {
         setMoveState(prev => {
             if (!prev) return prev;
@@ -124,7 +76,6 @@ export function useEntryMove(
         });
     }, [calcPosition]);
 
-    /** Begin moving an entry */
     const beginMove = useCallback((payload: EntryDragStartPayload) => {
         const entry = findEntry(entriesByDay, payload.dateStr, payload.entryId);
         if (!entry) return;
@@ -144,12 +95,12 @@ export function useEntryMove(
             endMinute: startMinute + duration,
         };
 
-        // Calculate initial position from pointer
+        
         const pos = calcPosition(payload.clientX, payload.clientY, baseState);
         setMoveState(pos ? { ...baseState, currentDateStr: pos.targetDateStr, startMinute: pos.startMinute, endMinute: pos.endMinute } : baseState);
     }, [entriesByDay, calcPosition]);
 
-    // Handle all pointer events while dragging
+    
     useEffect(() => {
         if (!moveState) return;
 
