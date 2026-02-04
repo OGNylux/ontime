@@ -2,18 +2,11 @@ import { Box, Typography } from "@mui/material";
 import { MouseEvent, useEffect, useRef, useCallback } from "react";
 import { toUserTimezone } from "../../../lib/timezone";
 import { useUserTimezone } from "../../../hooks/useUserTimezone";
-
-// Components
 import CalendarEntryResizeHandle from "./CalendarEntryResizeHandle";
-
-// Types & Utils
 import { CalendarEntry } from "../../../services/calendarService";
 import { MINUTES_PER_HOUR, ResizeHandlePosition, formatDuration } from "../util/calendarUtility";
-import { useEntryTouch } from "../hooks/useEntryTouch";
-import { useEntryPointer } from "../hooks/useEntryPointer";
+import { useEntryLongPress } from "../hooks/useEntryLongPress";
 import { TAILWIND_COLORS } from "../../../services/projectService";
-
-// Types
 
 interface CalendarEntryBlockProps {
     entry: CalendarEntry;
@@ -33,14 +26,11 @@ export interface EntryLayout extends CalendarEntry {
     visualDuration?: number;
 }
 
-// Helpers
 
 function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number, timezone: string) {
-    // Convert UTC times to user's timezone for display
     const startTime = toUserTimezone(entry.start_time, timezone);
     const endTime = toUserTimezone(entry.end_time, timezone);
 
-    // Include seconds for more precise positioning
     const startMinutes = entry.visualStartMinute ??
         (startTime.hour() * MINUTES_PER_HOUR + startTime.minute() + startTime.second() / 60);
     const durationMinutes = entry.visualDuration ?? endTime.diff(startTime, "minute", true);
@@ -53,8 +43,6 @@ function computeLayout(entry: CalendarEntry & EntryLayout, hourHeight: number, t
         durationMinutes: Math.max(0, Math.round(durationMinutes)),
     };
 }
-
-// Component
 
 export default function CalendarEntryBlock({
     entry,
@@ -75,8 +63,6 @@ export default function CalendarEntryBlock({
     const isResizingRef = useRef(false);
     const resizeTimestamp = useRef<number>(0);
 
-    // Click Suppression (after resize)
-
     useEffect(() => {
         const el = paperRef.current;
         if (!el) return;
@@ -96,12 +82,7 @@ export default function CalendarEntryBlock({
         return () => el.removeEventListener("click", suppressClick, true);
     }, []);
 
-    // Drag Hooks (pointer + touch fallback)
-
-    useEntryPointer({ paperRef: paperRef as React.RefObject<HTMLDivElement>, onDragStart });
-    useEntryTouch({ paperRef: paperRef as React.RefObject<HTMLDivElement>, onDragStart });
-
-    // Event Handlers
+    useEntryLongPress({ paperRef: paperRef as React.RefObject<HTMLDivElement>, onDragStart });
 
     const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
         e.stopPropagation();
@@ -165,8 +146,6 @@ export default function CalendarEntryBlock({
         onClick?.(entry, e as MouseEvent<HTMLDivElement>);
     }, [entry, onClick]);
 
-    // Layout Calculations
-
     const { top, height, durationMinutes } = computeLayout(entry as CalendarEntry & EntryLayout, hourHeight, timezone);
     const backgroundColor = entry.task?.color || 0;
     const title = entry.task?.name || "";
@@ -174,8 +153,6 @@ export default function CalendarEntryBlock({
     const showDuration = height >= 40;
     const showTitle = height >= 15;
     const showResizeHandles = !isPreview && !isDragging;
-
-    // Render
 
     return (
         <Box

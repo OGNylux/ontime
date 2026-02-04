@@ -75,8 +75,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     const sortedData = useMemo(() => {
         if (disableSorting || !orderBy) return data;
 
-        // When grouping is enabled, sort by parent row but keep group rows together
-        if (groupBy) {
+                if (groupBy) {
             type Group = { rows: T[] };
             const groups: Group[] = [];
             const groupIndex = new Map<string, number>();
@@ -84,8 +83,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
             data.forEach((row) => {
                 const key = groupBy(row);
                 if (!key) {
-                    // Ungrouped row: its own group to preserve relative position
-                    groups.push({ rows: [row] });
+                                        groups.push({ rows: [row] });
                     return;
                 }
 
@@ -132,8 +130,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
             return groups.flatMap((g) => g.rows);
         }
 
-        // Default flat sorting
-        return [...data].sort((a, b) => {
+                return [...data].sort((a, b) => {
             const aPinned = (a as T).pinned;
             const bPinned = (b as T).pinned;
             

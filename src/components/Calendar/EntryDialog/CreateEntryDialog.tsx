@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material";
 import { useState, useEffect, MouseEvent } from "react";
+import { useCalendarContext } from "../CalendarContext";
 import ProjectSelector from "./ProjectSelector";
 import ConfirmDialog from "../../Forms/ConfirmDialog";
 import { Project } from "../../../services/projectService";
@@ -26,7 +27,7 @@ import { taskService, Task } from "../../../services/taskService";
 interface CreateEntryDialogProps {
     open: boolean;
     onClose: () => void;
-    onSave: (data: { startTime: string; endTime: string; taskName: string; isBillable: boolean; projectId?: string | null; taskId?: string }) => void;
+    onSave?: (data: { startTime: string; endTime: string; taskName: string; isBillable: boolean; projectId?: string | null; taskId?: string }) => void;
     anchorPosition: { top: number; left: number } | null;
     initialStartTime?: string;
     initialEndTime?: string;
@@ -47,6 +48,7 @@ export default function CreateEntryDialog({
     anchorPosition,
     initialStartTime = "09:00",
     initialEndTime = "10:00",
+    dateStr,
     initialTitle,
     initialIsBillable = true,
     initialProjectId = null,
@@ -66,8 +68,10 @@ export default function CreateEntryDialog({
     const [options, setOptions] = useState<Task[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<string | undefined>(undefined);
+    const [saving, setSaving] = useState(false);
 
-    // Reset form when dialog opens with new times
+    const { persistence } = useCalendarContext();
+
     useEffect(() => {
         if (open) {
             setStartTime(initialStartTime);
@@ -113,12 +117,34 @@ export default function CreateEntryDialog({
     const handleMenuClose = () => setMenuAnchorEl(null);
 
     const handleDuplicate = () => {
-        onDuplicate && onDuplicate({ startTime, endTime, taskName: title, isBillable, projectId: selectedProject?.id });
+        if (onDuplicate) {
+            onDuplicate({ startTime, endTime, taskName: title, isBillable, projectId: selectedProject?.id });
+            return;
+        }
+
+        (async () => {
+            try {
+                setSaving(true);
+                await persistence.createEntry({
+                    dateStr: dateStr ?? "",
+                    startTime,
+                    endTime,
+                    taskName: title,
+                    isBillable,
+                    projectId: selectedProject?.id,
+                    taskId: selectedTaskId,
+                });
+                onClose();
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setSaving(false);
+            }
+        })();
     };
 
     const handleDelete = () => {
         if (!editingEntryId) return;
-        // Open custom confirmation dialog
         handleMenuClose();
         setConfirmOpen(true);
     };
@@ -131,19 +157,68 @@ export default function CreateEntryDialog({
 
     const handleConfirmDelete = () => {
         if (!editingEntryId) return;
-        onDelete && onDelete(editingEntryId);
+        if (onDelete) {
+            onDelete(editingEntryId);
+        } else {
+            (async () => {
+                try {
+                    setSaving(true);
+                    await persistence.deleteEntry(editingEntryId);
+                    onClose();
+                } catch (err) {
+                    console.error(err);
+                } finally {
+                    setSaving(false);
+                }
+            })();
+        }
         setConfirmOpen(false);
     };
 
     const handleSave = () => {
-        onSave({
-            startTime,
-            endTime,
-            taskName: title,
-            isBillable,
-            projectId: selectedProject?.id,
-            taskId: selectedTaskId,
-        });
+        if (onSave) {
+            onSave({
+                startTime,
+                endTime,
+                taskName: title,
+                isBillable,
+                projectId: selectedProject?.id,
+                taskId: selectedTaskId,
+            });
+            return;
+        }
+
+        (async () => {
+            try {
+                setSaving(true);
+                if (isEdit && editingEntryId) {
+                    await persistence.updateEntry(editingEntryId, {
+                        dateStr: dateStr ?? "",
+                        startTime,
+                        endTime,
+                        taskName: title,
+                        isBillable,
+                        projectId: selectedProject?.id,
+                        taskId: selectedTaskId,
+                    });
+                } else {
+                    await persistence.createEntry({
+                        dateStr: dateStr ?? "",
+                        startTime,
+                        endTime,
+                        taskName: title,
+                        isBillable,
+                        projectId: selectedProject?.id,
+                        taskId: selectedTaskId,
+                    });
+                }
+                onClose();
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setSaving(false);
+            }
+        })();
     };
 
     const content = (
@@ -188,8 +263,6 @@ export default function CreateEntryDialog({
                 inputValue={title}
                 onInputChange={(_, value) => {
                     setTitle(value);
-                    // If user types, clear selected task ID unless it matches exactly (hard to know)
-                    // Safer to clear it and let backend resolve by name/project
                     setSelectedTaskId(undefined);
                 }}
                 onChange={(_, value) => {
@@ -255,8 +328,8 @@ export default function CreateEntryDialog({
             </Stack>
                 <Stack direction="row" justifyContent="flex-end" spacing={1}>
                 <Button onClick={onClose} size="small">Cancel</Button>
-                <Button onClick={handleSave} variant="contained" size="small">
-                    {isEdit ? "Save" : "Create"}
+                <Button onClick={handleSave} variant="contained" size="small" disabled={saving}>
+                    {saving ? "Saving..." : (isEdit ? "Save" : "Create")}
                 </Button>
             </Stack>
         </Stack>

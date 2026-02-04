@@ -6,17 +6,14 @@ import CalendarEntryBlock, { EntryLayout } from "./Entry/CalendarEntryBlock";
 import CalendarEntryPreview from "./Entry/CalendarEntryPreview";
 import CalendarCurrentTimeLine from "./CalendarCurrentTimeLine";
 
-// Hooks & Types
 import { CalendarEntry } from "../../services/calendarService";
-import { MINUTES_PER_DAY, ResizeHandlePosition, assignEntryLayout } from "./util/calendarUtility";
+import { MINUTES_PER_DAY, assignEntryLayout } from "./util/calendarUtility";
 import { useCalendarDrag } from "./hooks/useCalendarDrag";
-import { MoveState } from "./hooks/useEntryMove";
-import { ResizeState } from "./hooks/useEntryResize";
 import { GapSize } from "./TopBar/CalendarZoom";
 import { BASE_CELL_HEIGHT, SMALL_CELL_HEIGHT } from "./util/calendarConfig";
 import CalendarDayHeader from "./CalendarDayHeader";
+import { useCalendarContext } from "./CalendarContext";
 
-// Types
 
 interface CalendarDayProps {
     dayOfTheMonth: string;
@@ -26,30 +23,17 @@ interface CalendarDayProps {
     totalDays: number;
     entries?: CalendarEntry[];
     gapSize: GapSize;
-    // Callbacks
-    onCreateEntry: (dateStr: string, startMinute: number, endMinute: number, anchorPosition: { top: number; left: number }) => void;
-    onEntryClick?: (entry: CalendarEntry, ev?: React.MouseEvent) => void;
-    onEntryContextMenu?: (entry: CalendarEntry, anchor?: { top: number; left: number } | null) => void;
-    onDragEnd?: (preview: { startMinute: number; endMinute: number } | null) => void;
-    onEntryDragStart?: (dateStr: string, entryId: string, pointerOffset: number, clientX: number, clientY: number) => void;
-    onEntryResizeStart?: (dateStr: string, entryId: string, handle: ResizeHandlePosition, clientY: number) => void;
     onStartRecording?: () => void;
-    // Preview state
     persistentDragPreview?: { startMinute: number; endMinute: number } | null;
     isPersistentPreviewActive?: boolean;
-    moveState?: MoveState | null;
-    resizeState?: ResizeState | null;
+    onDragEnd?: (preview: { startMinute: number; endMinute: number } | null) => void;
 }
 
-// Helpers
-
-function computeTotalMinutes(entries: CalendarEntry[], dateStr: string, timezone: string): number {
-    // Parse dateStr as user's timezone
+function calcTotalMinutes(entries: CalendarEntry[], dateStr: string, timezone: string): number {
     const dayStart = dayjs.tz(dateStr, timezone).startOf("day");
     const dayEnd = dayStart.endOf("day");
 
     return entries.reduce((total, entry) => {
-        // Convert UTC entry times to user's timezone
         const start = toUserTimezone(entry.start_time, timezone);
         const end = toUserTimezone(entry.end_time, timezone);
         if (end.isBefore(dayStart) || start.isAfter(dayEnd)) return total;
@@ -68,8 +52,6 @@ function generateTimeSlots(gapSize: GapSize): number[] {
     return slots;
 }
 
-// Component
-
 export default function CalendarDay({
     dayOfTheMonth,
     dayOfTheWeek,
@@ -78,28 +60,19 @@ export default function CalendarDay({
     totalDays,
     entries = [],
     gapSize,
-    onCreateEntry,
-    onEntryClick,
-    onEntryContextMenu,
-    onDragEnd,
-    onEntryDragStart,
-    onEntryResizeStart,
     onStartRecording,
     persistentDragPreview,
     isPersistentPreviewActive,
-    moveState,
-    resizeState,
+    onDragEnd,
 }: CalendarDayProps) {
     const { timezone } = useUserTimezone();
+    const { openCreateDialog, openEditDialog, openContextMenu, moveState, beginMove, resizeState, beginResize } = useCalendarContext();
     const theme = useTheme();
     const isSmallWindow = useMediaQuery(theme.breakpoints.down("md"));
     const isPointerCoarse = useMediaQuery("(pointer: coarse)");
     const isHoverNone = useMediaQuery("(hover: none)");
     const isTouchDevice = isPointerCoarse || isHoverNone;
-    // Check if this day is "today" in the user's timezone
     const isToday = dayjs().tz(timezone).format("YYYY-MM-DD") === dateStr;
-
-    // Zoom/Layout Calculations
 
     const baseHourHeight = isSmallWindow ? SMALL_CELL_HEIGHT : BASE_CELL_HEIGHT;
     const pixelsPerMinute = baseHourHeight / gapSize;
@@ -107,24 +80,24 @@ export default function CalendarDay({
     const slotHeight = baseHourHeight;
 
     const timeSlots = useMemo(() => generateTimeSlots(gapSize), [gapSize]);
-    const totalMinutes = useMemo(() => computeTotalMinutes(entries, dateStr, timezone), [entries, dateStr, timezone]);
+    const totalMinutes = useMemo(() => calcTotalMinutes(entries, dateStr, timezone), [entries, dateStr, timezone]);
     const laidOutEntries = useMemo(
         () => assignEntryLayout(entries, pixelsPerHour, 30, dateStr),
         [entries, pixelsPerHour, dateStr]
     );
 
-    // Drag Hook
 
     const { containerRef, dragPreview, isDragging, handlers } = useCalendarDrag({
         hourHeight: pixelsPerHour,
         dateStr,
         isTouchDevice,
         gapSize,
-        onCreateEntry,
+        onCreateEntry: (dateStr, startMinute, endMinute, anchorPosition) => {
+            openCreateDialog(dateStr, startMinute, endMinute, anchorPosition);
+        },
         onDragEnd: info => onDragEnd?.(info ? { startMinute: info.startMinute, endMinute: info.endMinute } : null),
     });
 
-    // Preview Renderers
 
     const renderDragPreview = () => {
         if (isPersistentPreviewActive && persistentDragPreview) {
@@ -161,7 +134,6 @@ export default function CalendarDay({
         const nextDay = dayjs(currentDateStr).add(1, "day").format("YYYY-MM-DD");
         const prevDay = dayjs(currentDateStr).subtract(1, "day").format("YYYY-MM-DD");
 
-        // Helper to render a CalendarEntryBlock preview for a given start/duration
         const renderBlock = (visualStart: number, visualDur: number) => {
             const displayEntry = {
                 ...entry,
@@ -180,7 +152,6 @@ export default function CalendarDay({
             );
         };
 
-        // Main preview on current day
         if (currentDateStr === dateStr) {
             const clampedStart = Math.max(0, startMinute);
             const clampedEnd = Math.min(MINUTES_PER_DAY, endMinute);
@@ -189,13 +160,11 @@ export default function CalendarDay({
             }
         }
 
-        // Overflow into next day
         if (nextDay === dateStr && endMinute > MINUTES_PER_DAY) {
             const overflowEnd = endMinute - MINUTES_PER_DAY;
             return renderBlock(0, Math.max(overflowEnd, 0));
         }
 
-        // Underflow from previous day
         if (prevDay === dateStr && startMinute < 0) {
             const underflowStart = MINUTES_PER_DAY + startMinute;
             const underflowEnd = Math.min(MINUTES_PER_DAY, MINUTES_PER_DAY + endMinute);
@@ -207,17 +176,26 @@ export default function CalendarDay({
         return null;
     };
 
-    // Entry Renderer
 
     const renderEntry = (entry: CalendarEntry & { widthPercent?: number; offsetPercent?: number }) => {
         const isMoving = moveState?.entry.id === entry.id;
         const isResizing = resizeState?.entry.id === entry.id;
 
-        if (isMoving) return null;
+                if (isMoving) {
+            return (
+                <CalendarEntryBlock
+                    key={entry.id}
+                    entry={entry}
+                    hourHeight={pixelsPerHour}
+                    isDragging={true}
+                    widthPercent={entry.widthPercent}
+                    offsetPercent={entry.offsetPercent}
+                />
+            );
+        }
 
         let displayEntry = entry;
 
-        // Update entry visuals if being resized
         if (isResizing && resizeState) {
             const dayStart = dayjs(dateStr).startOf("day");
             const dayEnd = dayStart.add(1, "day");
@@ -238,44 +216,42 @@ export default function CalendarDay({
             } as EntryLayout;
         }
 
-        const handleDragStart = onEntryDragStart
-            ? (clientX: number, clientY: number) => {
-                const container = containerRef.current;
-                if (!container) return;
+        const handleDragStart = (clientX: number, clientY: number) => {
+            const container = containerRef.current;
+            if (!container) return;
 
-                const rect = container.getBoundingClientRect();
-                const pointerMinute = (clientY - rect.top) / pixelsPerMinute;
-                const dayStart = dayjs(dateStr).startOf("day");
-                const pointerOffset = dayStart.add(pointerMinute, "minute").diff(dayjs(entry.start_time), "minute");
+            const rect = container.getBoundingClientRect();
+            const pointerMinute = (clientY - rect.top) / pixelsPerMinute;
+            const dayStart = dayjs(dateStr).startOf("day");
+            const pointerOffset = dayStart.add(pointerMinute, "minute").diff(dayjs(entry.start_time), "minute");
 
-                onEntryDragStart(dateStr, entry.id, pointerOffset, clientX, clientY);
+            beginMove({ dateStr, entryId: entry.id, pointerOffset, clientX, clientY });
+        };
+
+        const handleContextMenu = (e: CalendarEntry, ev?: React.MouseEvent) => {
+            if (ev && openContextMenu) {
+                openContextMenu(e, { top: ev.clientY, left: ev.clientX });
+            } else {
+                openEditDialog(e, ev ? { top: ev.clientY, left: ev.clientX } : null);
             }
-            : undefined;
-
-        const handleContextMenu = onEntryContextMenu
-            ? (e: CalendarEntry, ev?: React.MouseEvent) => {
-                const anchor = ev ? { top: ev.clientY, left: ev.clientX } : null;
-                onEntryContextMenu(e, anchor);
-            }
-            : undefined;
+        };
 
         return (
             <CalendarEntryBlock
                 key={entry.id}
                 entry={displayEntry}
                 hourHeight={pixelsPerHour}
-                onClick={onEntryClick}
+                onClick={(e, ev) => openEditDialog(e, ev ? { top: ev.clientY, left: ev.clientX } : null)}
                 onContextMenu={handleContextMenu}
                 isDragging={isResizing}
                 widthPercent={entry.widthPercent}
                 offsetPercent={entry.offsetPercent}
                 onDragStart={handleDragStart}
-                onResizeStart={(handle, clientY) => onEntryResizeStart?.(dateStr, entry.id, handle, clientY)}
+                onResizeStart={(handle, clientY) => beginResize({ dateStr, entryId: entry.id, handle, clientY })}
             />
         );
     };
 
-    // Render
 
     const widthPercent = totalDays ? 100 / totalDays : 100;
 
@@ -310,8 +286,7 @@ export default function CalendarDay({
                     userSelect: "none",
                 }}
             >
-                {/* Time slot dividers */}
-                {timeSlots.map((minute, i) => (
+                                {timeSlots.map((minute, i) => (
                     <Box
                         key={minute}
                         data-minute={minute}
@@ -326,15 +301,12 @@ export default function CalendarDay({
                     />
                 ))}
 
-                {/* Previews */}
-                {renderDragPreview()}
+                                {renderDragPreview()}
                 {renderMovePreview()}
 
-                {/* Entries */}
-                {laidOutEntries.map(renderEntry)}
+                                {laidOutEntries.map(renderEntry)}
 
-                {/* Current time line (only on today) */}
-                {isToday && (
+                                {isToday && (
                     <CalendarCurrentTimeLine
                         pixelsPerMinute={pixelsPerMinute}
                         onStartRecording={onStartRecording}

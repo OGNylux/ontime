@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import { CalendarEntry } from "../../../services/calendarService";
 import { ENTRY_MARGIN_PERCENT, MIN_ENTRY_WIDTH, OVERLAP_PERCENT, SCALE_MULTIPLIER } from "./calendarConfig";
 
-// Extended entry type with layout info
+
 export interface AssignedEntry extends CalendarEntry {
     widthPercent: number;
     offsetPercent: number;
@@ -73,13 +73,11 @@ export function assignEntryLayout(
     dateStr?: string
 ): AssignedEntry[] {
     if (!entries.length) return [];
-
-    // 1. Prepare and sort entries
+    
     const sorted = entries.map(entry => {
         const start = dayjs(entry.start_time);
         const end = dayjs(entry.end_time);
         
-        // If dateStr provided, clamp to day boundaries for layout only
         let startMinute: number;
         let endMinute: number;
         
@@ -88,20 +86,19 @@ export function assignEntryLayout(
             const dayEnd = dayStart.endOf('day');
             const clampedStart = start.isBefore(dayStart) ? dayStart : start;
             const clampedEnd = end.isAfter(dayEnd) ? dayEnd : end;
-            // Include seconds for precise positioning
+            
             startMinute = clampedStart.hour() * MINUTES_PER_HOUR + clampedStart.minute() + clampedStart.second() / 60;
             endMinute = clampedEnd.hour() * MINUTES_PER_HOUR + clampedEnd.minute() + clampedEnd.second() / 60;
         } else {
-            // Include seconds for precise positioning
+            
             startMinute = start.hour() * MINUTES_PER_HOUR + start.minute() + start.second() / 60;
-            const duration = end.diff(start, 'minute', true); // true for floating point
+            const duration = end.diff(start, 'minute', true); 
             endMinute = startMinute + duration;
         }
         
         return { ...entry, startMinute, endMinute };
     }).sort((a, b) => (a.startMinute - b.startMinute) || (a.endMinute - b.endMinute));
 
-    // 2. Assign columns (greedy packing)
     const columnEnds: number[] = [];
     const assignedColumns = new Map<string, number>();
 
@@ -115,15 +112,12 @@ export function assignEntryLayout(
         assignedColumns.set(entry.id, col);
     }
 
-    // 3. Calculate concurrency per entry
-    // Build timeline intervals from unique start/end points
     const points = Array.from(new Set(sorted.flatMap(e => [e.startMinute, e.endMinute]))).sort((a, b) => a - b);
     
     const intervals = [];
     for (let i = 0; i < points.length - 1; i++) {
         const s = points[i];
         const e = points[i + 1];
-        // Count how many entries overlap this specific interval
         const concurrency = sorted.reduce((cnt, en) => (en.startMinute <= s && en.endMinute > s) ? cnt + 1 : cnt, 0);
         intervals.push({ start: s, end: e, concurrency });
     }
@@ -139,23 +133,20 @@ export function assignEntryLayout(
         maxConcurrencyById.set(entry.id, maxC);
     }
 
-    // 4. Compute final layout props
     const titleMinutes = (titleHeightPx / hourHeight) * MINUTES_PER_HOUR;
 
     return sorted.map(entry => {
         const col = assignedColumns.get(entry.id) ?? 0;
         const concurrency = maxConcurrencyById.get(entry.id) ?? 1;
 
-        // Base width and offset
         let widthPercent = Math.max(MIN_ENTRY_WIDTH, 100 / concurrency);
         let offsetPercent = col * (100 / concurrency);
-
-        // Rule: If 2 entries overlap and the 2nd one starts after the 1st one's title, expand it
+        
         if (concurrency === 2 && col === 1) {
             const overlappingEntry = sorted.find(other => {
                 const otherCol = assignedColumns.get(other.id);
                 if (otherCol !== 0) return false;
-                // Check overlap
+                
                 return Math.max(entry.startMinute, other.startMinute) < Math.min(entry.endMinute, other.endMinute);
             });
 
@@ -166,15 +157,12 @@ export function assignEntryLayout(
                 offsetPercent = Math.max(0, offsetPercent - diff);
             }
         }
-
-        // Clamp to 100%
+        
         if (offsetPercent + widthPercent > 100) offsetPercent = Math.max(0, 100 - widthPercent);
 
-        // Apply inner margins and scale
         let scaledOffset = ENTRY_MARGIN_PERCENT + offsetPercent * INNER_SCALE;
         let scaledWidth = widthPercent * INNER_SCALE;
-
-        // Apply visual overlap for adjacent columns
+        
         if (concurrency > 1 && OVERLAP_PERCENT > 0) {
             const extraWidth = OVERLAP_PERCENT;
             const shiftPerCol = (OVERLAP_PERCENT * (col / Math.max(1, concurrency))) || 0;
@@ -182,16 +170,13 @@ export function assignEntryLayout(
             scaledWidth = Math.min(100 - ENTRY_MARGIN_PERCENT - scaledOffset, scaledWidth + extraWidth);
             scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, scaledOffset - shiftPerCol);
         }
-
-        // Final safety clamps
-        if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_ENTRY_WIDTH, 100 - scaledOffset);
         
+        if (scaledOffset + scaledWidth > 100) scaledWidth = Math.max(MIN_ENTRY_WIDTH, 100 - scaledOffset);
         if (scaledWidth < MIN_ENTRY_WIDTH) {
             scaledWidth = MIN_ENTRY_WIDTH;
             if (scaledOffset + scaledWidth > 100) scaledOffset = Math.max(ENTRY_MARGIN_PERCENT, 100 - scaledWidth);
         }
 
-        // Return original entry with layout props
         const { startMinute, endMinute, ...originalEntry } = entry;
         return {
             ...originalEntry,
@@ -202,4 +187,55 @@ export function assignEntryLayout(
             visualDuration: endMinute - startMinute,
         };
     });
+}
+
+export interface BodyStyles {
+    overflow: string;
+    touchAction: string;
+    userSelect: string;
+    webkitUserSelect: string;
+}
+
+export function findDayElement(clientX: number, clientY: number): HTMLElement | null {
+    if (typeof document === "undefined") return null;
+    for (const el of document.elementsFromPoint(clientX, clientY)) {
+        const dayEl = el.closest<HTMLElement>("[data-date]");
+        if (dayEl) return dayEl;
+    }
+    return null;
+}
+
+export function lockBody(): BodyStyles {
+    const original: BodyStyles = {
+        overflow: document.body.style.overflow,
+        touchAction: document.body.style.touchAction,
+        userSelect: document.body.style.userSelect,
+        webkitUserSelect: (document.body.style as CSSStyleDeclaration).webkitUserSelect || "",
+    };
+    Object.assign(document.body.style, {
+        overflow: "hidden",
+        touchAction: "none",
+        userSelect: "none",
+        webkitUserSelect: "none",
+    });
+    return original;
+}
+
+export function unlockBody(original: BodyStyles): void {
+    Object.assign(document.body.style, {
+        overflow: original.overflow,
+        touchAction: original.touchAction,
+        userSelect: original.userSelect,
+        webkitUserSelect: original.webkitUserSelect,
+    });
+}
+
+export function getClientCoords(event: MouseEvent | TouchEvent | PointerEvent, useTouches = true): { clientX: number; clientY: number } {
+    if (useTouches && 'touches' in event && event.touches.length) {
+        return { clientX: event.touches[0].clientX, clientY: event.touches[0].clientY };
+    }
+    if (useTouches && 'changedTouches' in event && event.changedTouches.length) {
+        return { clientX: event.changedTouches[0].clientX, clientY: event.changedTouches[0].clientY };
+    }
+    return { clientX: (event as MouseEvent).clientX, clientY: (event as MouseEvent).clientY };
 }

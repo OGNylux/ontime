@@ -32,11 +32,9 @@ export default function CalendarTime({ isCompact = false, gapSize, onGapSizeChan
             flexShrink={0}
             position="relative"
         >
-            {/* Time column */}
             <Paper
                 elevation={0}
                 square
-                
                 sx={{
                     height: 64,
                     position: "sticky",
@@ -69,7 +67,7 @@ export default function CalendarTime({ isCompact = false, gapSize, onGapSizeChan
                             position="absolute"
                             bottom={0}
                             zIndex={2}
-                            right={{xs: 6, md: 10}}
+                            right={{ xs: 6, md: 10 }}
                             color="text.secondary"
                             fontSize={gapSize < 60 ? '0.65rem' : '0.75rem'}
                             sx={{ transform: "translateY(50%)" }}

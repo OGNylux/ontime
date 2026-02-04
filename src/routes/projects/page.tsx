@@ -34,7 +34,6 @@ const formatDate = (dateStr?: string) => {
     return dayjs(dateStr).format('MMM D');
 };
 
-// ============ Main Component ============
 export default function ProjectsPage() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
@@ -42,18 +41,15 @@ export default function ProjectsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     
-    // Menu state
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuProject, setMenuProject] = useState<Project | null>(null);
     
-    // Dialog state
-    const [dialogOpen, setDialogOpen] = useState(false);
+        const [dialogOpen, setDialogOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
     
-    // Filter state
-    const [clientFilter, setClientFilter] = useState('');
+        const [clientFilter, setClientFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
@@ -76,8 +72,7 @@ export default function ProjectsPage() {
         }
     };
 
-    // Filter data
-    const filteredProjects = useMemo(() => {
+        const filteredProjects = useMemo(() => {
         return projects
             .filter((project) => {
                 const matchesSearch =
@@ -87,15 +82,13 @@ export default function ProjectsPage() {
                 return matchesSearch && matchesClient;
             })
             .sort((a, b) => {
-                // Pinned items always on top
-                if (a.pinned && !b.pinned) return -1;
+                                if (a.pinned && !b.pinned) return -1;
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
     }, [projects, searchQuery, clientFilter]);
 
-    // Table columns
-    const columns: Column<Project>[] = useMemo(() => [
+        const columns: Column<Project>[] = useMemo(() => [
         {
             field: 'name',
             label: 'Project',
@@ -128,8 +121,7 @@ export default function ProjectsPage() {
         },
     ], []);
 
-    // Menu handlers
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, project: Project) => {
+        const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, project: Project) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuProject(project);
     };
@@ -219,8 +211,7 @@ export default function ProjectsPage() {
         setDialogOpen(true);
     };
 
-    // Row actions renderer
-    const renderRowActions = (project: Project) => (
+        const renderRowActions = (project: Project) => (
         <IconButton size="small" onClick={(e) => handleMenuOpen(e, project)}>
             <MoreVert />
         </IconButton>
@@ -231,8 +222,7 @@ export default function ProjectsPage() {
             <PageHeader title="Projects" actionLabel="New Project" onAction={handleOpenNewProject} />
 
             <Divider sx={{ mb: 2 }} />
-            {/* Search and Filters */}
-            <Box display="flex" gap={2} marginBottom={2} alignItems="center">
+                        <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}
@@ -255,8 +245,7 @@ export default function ProjectsPage() {
 
             <Divider sx={{ mb: 3 }} />
 
-            {/* Data Table */}
-            <DataTable
+                        <DataTable
                 data={filteredProjects}
                 columns={columns}
                 loading={loading}
@@ -289,8 +278,7 @@ export default function ProjectsPage() {
                 }
             />
 
-            {/* Filter Menu */}
-            <Menu
+                        <Menu
                 anchorEl={filterAnchorEl}
                 open={Boolean(filterAnchorEl)}
                 onClose={() => setFilterAnchorEl(null)}
@@ -315,8 +303,7 @@ export default function ProjectsPage() {
                 ))}
             </Menu>
 
-            {/* Row Actions Menu */}
-            <Menu
+                        <Menu
                 anchorEl={menuAnchorEl}
                 open={Boolean(menuAnchorEl)}
                 onClose={handleMenuClose}
@@ -337,8 +324,7 @@ export default function ProjectsPage() {
                 </MenuItem>
             </Menu>
 
-            {/* Create/Edit Project Dialog */}
-            <ProjectDialog
+                        <ProjectDialog
                 open={dialogOpen}
                 onClose={() => { setDialogOpen(false); setEditingProject(null); }}
                 onSave={handleSaveProject}
@@ -346,8 +332,7 @@ export default function ProjectsPage() {
                 clients={clients}
             />
 
-            {/* Delete Confirmation Dialog */}
-            <ConfirmDialog
+                        <ConfirmDialog
                 open={deleteDialogOpen}
                 onClose={() => { setDeleteDialogOpen(false); setProjectToDelete(null); }}
                 onConfirm={handleConfirmDelete}

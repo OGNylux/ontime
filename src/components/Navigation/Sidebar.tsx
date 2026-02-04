@@ -18,7 +18,6 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
-// Navigation configuration
 const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', path: '/overview', icon: <Home /> },
 ];
@@ -63,8 +62,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
   const [userName, setUserName] = useState('');
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
 
-  // Auto-expand sections based on current path
-  useEffect(() => {
+    useEffect(() => {
     const newStates: Record<string, boolean> = {};
     NAV_SECTIONS.forEach((section) => {
       if (section.paths.some((path: string) => location.pathname.startsWith(path))) {
@@ -114,8 +112,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     [location.pathname, collapsed, sectionStates]
   );
 
-  // Drawer mode (mobile/small screens)
-  if (isDrawer) {
+    if (isDrawer) {
     return (
       <Drawer
         variant="temporary"
@@ -171,8 +168,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     );
   }
 
-  // Permanent sidebar (desktop)
-  return (
+    return (
     <Drawer
       variant="permanent"
       className={`h-full shrink-0 transition-all duration-300 pb-2 ${collapsed ? 'w-16' : 'w-72'}`}

@@ -52,8 +52,7 @@ export default function SettingsPage() {
       const updated = await userService.updateProfile({ name, email, timezone });
       setUser(updated);
       setSuccess("Profile updated successfully");
-      // Notify all components using timezone that it has changed
-      if (updated.timezone) {
+            if (updated.timezone) {
         notifyTimezoneChange(updated.timezone);
       }
     } catch (e: any) {

@@ -28,8 +28,7 @@ export default function BottomAppBar() {
     const location = useLocation();
     const [fabOpen, setFabOpen] = useState(false);
 
-    // Map paths to nav values
-    const getNavValue = () => {
+        const getNavValue = () => {
         if (location.pathname === '/' || location.pathname === '/overview') return 0;
         if (location.pathname === '/timer') return 1;
         if (location.pathname === '/notifications') return 3;
@@ -47,8 +46,7 @@ export default function BottomAppBar() {
                 navigate('/timer');
                 break;
             case 3:
-                // On mobile navigate to the notifications page
-                navigate('/notifications');
+                                navigate('/notifications');
                 break;
             case 4:
                 navigate('/settings');
@@ -80,8 +78,7 @@ export default function BottomAppBar() {
             }}
             elevation={3}
         >
-            {/* Quick Actions Overlay */}
-            <Collapse in={fabOpen}>
+                        <Collapse in={fabOpen}>
                 <Box
                     display="flex"
                     justifyContent="center"
@@ -141,8 +138,7 @@ export default function BottomAppBar() {
                 </Box>
             </Collapse>
 
-            {/* Bottom Navigation */}
-            <Box position="relative">
+                        <Box position="relative">
                 <BottomNavigation
                     value={getNavValue()}
                     onChange={handleNavChange}
@@ -159,14 +155,12 @@ export default function BottomAppBar() {
                 >
                     <BottomNavigationAction label="Home" icon={<Home />} />
                     <BottomNavigationAction label="Timer" icon={<CalendarMonth />} />
-                    {/* Spacer for FAB */}
-                    <Box sx={{ width: 72 }} />
+                                        <Box sx={{ width: 72 }} />
                     <BottomNavigationAction label="Notifications" icon={<Notifications />} />
                     <BottomNavigationAction label="Settings" icon={<Settings />} />
                 </BottomNavigation>
 
-                {/* Floating Action Button */}
-                <Fab
+                                <Fab
                     color="primary"
                     onClick={handleFabClick}
                     sx={(theme) => ({
@@ -184,7 +178,6 @@ export default function BottomAppBar() {
                     {fabOpen ? <Close /> : <Add />}
                 </Fab>
             </Box>
-            {/* Mobile opens a dedicated notifications page at /notifications */}
-        </Paper>
+                    </Paper>
     );
 }

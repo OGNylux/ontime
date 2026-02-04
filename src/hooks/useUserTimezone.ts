@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { userService } from "../services/userService";
 import { getBrowserTimezone } from "../lib/timezone";
 
-// Simple event emitter for timezone updates
 const timezoneListeners = new Set<(tz: string) => void>();
 
 export function notifyTimezoneChange(newTimezone: string) {
@@ -26,15 +25,13 @@ export function useUserTimezone() {
           setTimezone(user.timezone);
         }
       } catch {
-        // Keep browser timezone as fallback
-      } finally {
+              } finally {
         setLoading(false);
       }
     };
     load();
 
-    // Listen for timezone updates
-    const listener = (newTimezone: string) => {
+        const listener = (newTimezone: string) => {
       setTimezone(newTimezone);
     };
     timezoneListeners.add(listener);

@@ -31,22 +31,18 @@ export function useCalendarEntries(weekDays: WeekDayInfo[]) {
         fetchEntries();
     }, [fetchEntries]);
 
-    // Group entries by date (YYYY-MM-DD)
-    // For entries that span multiple days, create separate instances for each day
     const entriesByDate = entries.reduce<Record<string, CalendarEntry[]>>((acc, entry) => {
         const startDate = dayjs(entry.start_time);
         const endDate = dayjs(entry.end_time);
         const startDateStr = startDate.format("YYYY-MM-DD");
         const endDateStr = endDate.format("YYYY-MM-DD");
 
-        // If entry is within a single day, add it normally
         if (startDateStr === endDateStr) {
             if (!acc[startDateStr]) {
                 acc[startDateStr] = [];
             }
             acc[startDateStr].push(entry);
         } else {
-            // Entry spans multiple days - add it to each day it touches
             let currentDate = startDate.startOf('day');
             const endDateMidnight = endDate.startOf('day');
 

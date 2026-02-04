@@ -34,12 +34,12 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
     const recordingRef = useRef<RecordingState | null>(null);
     const timerRef = useRef<number | null>(null);
     
-    // Refs to always have current values accessible in callbacks
+    
     const titleRef = useRef(title);
     const selectedProjectRef = useRef(selectedProject);
     const isBillableRef = useRef(isBillable);
     
-    // Keep refs in sync with state
+    
     useEffect(() => { titleRef.current = title; }, [title]);
     useEffect(() => { selectedProjectRef.current = selectedProject; }, [selectedProject]);
     useEffect(() => { isBillableRef.current = isBillable; }, [isBillable]);
@@ -52,12 +52,11 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
     }, []);
 
     const updateLocalEntry = useCallback((state: RecordingState, endTime: string) => {
-        // Use refs to get current values
         const currentTitle = titleRef.current;
         const currentProjectId = selectedProjectRef.current?.id;
         const currentIsBillable = isBillableRef.current;
         
-        // Update state object
+        
         state.title = currentTitle;
         state.projectId = currentProjectId;
         state.isBillable = currentIsBillable;
@@ -99,19 +98,18 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                 task_id: undefined,
             });
             
-            // Update state with DB id
+            
             const oldId = state.entryId;
             state.dbId = created.id;
             state.entryId = created.id;
             state.lastSaveTime = Date.now();
-            
-            // Replace temp entry with DB entry
+              
             addOrReplaceEntry({
                 ...created,
-                id: oldId, // Use old ID so it replaces the temp entry
+                id: oldId, 
             });
             
-            // Then update with real ID
+            
             setTimeout(() => {
                 addOrReplaceEntry(created);
             }, 0);
@@ -121,7 +119,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
     }, [addOrReplaceEntry]);
 
     const startRecording = useCallback(() => {
-        // Guard against double-start
+        
         if (recordingRef.current) return;
         
         const startTime = dayjs().toISOString();
@@ -167,7 +165,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
 
         const endTime = dayjs().toISOString();
 
-        // Use refs to get current form values (avoids stale closure)
+        
         const currentTitle = titleRef.current;
         const currentProjectId = selectedProjectRef.current?.id;
         const currentIsBillable = isBillableRef.current;
@@ -179,7 +177,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                     is_billable: currentIsBillable,
                     project_id: currentProjectId || undefined,
                 });
-                // Add title for local display
+                
                 addOrReplaceEntry({
                     ...updated,
                     task: currentTitle ? { name: currentTitle } as any : updated.task,
@@ -192,7 +190,7 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
                     project_id: currentProjectId,
                     task_id: undefined,
                 });
-                // Add title for local display
+                
                 addOrReplaceEntry({
                     ...created,
                     task: currentTitle ? { name: currentTitle } as any : created.task,
@@ -202,19 +200,16 @@ export default function Recorder({ addOrReplaceEntry, onRecordingStart }: Record
             console.error("Failed to save recording:", err);
         }
 
-        // Reset fields after recording stops
         setTitle("");
         setSelectedProject(null);
         setIsBillable(false);
         setElapsedSeconds(0);
     }, [addOrReplaceEntry, clearTimer]);
 
-    // Expose startRecording to parent
     useEffect(() => {
         onRecordingStart?.(startRecording);
     }, [onRecordingStart, startRecording]);
-
-    // Cleanup timer on unmount
+    
     useEffect(() => clearTimer, [clearTimer]);
 
     const handleClick = useCallback(() => {

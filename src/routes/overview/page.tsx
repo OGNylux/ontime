@@ -79,8 +79,7 @@ export default function OverviewPage() {
                 </Box>
             ) : (
                 <>
-                    {/* Date Selection & Filters */}
-                    <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default">
+                                        <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default">
                         <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
                             <Box display="flex" alignItems="center" gap={1}>
                                 <IconButton onClick={() => navigate('prev')}>
@@ -239,16 +238,14 @@ export default function OverviewPage() {
                         </Box>
                     </Box>
 
-                    {/* Stats */}
-                    <Box display="flex" gap={1.5} flexWrap="wrap">
+                                        <Box display="flex" gap={1.5} flexWrap="wrap">
                         <StatCard icon={<AccessTime />} label="Total Hours" value={formatDuration(stats.totalMinutes)} />
                         <StatCard icon={<AttachMoney />} label="Billable Hours" value={formatDuration(stats.billableMinutes)} />
                         <StatCard icon={<TrendingUp />} label="Revenue" value={`€${stats.revenue.toFixed(2)}`} />
                         <StatCard icon={<CalendarMonth />} label="Avg Hours/Day" value={formatDuration(stats.avgMinutesPerDay)} />
                     </Box>
 
-                    {/* Charts */}
-                    <Box display="flex" gap={2} flexWrap="wrap">
+                                        <Box display="flex" gap={2} flexWrap="wrap">
                         <BarChartSection
                             data={dailyChartData.data}
                             projectIds={dailyChartData.projectIds}
@@ -258,15 +255,13 @@ export default function OverviewPage() {
                         <PieChartSection data={pieChartData} projectNames={dailyChartData.projectNames} />
                     </Box>
 
-                    {/* Table */}
-                    <ProjectTaskTable
+                                        <ProjectTaskTable
                         data={projectDataWithExpansion}
                         loading={loading}
                         onToggleProject={toggleProject}
                     />
 
-                    {/* Dialog */}
-                    <DateRangeDialog
+                                        <DateRangeDialog
                         open={dateDialogOpen}
                         onClose={() => setDateDialogOpen(false)}
                         onSelect={handleDateSelect}

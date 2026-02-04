@@ -76,20 +76,17 @@ export const clientService = {
 
         let infoId = request.info_id;
 
-        // If info data is provided
-        if (request.info) {
+                if (request.info) {
             const { id, ...infoData } = request.info;
             
             if (request.info_id) {
-                // Update existing info
-                const { error: infoError } = await supabase
+                                const { error: infoError } = await supabase
                     .from('ontime_client_info')
                     .update(infoData)
                     .eq('id', request.info_id);
                 if (infoError) throw infoError;
             } else {
-                // Create new info
-                const { data: newInfo, error: infoError } = await supabase
+                                const { data: newInfo, error: infoError } = await supabase
                     .from('ontime_client_info')
                     .insert({ ...infoData, created_by: user.id })
                     .select()

@@ -61,8 +61,7 @@ export const calendarService = {
 
         const entry = data as CalendarEntry;
 
-        // If a task is associated with this entry, ensure the task has the same project set.
-        try {
+                try {
             if (request.task_id && request.project_id) {
                 const { error: taskError } = await supabase
                     .from('ontime_task')
@@ -99,8 +98,7 @@ export const calendarService = {
         if (error) throw error;
         const entry = data as CalendarEntry;
 
-        // If a task is associated with this entry, ensure the task has the same project set.
-        try {
+                try {
             if (request.task_id && request.project_id) {
                 const { error: taskError } = await supabase
                     .from('ontime_task')

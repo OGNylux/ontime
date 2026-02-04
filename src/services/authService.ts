@@ -18,8 +18,7 @@ export const authService = {
     },
 
     async register(request: User) {
-        // 0. Check if user already exists (name or email)
-        const existsData = await this.checkAvailability(request.email, request.name!);
+                const existsData = await this.checkAvailability(request.email, request.name!);
 
         if (existsData) {
             if (existsData.emailExists) {
@@ -30,8 +29,7 @@ export const authService = {
             }
         }
 
-        // 1. Sign up with Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+                const { data: authData, error: authError } = await supabase.auth.signUp({
             email: request.email,
             password: request.password,
             options: {
@@ -56,8 +54,7 @@ export const authService = {
         if (authError) throw authError;
         if (!authData.user) throw new Error("Login failed: No user returned");
 
-        // Fetch the corresponding ontime_user
-        const { data: ontimeUser, error: ontimeUserError } = await supabase
+                const { data: ontimeUser, error: ontimeUserError } = await supabase
             .from('ontime_user')
             .select('*')
             .eq('id', authData.user.id)

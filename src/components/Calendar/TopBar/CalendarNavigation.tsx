@@ -42,15 +42,6 @@ export default function CalendarNavigation({ onPrev, onNext, onToday, isRecordin
                     WEEK TOTAL: {totalWeekTime}
                 </Typography>
             )}
-            {/* {totalWeekTime && (
-                <Chip 
-                    icon={<AccessTime fontSize="small" />}
-                    label={totalWeekTime}
-                    size="small"
-                    variant="outlined"
-                    sx={{ ml: 1 }}
-                />
-            )} */}
         </Stack>
     );
 }

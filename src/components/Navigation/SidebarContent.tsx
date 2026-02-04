@@ -65,8 +65,7 @@ export default function SidebarContent({
 
     return (
         <List>
-            {/* Simple nav items */}
-            {navItems.map((item) => {
+                        {navItems.map((item) => {
                 const isActive = isPathActive(item.path);
                 return (
                     <ListItem key={item.path} disablePadding>
@@ -90,7 +89,7 @@ export default function SidebarContent({
                                     minWidth: collapsed ? 0 : 56,
                                     display: 'flex',
                                     justifyContent: 'center',
-                                    color: 'inherit',
+                                    color: 'text.secondary',
                                 }}
                             >
                                 {item.icon}
@@ -106,8 +105,7 @@ export default function SidebarContent({
                 );
             })}
 
-            {/* Collapsible sections */}
-            {navSections.map((section) => {
+                        {navSections.map((section) => {
                 const isActive = isSectionActive(section);
                 const isOpen = sectionStates[section.label] ?? false;
 
@@ -131,11 +129,11 @@ export default function SidebarContent({
                                 }}
                             >
                                 <ListItemIcon
-                                    color='inherit'
                                     sx={{
                                         minWidth: collapsed ? 0 : 56,
                                         display: 'flex',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        color: 'text.secondary',
                                     }}
                                 >
                                     {section.icon}

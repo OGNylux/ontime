@@ -6,9 +6,9 @@ export type ViewMode = 'day' | 'work_week' | 'week';
 
 export interface WeekDayInfo {
     id: number;
-    dateStr: string; // YYYY-MM-DD
-    dayOfTheMonth: string; // DD
-    dayOfTheWeek: string; // e.g., Mon, Tue
+    dateStr: string; 
+    dayOfTheMonth: string; 
+    dayOfTheWeek: string; 
 }
 
 export function useCalendarNavigation() {
@@ -17,10 +17,9 @@ export function useCalendarNavigation() {
     const [viewMode, setViewMode] = useState<ViewMode>('week');
     const [initialized, setInitialized] = useState(false);
 
-    // Initialize and update currentDate when timezone loads/changes
     useEffect(() => {
         if (!tzLoading) {
-            // Get current time in user's timezone
+            
             const now = dayjs().tz(timezone);
             setCurrentDate(now);
             setInitialized(true);
@@ -37,7 +36,6 @@ export function useCalendarNavigation() {
             }] as WeekDayInfo[];
         }
 
-        // Ensure the calendar week starts on Monday (using ISO week where Monday = day 1)
         const start = currentDate.startOf("isoWeek");
         const length = viewMode === 'work_week' ? 5 : 7;
 

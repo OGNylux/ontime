@@ -27,12 +27,10 @@ import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import TaskDialog from '../../components/TaskDialog';
 import dayjs from 'dayjs';
 
-// Extended Task type with calculated total time
 interface TaskWithTime extends Task {
     total_time?: number;
 }
 
-// ============ Helpers ============
 const formatTotalTime = (minutes?: number) => {
     if (!minutes) return '0h';
     const hours = Math.floor(minutes / 60);
@@ -41,25 +39,21 @@ const formatTotalTime = (minutes?: number) => {
     return `${hours}.${String(Math.round((mins / 60) * 100)).padStart(2, '0')}h`;
 };
 
-// ============ Main Component ============
 export default function TasksPage() {
     const [tasks, setTasks] = useState<TaskWithTime[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    
-    // Menu state
+
     const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuTask, setMenuTask] = useState<Task | null>(null);
-    
-    // Dialog state
+
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-    
-    // Filter state
+
     const [projectFilter, setProjectFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -74,21 +68,20 @@ export default function TasksPage() {
                 taskService.getTasks(),
                 projectService.getProjects(),
             ]);
-            
-            // Calculate total time for each task from calendar entries
+
             const tasksWithTime = tasksData.map(task => {
                 const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
                     const start = dayjs(entry.start_time);
                     const end = dayjs(entry.end_time);
                     return total + end.diff(start, 'minute');
                 }, 0) || 0;
-                
+
                 return {
                     ...task,
                     total_time: Math.round(totalMinutes),
                 };
             });
-            
+
             setTasks(tasksWithTime);
             setProjects(projectsData);
         } catch (error) {
@@ -98,7 +91,6 @@ export default function TasksPage() {
         }
     };
 
-    // Filter data - search by task name OR project name
     const filteredTasks = useMemo(() => {
         return tasks
             .filter((task) => {
@@ -111,14 +103,12 @@ export default function TasksPage() {
                 return matchesSearch && matchesProject;
             })
             .sort((a, b) => {
-                // Pinned items always on top
                 if (a.pinned && !b.pinned) return -1;
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
     }, [tasks, projects, searchQuery, projectFilter]);
 
-    // Table columns
     const columns: Column<TaskWithTime>[] = useMemo(() => [
         {
             field: 'name',
@@ -150,7 +140,6 @@ export default function TasksPage() {
         },
     ], [projects]);
 
-    // Menu handlers
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuTask(task);
@@ -224,7 +213,7 @@ export default function TasksPage() {
                     const end = dayjs(entry.end_time);
                     return total + end.diff(start, 'minute');
                 }, 0) || 0;
-                
+
                 return {
                     ...task,
                     total_time: Math.round(totalMinutes),
@@ -253,7 +242,6 @@ export default function TasksPage() {
         setDialogOpen(true);
     };
 
-    // Row actions renderer
     const renderRowActions = (task: Task) => (
         <IconButton size="small" onClick={(e) => handleMenuOpen(e, task)}>
             <MoreVert />
@@ -265,8 +253,7 @@ export default function TasksPage() {
             <PageHeader title="Tasks" actionLabel="New Task" onAction={handleOpenNewTask} />
 
             <Divider sx={{ mb: 2 }} />
-            
-            {/* Search and Filters */}
+
             <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
@@ -290,7 +277,6 @@ export default function TasksPage() {
 
             <Divider sx={{ mb: 3 }} />
 
-            {/* Data Table */}
             <DataTable
                 data={filteredTasks}
                 columns={columns}
@@ -324,7 +310,6 @@ export default function TasksPage() {
                 }
             />
 
-            {/* Filter Menu */}
             <Menu
                 anchorEl={filterAnchorEl}
                 open={Boolean(filterAnchorEl)}
@@ -350,7 +335,6 @@ export default function TasksPage() {
                 ))}
             </Menu>
 
-            {/* Row Actions Menu */}
             <Menu
                 anchorEl={menuAnchorEl}
                 open={Boolean(menuAnchorEl)}
@@ -372,7 +356,6 @@ export default function TasksPage() {
                 </MenuItem>
             </Menu>
 
-            {/* Create/Edit Task Dialog */}
             <TaskDialog
                 open={dialogOpen}
                 onClose={() => { setDialogOpen(false); setEditingTask(null); }}
@@ -381,7 +364,6 @@ export default function TasksPage() {
                 projects={projects}
             />
 
-            {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 open={deleteDialogOpen}
                 onClose={() => { setDeleteDialogOpen(false); setTaskToDelete(null); }}

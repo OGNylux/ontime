@@ -99,8 +99,7 @@ export default function TaskDialog({ open, onClose, onSave, task, projects }: Ta
                                     onChange={(e: SelectChangeEvent) => {
                                         const newProjectId = e.target.value;
                                         setProjectId(newProjectId);
-                                        // Auto-set color to project's color when creating a new task
-                                        if (!task && newProjectId) {
+                                                                                if (!task && newProjectId) {
                                             const selectedProject = projects.find(p => p.id === newProjectId);
                                             if (selectedProject?.color) {
                                                 setColorIndex(selectedProject.color);
