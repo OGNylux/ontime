@@ -65,8 +65,7 @@ export default function SidebarContent({
 
     return (
         <List>
-            {/* Simple nav items */}
-            {navItems.map((item) => {
+                        {navItems.map((item) => {
                 const isActive = isPathActive(item.path);
                 return (
                     <ListItem key={item.path} disablePadding>
@@ -106,8 +105,7 @@ export default function SidebarContent({
                 );
             })}
 
-            {/* Collapsible sections */}
-            {navSections.map((section) => {
+                        {navSections.map((section) => {
                 const isActive = isSectionActive(section);
                 const isOpen = sectionStates[section.label] ?? false;
 

@@ -38,17 +38,16 @@ export default function CalendarWeek() {
     const isCompact = useMediaQuery(theme.breakpoints.down("md"));
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-        
+
     const [gapSize, setGapSize] = useState<GapSize>(60);
     const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
     const [startRecordingFn, setStartRecordingFn] = useState<(() => void) | null>(null);
 
-        const entryUI = useEntryUI();
+    const entryUI = useEntryUI();
 
-        
     const { weekDays, handleNext: nextWeek, handlePrev: prevWeek, goToToday, viewMode, setViewMode, loading: calendarLoading } = useCalendarNavigation();
     const { entriesByDate, refetch, addOrReplaceEntry, removeEntryLocal } = useCalendarEntries(weekDays);
-    
+
     const persistence = useEntryPersistence({
         entriesByDate,
         addOrReplaceEntry,
@@ -56,7 +55,7 @@ export default function CalendarWeek() {
         refetch,
     });
 
-        const { moveState, beginMove } = useEntryMove(entriesByDate, persistence.updateEntryTimes);
+    const { moveState, beginMove } = useEntryMove(entriesByDate, persistence.updateEntryTimes);
     const { resizeState, beginResize } = useEntryResize(entriesByDate, persistence.updateEntryTimes);
 
     const openCreateDialog = useCallback((
@@ -65,7 +64,7 @@ export default function CalendarWeek() {
         endMinute: number,
         anchorPosition: { top: number; left: number }
     ) => {
-                const preview = dragPreview?.day === dateStr ? dragPreview : null;
+        const preview = dragPreview?.day === dateStr ? dragPreview : null;
         const start = preview?.startMinute ?? startMinute;
         const end = preview?.endMinute ?? endMinute;
         entryUI.openCreateDialog(dateStr, start, end, anchorPosition);
@@ -82,19 +81,19 @@ export default function CalendarWeek() {
         }
     }, []);
 
-        const totalWeekTime = useMemo(() => {
+    const totalWeekTime = useMemo(() => {
         const allEntries = Object.values(entriesByDate).flat();
         const totalMinutes = allEntries.reduce((sum, entry) => {
             const start = dayjs(entry.start_time);
             const end = dayjs(entry.end_time);
             return sum + end.diff(start, 'minute');
         }, 0);
-        
+
         return formatDuration(totalMinutes);
     }, [entriesByDate]);
 
-    
-        if (calendarLoading) {
+
+    if (calendarLoading) {
         return (
             <Box display="flex" flexDirection="column" height="100%" bgcolor="background.default" alignItems="center" justifyContent="center">
                 <LoadingBanner message="Loading calendar..." />
@@ -118,128 +117,124 @@ export default function CalendarWeek() {
             beginResize,
         }}>
             <Box sx={{ display: "flex", flexDirection: "column", height: "100%", bgcolor: "background.default" }}>
-            {/* Top Bar */}
-            
+
                 <Box sx={{ display: "flex", px: 1, pt: 1 }}>
-                    <Recorder 
-                        addOrReplaceEntry={addOrReplaceEntry} 
+                    <Recorder
+                        addOrReplaceEntry={addOrReplaceEntry}
                         onRecordingStart={(fn) => setStartRecordingFn(() => fn)}
                     />
                 </Box>
-            <Box
-                display="flex"
-                alignItems="flex-start"
-                justifyContent="space-between"
-                gap={2}
-                pb={1}
-                px={1}
-                flexWrap={{ xs: "wrap", lg: "nowrap"}}
-                mx={1}
-                borderBottom={t => `1px solid ${t.palette.divider}`}
-            >
-                <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "flex-start", md: "center" }, gap: { xs: 0, md: 2 }, minWidth: 0 }}>
-                    <CalendarNavigation 
-                        onPrev={prevWeek} 
-                        onNext={nextWeek} 
-                        onToday={goToToday}
-                    />
-                    {totalWeekTime && (
-                        <Typography 
-                            variant="caption" 
-                            color="text.secondary" 
-                            sx={{ 
-                                mt: { xs: 0.5, md: 0 },
-                                fontSize: { xs: '0.75rem', md: '0.875rem' },
-                                fontWeight: { md: 500 }
-                            }}
-                        >
-                            {`WEEK TOTAL: ${totalWeekTime}`}
-                        </Typography>
-                    )}
-                </Box>
-
-                <Box sx={{ display: "flex", justifyContent: "flex-end", flexShrink: 0, alignSelf: "flex-start" }}>
-                    <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
-                </Box>
-            </Box>
-
-            {/* Project Timeline Bar */}
-            <ProjectTimelineBar
-                entries={Object.values(entriesByDate).flat()}
-            />
-
-            {/* Calendar Grid */}
-            <Box
-                ref={scrollContainerRef}
-                className="scrollbar-hide"
-                flex={1}
-                overflow="auto"
-                sx={{ WebkitOverflowScrolling: "touch" }}
-            >
-                <Stack direction="row" sx={{ minHeight: "100%" }}>
-                    <CalendarTime isCompact={isCompact} gapSize={gapSize} onGapSizeChange={setGapSize} />
-                    
-                    <Box sx={{ display: "flex", flex: 1, minWidth: 0, overflow: "visible", pb: { xs: 1, md: 0 } }}>
-                        {weekDays.map(day => (
-                            <CalendarDay
-                                key={day.id}
-                                dayOfTheMonth={day.dayOfTheMonth}
-                                dayOfTheWeek={day.dayOfTheWeek}
-                                dateStr={day.dateStr}
-                                isCompact={isCompact}
-                                totalDays={weekDays.length}
-                                entries={entriesByDate[day.dateStr] || []}
-                                gapSize={gapSize}
-                                persistentDragPreview={dragPreview?.day === day.dateStr ? dragPreview : null}
-                                isPersistentPreviewActive={dragPreview?.day === day.dateStr}
-                                onDragEnd={preview => handleDragEnd(day.dateStr, preview)}
-                                onStartRecording={startRecordingFn || undefined}
-                            />
-                        ))}
+                <Box
+                    display="flex"
+                    alignItems="flex-start"
+                    justifyContent="space-between"
+                    gap={2}
+                    pb={1}
+                    px={1}
+                    flexWrap={{ xs: "wrap", lg: "nowrap" }}
+                    mx={1}
+                    borderBottom={t => `1px solid ${t.palette.divider}`}
+                >
+                    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "flex-start", md: "center" }, gap: { xs: 0, md: 2 }, minWidth: 0 }}>
+                        <CalendarNavigation
+                            onPrev={prevWeek}
+                            onNext={nextWeek}
+                            onToday={goToToday}
+                        />
+                        {totalWeekTime && (
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                    mt: { xs: 0.5, md: 0 },
+                                    fontSize: { xs: '0.75rem', md: '0.875rem' },
+                                    fontWeight: { md: 500 }
+                                }}
+                            >
+                                {`WEEK TOTAL: ${totalWeekTime}`}
+                            </Typography>
+                        )}
                     </Box>
-                </Stack>
-            </Box>
 
-            {/* Dialogs */}
-            <CreateEntryDialog
-                open={entryUI.dialogState.open}
-                onClose={closeDialog}
-                anchorPosition={entryUI.dialogState.anchorPosition}
-                initialStartTime={entryUI.dialogState.startTime}
-                initialEndTime={entryUI.dialogState.endTime}
-                dateStr={entryUI.dialogState.dateStr}
-                initialTitle={entryUI.dialogState.editingEntry?.task?.name}
-                initialIsBillable={entryUI.dialogState.editingEntry?.is_billable ?? true}
-                initialProjectId={entryUI.dialogState.editingEntry?.project_id ?? entryUI.dialogState.editingEntry?.project?.id ?? null}
-                isEdit={Boolean(entryUI.dialogState.editingEntry)}
-                editingEntryId={entryUI.dialogState.editingEntry?.id || null}
-            />
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", flexShrink: 0, alignSelf: "flex-start" }}>
+                        <CalendarViewSelector viewMode={viewMode} onChange={setViewMode} />
+                    </Box>
+                </Box>
 
-            <EntryContextMenu
-                contextMenu={entryUI.contextMenu}
-                onClose={entryUI.closeContextMenu}
-                onDuplicate={(entry) => {
-                    persistence.duplicateEntry(entry);
-                    entryUI.closeContextMenu();
-                }}
-                onDelete={entryUI.initiateDelete}
-            />
+                <ProjectTimelineBar
+                    entries={Object.values(entriesByDate).flat()}
+                />
 
-            <ConfirmDialog
-                open={entryUI.confirmDeleteOpen}
-                onClose={entryUI.cancelDelete}
-                onConfirm={async () => {
-                    const entryId = entryUI.confirmDelete();
-                    if (entryId) {
-                        await persistence.deleteEntry(entryId);
-                    }
-                    entryUI.cancelDelete();
-                }}
-                title="Delete Entry"
-                message="Are you sure you want to delete this entry?"
-                confirmLabel="Delete"
-                confirmColor="error"
-            />
+                <Box
+                    ref={scrollContainerRef}
+                    className="scrollbar-hide"
+                    flex={1}
+                    overflow="auto"
+                    sx={{ WebkitOverflowScrolling: "touch" }}
+                >
+                    <Stack direction="row" sx={{ minHeight: "100%" }}>
+                        <CalendarTime isCompact={isCompact} gapSize={gapSize} onGapSizeChange={setGapSize} />
+
+                        <Box sx={{ display: "flex", flex: 1, minWidth: 0, overflow: "visible", pb: { xs: 1, md: 0 } }}>
+                            {weekDays.map(day => (
+                                <CalendarDay
+                                    key={day.id}
+                                    dayOfTheMonth={day.dayOfTheMonth}
+                                    dayOfTheWeek={day.dayOfTheWeek}
+                                    dateStr={day.dateStr}
+                                    isCompact={isCompact}
+                                    totalDays={weekDays.length}
+                                    entries={entriesByDate[day.dateStr] || []}
+                                    gapSize={gapSize}
+                                    persistentDragPreview={dragPreview?.day === day.dateStr ? dragPreview : null}
+                                    isPersistentPreviewActive={dragPreview?.day === day.dateStr}
+                                    onDragEnd={preview => handleDragEnd(day.dateStr, preview)}
+                                    onStartRecording={startRecordingFn || undefined}
+                                />
+                            ))}
+                        </Box>
+                    </Stack>
+                </Box>
+
+                <CreateEntryDialog
+                    open={entryUI.dialogState.open}
+                    onClose={closeDialog}
+                    anchorPosition={entryUI.dialogState.anchorPosition}
+                    initialStartTime={entryUI.dialogState.startTime}
+                    initialEndTime={entryUI.dialogState.endTime}
+                    dateStr={entryUI.dialogState.dateStr}
+                    initialTitle={entryUI.dialogState.editingEntry?.task?.name}
+                    initialIsBillable={entryUI.dialogState.editingEntry?.is_billable ?? true}
+                    initialProjectId={entryUI.dialogState.editingEntry?.project_id ?? entryUI.dialogState.editingEntry?.project?.id ?? null}
+                    isEdit={Boolean(entryUI.dialogState.editingEntry)}
+                    editingEntryId={entryUI.dialogState.editingEntry?.id || null}
+                />
+
+                <EntryContextMenu
+                    contextMenu={entryUI.contextMenu}
+                    onClose={entryUI.closeContextMenu}
+                    onDuplicate={(entry) => {
+                        persistence.duplicateEntry(entry);
+                        entryUI.closeContextMenu();
+                    }}
+                    onDelete={entryUI.initiateDelete}
+                />
+
+                <ConfirmDialog
+                    open={entryUI.confirmDeleteOpen}
+                    onClose={entryUI.cancelDelete}
+                    onConfirm={async () => {
+                        const entryId = entryUI.confirmDelete();
+                        if (entryId) {
+                            await persistence.deleteEntry(entryId);
+                        }
+                        entryUI.cancelDelete();
+                    }}
+                    title="Delete Entry"
+                    message="Are you sure you want to delete this entry?"
+                    confirmLabel="Delete"
+                    confirmColor="error"
+                />
             </Box>
         </CalendarProvider>
     );

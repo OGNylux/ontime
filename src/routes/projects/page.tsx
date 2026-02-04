@@ -222,8 +222,7 @@ export default function ProjectsPage() {
             <PageHeader title="Projects" actionLabel="New Project" onAction={handleOpenNewProject} />
 
             <Divider sx={{ mb: 2 }} />
-            {/* Search and Filters */}
-            <Box display="flex" gap={2} marginBottom={2} alignItems="center">
+                        <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}
@@ -246,8 +245,7 @@ export default function ProjectsPage() {
 
             <Divider sx={{ mb: 3 }} />
 
-            {/* Data Table */}
-            <DataTable
+                        <DataTable
                 data={filteredProjects}
                 columns={columns}
                 loading={loading}
@@ -280,8 +278,7 @@ export default function ProjectsPage() {
                 }
             />
 
-            {/* Filter Menu */}
-            <Menu
+                        <Menu
                 anchorEl={filterAnchorEl}
                 open={Boolean(filterAnchorEl)}
                 onClose={() => setFilterAnchorEl(null)}
@@ -306,8 +303,7 @@ export default function ProjectsPage() {
                 ))}
             </Menu>
 
-            {/* Row Actions Menu */}
-            <Menu
+                        <Menu
                 anchorEl={menuAnchorEl}
                 open={Boolean(menuAnchorEl)}
                 onClose={handleMenuClose}
@@ -328,8 +324,7 @@ export default function ProjectsPage() {
                 </MenuItem>
             </Menu>
 
-            {/* Create/Edit Project Dialog */}
-            <ProjectDialog
+                        <ProjectDialog
                 open={dialogOpen}
                 onClose={() => { setDialogOpen(false); setEditingProject(null); }}
                 onSave={handleSaveProject}
@@ -337,8 +332,7 @@ export default function ProjectsPage() {
                 clients={clients}
             />
 
-            {/* Delete Confirmation Dialog */}
-            <ConfirmDialog
+                        <ConfirmDialog
                 open={deleteDialogOpen}
                 onClose={() => { setDeleteDialogOpen(false); setProjectToDelete(null); }}
                 onConfirm={handleConfirmDelete}

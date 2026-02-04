@@ -46,10 +46,10 @@ export default function ClientsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuClient, setMenuClient] = useState<Client | null>(null);
 
-        const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [clientDialogOpen, setClientDialogOpen] = useState(false);
     const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
@@ -70,14 +70,14 @@ export default function ClientsPage() {
         }
     };
 
-        const filteredClients = useMemo(() => {
-        const filtered = searchQuery 
+    const filteredClients = useMemo(() => {
+        const filtered = searchQuery
             ? clients.filter((client) => {
                 const query = searchQuery.toLowerCase();
-                                if (client.name.toLowerCase().includes(query)) {
+                if (client.name.toLowerCase().includes(query)) {
                     return true;
                 }
-                                if (client.projects?.some(project => 
+                if (client.projects?.some(project =>
                     project.name.toLowerCase().includes(query)
                 )) {
                     return true;
@@ -86,20 +86,20 @@ export default function ClientsPage() {
             })
             : clients;
 
-                return filtered;
+        return filtered;
     }, [clients, searchQuery]);
 
     const toggleExpansion = (clientId: string) => {
-        setClients(prev => prev.map(c => 
+        setClients(prev => prev.map(c =>
             c.id === clientId ? { ...c, _expanded: !c._expanded } : c
         ));
     };
 
-        const tableRows = useMemo(() => {
+    const tableRows = useMemo(() => {
         const rows: TableRow[] = [];
-        
+
         filteredClients.forEach(client => {
-                        rows.push({
+            rows.push({
                 id: client.id!,
                 type: 'client',
                 client,
@@ -107,8 +107,8 @@ export default function ClientsPage() {
                 projectCount: client.projects?.length || 0,
                 pinned: client.pinned,
             });
-            
-                        if (client._expanded && client.projects) {
+
+            if (client._expanded && client.projects) {
                 client.projects.forEach(project => {
                     rows.push({
                         id: `${client.id}-${project.id}`,
@@ -120,11 +120,11 @@ export default function ClientsPage() {
                 });
             }
         });
-        
+
         return rows;
     }, [filteredClients]);
 
-        const columns: Column<TableRow>[] = useMemo(() => [
+    const columns: Column<TableRow>[] = useMemo(() => [
         {
             field: 'expand',
             label: '',
@@ -134,8 +134,8 @@ export default function ClientsPage() {
                 const projectCount = row.projectCount || 0;
                 if (projectCount === 0) return null;
                 return (
-                    <IconButton 
-                        size="small" 
+                    <IconButton
+                        size="small"
                         color="secondary"
                         onClick={(e) => {
                             e.stopPropagation();
@@ -151,13 +151,13 @@ export default function ClientsPage() {
             field: 'name',
             label: 'Client Name',
             render: (row) => (
-                <Box 
+                <Box
                     onClick={() => {
                         if (row.type === 'client' && row.projectCount && row.projectCount > 0) {
                             toggleExpansion(row.id);
                         }
                     }}
-                    sx={{ 
+                    sx={{
                         cursor: (row.type === 'client' && row.projectCount) ? 'pointer' : row.type === 'project' ? 'pointer' : 'default',
                         pl: row.type === 'project' ? 6 : 0,
                         display: 'flex',
@@ -174,7 +174,7 @@ export default function ClientsPage() {
                             flexShrink={0}
                         />
                     )}
-                    <Typography 
+                    <Typography
                         fontWeight={row.type === 'client' ? 'medium' : 'normal'}
                         color={row.type === 'project' ? 'text.secondary' : 'text.primary'}
                     >
@@ -191,9 +191,9 @@ export default function ClientsPage() {
                 if (row.type === 'project') return null;
                 const projectCount = row.projectCount || 0;
                 return (
-                    <Chip 
-                        label={projectCount} 
-                        size="small" 
+                    <Chip
+                        label={projectCount}
+                        size="small"
                         color={projectCount > 0 ? "secondary" : "default"}
                         variant={projectCount > 0 ? "filled" : "outlined"}
                     />
@@ -214,7 +214,7 @@ export default function ClientsPage() {
         },
     ], []);
 
-        const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, client: Client) => {
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, client: Client) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuClient(client);
     };
@@ -303,7 +303,7 @@ export default function ClientsPage() {
         }
     };
 
-        const renderRowActions = (row: TableRow) => {
+    const renderRowActions = (row: TableRow) => {
         if (row.type === 'project') return null;
         return (
             <IconButton size="small" onClick={(e) => handleMenuOpen(e, row.client!)}>
@@ -313,24 +313,23 @@ export default function ClientsPage() {
     };
 
     return (
-        <Box 
-            padding={3} 
-            height="100%" 
-            display="flex" 
-            flexDirection="column" 
-            borderRadius={2} 
-            boxShadow={4} 
+        <Box
+            padding={3}
+            height="100%"
+            display="flex"
+            flexDirection="column"
+            borderRadius={2}
+            boxShadow={4}
             bgcolor="background.default"
         >
-            <PageHeader 
-                title="Clients" 
-                actionLabel="New Client" 
-                onAction={handleOpenNewClient} 
+            <PageHeader
+                title="Clients"
+                actionLabel="New Client"
+                onAction={handleOpenNewClient}
             />
 
             <Divider sx={{ mb: 2 }} />
 
-            {/* Search Bar */}
             <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
@@ -341,7 +340,6 @@ export default function ClientsPage() {
 
             <Divider sx={{ mb: 3 }} />
 
-            {/* Data Table */}
             <DataTable
                 data={tableRows}
                 columns={columns}
@@ -353,8 +351,8 @@ export default function ClientsPage() {
                 emptyMessage={searchQuery ? 'No clients or projects match your search' : 'No clients found'}
                 getRowId={(row) => row.id}
                 isRowSelectable={(row) => row.type === 'client'}
-                 defaultSortField="name"
-                 groupBy={(row) => row.type === 'client' ? row.id : row.client?.id}
+                defaultSortField="name"
+                groupBy={(row) => row.type === 'client' ? row.id : row.client?.id}
                 bulkActions={
                     <>
                         <Divider orientation="vertical" flexItem />
@@ -378,7 +376,6 @@ export default function ClientsPage() {
                 }
             />
 
-            {/* Row Actions Menu */}
             <Menu
                 anchorEl={menuAnchorEl}
                 open={Boolean(menuAnchorEl)}
@@ -400,12 +397,11 @@ export default function ClientsPage() {
                 </MenuItem>
             </Menu>
 
-            {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 open={deleteDialogOpen}
-                onClose={() => { 
-                    setDeleteDialogOpen(false); 
-                    setClientToDelete(null); 
+                onClose={() => {
+                    setDeleteDialogOpen(false);
+                    setClientToDelete(null);
                 }}
                 onConfirm={handleConfirmDelete}
                 title="Delete Client"
@@ -413,7 +409,6 @@ export default function ClientsPage() {
                 confirmLabel="Delete"
             />
 
-            {/* Client Create/Edit Dialog */}
             <ClientDialog
                 open={clientDialogOpen}
                 onClose={() => {

@@ -45,16 +45,16 @@ export default function TasksPage() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    
-        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuTask, setMenuTask] = useState<Task | null>(null);
-    
-        const [dialogOpen, setDialogOpen] = useState(false);
+
+    const [dialogOpen, setDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-    
-        const [projectFilter, setProjectFilter] = useState('');
+
+    const [projectFilter, setProjectFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
     useEffect(() => {
@@ -68,20 +68,20 @@ export default function TasksPage() {
                 taskService.getTasks(),
                 projectService.getProjects(),
             ]);
-            
-                        const tasksWithTime = tasksData.map(task => {
+
+            const tasksWithTime = tasksData.map(task => {
                 const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
                     const start = dayjs(entry.start_time);
                     const end = dayjs(entry.end_time);
                     return total + end.diff(start, 'minute');
                 }, 0) || 0;
-                
+
                 return {
                     ...task,
                     total_time: Math.round(totalMinutes),
                 };
             });
-            
+
             setTasks(tasksWithTime);
             setProjects(projectsData);
         } catch (error) {
@@ -91,7 +91,7 @@ export default function TasksPage() {
         }
     };
 
-        const filteredTasks = useMemo(() => {
+    const filteredTasks = useMemo(() => {
         return tasks
             .filter((task) => {
                 const query = searchQuery.toLowerCase();
@@ -103,13 +103,13 @@ export default function TasksPage() {
                 return matchesSearch && matchesProject;
             })
             .sort((a, b) => {
-                                if (a.pinned && !b.pinned) return -1;
+                if (a.pinned && !b.pinned) return -1;
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
     }, [tasks, projects, searchQuery, projectFilter]);
 
-        const columns: Column<TaskWithTime>[] = useMemo(() => [
+    const columns: Column<TaskWithTime>[] = useMemo(() => [
         {
             field: 'name',
             label: 'Task',
@@ -140,7 +140,7 @@ export default function TasksPage() {
         },
     ], [projects]);
 
-        const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
         setMenuAnchorEl(event.currentTarget);
         setMenuTask(task);
     };
@@ -213,7 +213,7 @@ export default function TasksPage() {
                     const end = dayjs(entry.end_time);
                     return total + end.diff(start, 'minute');
                 }, 0) || 0;
-                
+
                 return {
                     ...task,
                     total_time: Math.round(totalMinutes),
@@ -242,7 +242,7 @@ export default function TasksPage() {
         setDialogOpen(true);
     };
 
-        const renderRowActions = (task: Task) => (
+    const renderRowActions = (task: Task) => (
         <IconButton size="small" onClick={(e) => handleMenuOpen(e, task)}>
             <MoreVert />
         </IconButton>
@@ -253,8 +253,7 @@ export default function TasksPage() {
             <PageHeader title="Tasks" actionLabel="New Task" onAction={handleOpenNewTask} />
 
             <Divider sx={{ mb: 2 }} />
-            
-            {/* Search and Filters */}
+
             <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
@@ -278,7 +277,6 @@ export default function TasksPage() {
 
             <Divider sx={{ mb: 3 }} />
 
-            {/* Data Table */}
             <DataTable
                 data={filteredTasks}
                 columns={columns}
@@ -312,7 +310,6 @@ export default function TasksPage() {
                 }
             />
 
-            {/* Filter Menu */}
             <Menu
                 anchorEl={filterAnchorEl}
                 open={Boolean(filterAnchorEl)}
@@ -338,7 +335,6 @@ export default function TasksPage() {
                 ))}
             </Menu>
 
-            {/* Row Actions Menu */}
             <Menu
                 anchorEl={menuAnchorEl}
                 open={Boolean(menuAnchorEl)}
@@ -360,7 +356,6 @@ export default function TasksPage() {
                 </MenuItem>
             </Menu>
 
-            {/* Create/Edit Task Dialog */}
             <TaskDialog
                 open={dialogOpen}
                 onClose={() => { setDialogOpen(false); setEditingTask(null); }}
@@ -369,7 +364,6 @@ export default function TasksPage() {
                 projects={projects}
             />
 
-            {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 open={deleteDialogOpen}
                 onClose={() => { setDeleteDialogOpen(false); setTaskToDelete(null); }}

@@ -77,8 +77,7 @@ function AppLayout() {
 
   return (
     <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
-      {/* Desktop: Top Navbar */}
-      {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
+            {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
       
       <Box 
         display="flex"
@@ -89,8 +88,7 @@ function AppLayout() {
         minHeight={0}
         overflow="hidden"
       >
-        {/* Desktop: Sidebar */}
-        {!isTauriMobile && !hideNav && (
+                {!isTauriMobile && !hideNav && (
           <Sidebar 
             isDrawer={isSmallDesktop} 
             open={sidebarOpen} 
@@ -114,8 +112,7 @@ function AppLayout() {
         </Box>
       </Box>
 
-      {/* Mobile: Bottom App Bar - Only on Tauri Mobile */}
-      {isTauriMobile && !hideNav && <BottomAppBar />}
+            {isTauriMobile && !hideNav && <BottomAppBar />}
     </Box>
   );
 }

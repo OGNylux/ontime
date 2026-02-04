@@ -29,7 +29,7 @@ interface CalendarDayProps {
     onDragEnd?: (preview: { startMinute: number; endMinute: number } | null) => void;
 }
 
-function computeTotalMinutes(entries: CalendarEntry[], dateStr: string, timezone: string): number {
+function calcTotalMinutes(entries: CalendarEntry[], dateStr: string, timezone: string): number {
     const dayStart = dayjs.tz(dateStr, timezone).startOf("day");
     const dayEnd = dayStart.endOf("day");
 
@@ -74,14 +74,13 @@ export default function CalendarDay({
     const isTouchDevice = isPointerCoarse || isHoverNone;
     const isToday = dayjs().tz(timezone).format("YYYY-MM-DD") === dateStr;
 
-
     const baseHourHeight = isSmallWindow ? SMALL_CELL_HEIGHT : BASE_CELL_HEIGHT;
     const pixelsPerMinute = baseHourHeight / gapSize;
     const pixelsPerHour = pixelsPerMinute * 60;
     const slotHeight = baseHourHeight;
 
     const timeSlots = useMemo(() => generateTimeSlots(gapSize), [gapSize]);
-    const totalMinutes = useMemo(() => computeTotalMinutes(entries, dateStr, timezone), [entries, dateStr, timezone]);
+    const totalMinutes = useMemo(() => calcTotalMinutes(entries, dateStr, timezone), [entries, dateStr, timezone]);
     const laidOutEntries = useMemo(
         () => assignEntryLayout(entries, pixelsPerHour, 30, dateStr),
         [entries, pixelsPerHour, dateStr]
@@ -287,8 +286,7 @@ export default function CalendarDay({
                     userSelect: "none",
                 }}
             >
-                {/* Time slot dividers */}
-                {timeSlots.map((minute, i) => (
+                                {timeSlots.map((minute, i) => (
                     <Box
                         key={minute}
                         data-minute={minute}
@@ -303,15 +301,12 @@ export default function CalendarDay({
                     />
                 ))}
 
-                {/* Previews */}
-                {renderDragPreview()}
+                                {renderDragPreview()}
                 {renderMovePreview()}
 
-                {/* Entries */}
-                {laidOutEntries.map(renderEntry)}
+                                {laidOutEntries.map(renderEntry)}
 
-                {/* Current time line (only on today) */}
-                {isToday && (
+                                {isToday && (
                     <CalendarCurrentTimeLine
                         pixelsPerMinute={pixelsPerMinute}
                         onStartRecording={onStartRecording}

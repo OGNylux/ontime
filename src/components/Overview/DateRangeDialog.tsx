@@ -260,8 +260,7 @@ export default function DateRangeDialog({
                         flexDirection: isSmall ? 'column' : 'row',
                     }}
                 >
-                    {/* Preset Options */}
-                    <Box sx={{ minWidth: isSmall ? 'auto' : 150 }}>
+                                        <Box sx={{ minWidth: isSmall ? 'auto' : 150 }}>
                         <List
                             dense
                             sx={{
@@ -292,8 +291,7 @@ export default function DateRangeDialog({
                         </List>
                     </Box>
 
-                    {/* Calendar */}
-                    <Box flex={1}>
+                                        <Box flex={1}>
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <IconButton onClick={() => setCalendarMonth((m) => m.subtract(1, 'month'))}>
                                 <ChevronLeft />

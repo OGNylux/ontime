@@ -21,8 +21,7 @@ export default function TreeConnector({
       alignItems="center"
       alignSelf="stretch"
     >
-      {/* Upper vertical line */}
-      <Box
+            <Box
         position="absolute"
         left={8}
         top={-6}
@@ -31,8 +30,7 @@ export default function TreeConnector({
         zIndex={2}
         bgcolor={hasActiveBelow || isActive ? 'primary.main' : 'text.secondary'}
       />
-      {/* Lower vertical line */}
-      {!isLast && (
+            {!isLast && (
         <Box
           position="absolute"
           left={8}
@@ -44,8 +42,7 @@ export default function TreeConnector({
           bgcolor={hasActiveBelow ? 'primary.main' : 'text.secondary'}
         />
       )}
-      {/* Horizontal curved connector */}
-      <Box
+            <Box
           position= 'absolute'
           left={8}
           top= '40%'

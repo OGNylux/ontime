@@ -71,7 +71,6 @@ export default function RegisterPage() {
       setError("Passwords don't match");
       setSuccess(null);
     }
-
   };
 
   return (
