@@ -19,6 +19,9 @@ jobs:
             args: ''
     
     runs-on: ${{ matrix.platform }}
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
     steps:
       - uses: actions/checkout@v4
       
