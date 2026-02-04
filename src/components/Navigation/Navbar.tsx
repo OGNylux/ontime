@@ -6,7 +6,6 @@ import ThemeToggler from './ThemeToggler';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import Popover from '@mui/material/Popover';
 import { NotificationsList } from './NotificationsDialog';
-import WordLogo from '../../assets/WordLogo.svg';
 import { platform } from '@tauri-apps/plugin-os';
 
 interface NavbarProps {
@@ -48,7 +47,7 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                     <Link to="/" style={{ textDecoration: 'none', color: 'inherit', alignItems: 'center' }}>
                         <Box
                             component="img"
-                            src={WordLogo}
+                            src="/assets/WordLogo.svg"
                             alt="OnTime"
                             sx={{
                                 height: 48,
