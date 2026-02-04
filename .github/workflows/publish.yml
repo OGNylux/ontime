@@ -25,11 +25,17 @@ jobs:
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: build.yml
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
           name: web-application
           path: artifact
           if_no_artifact_found: fail
+      - name: List downloaded artifact (debug)
+        run: |
+          echo "Artifact contents (root):"
+          ls -la artifact || true
+          if [ -d "artifact/dist" ]; then
+            echo "Contents of artifact/dist:";
+            ls -la artifact/dist || true
+          fi
       
       - name: Prepare deployment directory
         run: |
