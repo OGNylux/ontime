@@ -36,6 +36,18 @@ jobs:
             echo "Contents of artifact/dist:";
             ls -la artifact/dist || true
           fi
+      - name: Show built index and check for Supabase vars
+        if: always()
+        run: |
+          echo "---- dist/index.html ----"
+          if [ -f artifact/dist/index.html ]; then
+            sed -n '1,120p' artifact/dist/index.html || true
+          else
+            echo "artifact/dist/index.html not found"
+          fi
+          echo
+          echo "---- Search for 'supabase' in dist ----"
+          grep -n "supabase" -R artifact/dist || echo "no occurrences"
       
       - name: Prepare deployment directory
         run: |
