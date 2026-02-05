@@ -31,7 +31,7 @@ jobs:
         env:
           PAGES_BASE: /ontime/
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_KEY }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
         
       - name: Upload build artifacts
