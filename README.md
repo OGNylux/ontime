@@ -1,6 +1,6 @@
 # OnTime
 
-> OnTime — a Tauri + Vite React time tracking app with Supabase backend.
+> OnTime - a Tauri + Vite React time tracking app with Supabase backend.
 
 ## Requirements
 
