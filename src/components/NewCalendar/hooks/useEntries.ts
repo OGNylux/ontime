@@ -17,11 +17,10 @@ export function useEntries(days: DayInfo[]) {
     const [entries, setEntries] = useState<CalendarEntry[]>([]);
     const [loading, setLoading] = useState(false);
 
-    //  Fetch when visible range changes 
     const fetch = useCallback(async () => {
         if (days.length === 0) return;
         const start = days[0].dateStr;
-        const end   = days[days.length - 1].dateStr;
+        const end = days[days.length - 1].dateStr;
         setLoading(true);
         try {
             setEntries(await calendarService.getEntries(start, end));
@@ -34,22 +33,21 @@ export function useEntries(days: DayInfo[]) {
 
     useEffect(() => { fetch(); }, [fetch]);
 
-    //  Group by date (multi-day entries appear on each day) 
     const byDate = entries.reduce<Record<string, CalendarEntry[]>>((acc, entry) => {
-        const s = dayjs(entry.start_time);
-        const e = dayjs(entry.end_time);
+        const start = dayjs(entry.start_time);
+        const end = dayjs(entry.end_time);
 
-        if (s.format("YYYY-MM-DD") === e.format("YYYY-MM-DD")) {
+        if (start.format("YYYY-MM-DD") === end.format("YYYY-MM-DD")) {
             // Single-day entry
-            const key = s.format("YYYY-MM-DD");
+            const key = start.format("YYYY-MM-DD");
             (acc[key] ??= []).push(entry);
         } else {
             // Spans multiple days - add to each
-            let cur = s.startOf("day");
-            const last = e.startOf("day");
-            while (cur.isBefore(last) || cur.isSame(last)) {
-                (acc[cur.format("YYYY-MM-DD")] ??= []).push(entry);
-                cur = cur.add(1, "day");
+            let current = start.startOf("day");
+            const last = end.startOf("day");
+            while (current.isBefore(last) || current.isSame(last)) {
+                (acc[current.format("YYYY-MM-DD")] ??= []).push(entry);
+                current = current.add(1, "day");
             }
         }
         return acc;

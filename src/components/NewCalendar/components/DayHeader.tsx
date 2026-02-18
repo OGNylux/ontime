@@ -21,7 +21,6 @@ export default function DayHeader({ dayOfWeek, dayOfMonth, totalMinutes = 0, isT
         }}>
             <Box display="flex" alignItems="center">
                 <Box sx={{ position: "relative", mr: 1, width: { xs: 32, sm: 36, md: 45 }, height: { xs: 32, sm: 36, md: 45 }, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {/* decorative circle sits behind the number only for today */}
                     {isToday && (
                         <Box sx={{ position: "absolute", inset: 0, borderRadius: "50%", bgcolor: "primary.main", opacity: 0.25, zIndex: 1 }} />
                     )}

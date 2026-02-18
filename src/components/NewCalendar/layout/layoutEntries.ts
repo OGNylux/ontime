@@ -33,8 +33,6 @@ interface Measured {
     endMin: number;
 }
 
-//  Public API 
-
 export function layoutEntries(
     entries: CalendarEntry[],
     hourHeight: number,
@@ -43,21 +41,13 @@ export function layoutEntries(
 ): LayoutEntry[] {
     if (entries.length === 0) return [];
 
-    // 1 - measure & sort
     const measured = measure(entries, dateStr);
-
-    // 2 - assign columns
     const columnOf = assignColumns(measured);
-
-    // 3 - peak concurrency per entry
     const peakOf = peakConcurrency(measured);
 
-    // 4 - compute layout
     const titleMin = (titleHeightPx / hourHeight) * MINUTES_PER_HOUR;
     return measured.map(m => toLayout(m, columnOf, peakOf, measured, titleMin));
-}
-
-//  Step 1: measure 
+} 
 
 function measure(entries: CalendarEntry[], dateStr: string): Measured[] {
     const dayStart = dayjs(dateStr).startOf("day");
@@ -65,39 +55,35 @@ function measure(entries: CalendarEntry[], dateStr: string): Measured[] {
 
     return entries
         .map(entry => {
-            const s = dayjs(entry.start_time);
-            const e = dayjs(entry.end_time);
-            const cs = s.isBefore(dayStart) ? dayStart : s;
-            const ce = e.isAfter(dayEnd) ? dayEnd : e;
+            const start = dayjs(entry.start_time);
+            const end = dayjs(entry.end_time);
+            const new_start = start.isBefore(dayStart) ? dayStart : start;
+            const new_end = end.isAfter(dayEnd) ? dayEnd : end;
             return {
                 entry,
-                startMin: cs.hour() * 60 + cs.minute() + cs.second() / 60,
-                endMin: ce.hour() * 60 + ce.minute() + ce.second() / 60,
+                startMin: new_start.hour() * 60 + new_start.minute() + new_start.second() / 60,
+                endMin: new_end.hour() * 60 + new_end.minute() + new_end.second() / 60,
             };
         })
         .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 }
 
-//  Step 2: greedy column packing 
-
 function assignColumns(items: Measured[]): Map<string, number> {
     const colEnds: number[] = [];
     const map = new Map<string, number>();
 
-    for (const m of items) {
-        let col = colEnds.findIndex(end => end <= m.startMin);
+    for (const item of items) {
+        let col = colEnds.findIndex(end => end <= item.startMin);
         if (col === -1) {
             col = colEnds.length;
-            colEnds.push(m.endMin);
+            colEnds.push(item.endMin);
         } else {
-            colEnds[col] = m.endMin;
+            colEnds[col] = item.endMin;
         }
-        map.set(m.entry.id, col);
+        map.set(item.entry.id, col);
     }
     return map;
 }
-
-//  Step 3: sweep-line peak concurrency 
 
 function peakConcurrency(items: Measured[]): Map<string, number> {
     const pts = Array.from(
@@ -107,24 +93,24 @@ function peakConcurrency(items: Measured[]): Map<string, number> {
     // For each interval [pts[i], pts[i+1]) count how many entries span it.
     const intervals: { s: number; e: number; c: number }[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
-        const s = pts[i];
-        const e = pts[i + 1];
-        const c = items.reduce(
-            (n, m) => (m.startMin <= s && m.endMin > s ? n + 1 : n),
+        const start = pts[i];
+        const end = pts[i + 1];
+        const count = items.reduce(
+            (n, m) => (m.startMin <= start && m.endMin > start ? n + 1 : n),
             0,
         );
-        intervals.push({ s, e, c });
+        intervals.push({ s: start, e: end, c: count });
     }
 
     const map = new Map<string, number>();
-    for (const m of items) {
+    for (const item of items) {
         let peak = 1;
         for (const iv of intervals) {
-            if (iv.e <= m.startMin) continue;
-            if (iv.s >= m.endMin) break;
+            if (iv.e <= item.startMin) continue;
+            if (iv.s >= item.endMin) break;
             peak = Math.max(peak, iv.c);
         }
-        map.set(m.entry.id, peak);
+        map.set(item.entry.id, peak);
     }
     return map;
 }
@@ -132,58 +118,58 @@ function peakConcurrency(items: Measured[]): Map<string, number> {
 //  Step 4: build LayoutEntry 
 
 function toLayout(
-    m: Measured,
+    measured: Measured,
     columnOf: Map<string, number>,
     peakOf: Map<string, number>,
     all: Measured[],
     titleMin: number,
 ): LayoutEntry {
-    const col = columnOf.get(m.entry.id) ?? 0;
-    const conc = peakOf.get(m.entry.id) ?? 1;
+    const col = columnOf.get(measured.entry.id) ?? 0;
+    const conc = peakOf.get(measured.entry.id) ?? 1;
 
-    let w = Math.max(ENTRY_MIN_WIDTH, 100 / conc);
-    let o = col * (100 / conc);
+    let width = Math.max(ENTRY_MIN_WIDTH, 100 / conc);
+    let offset = col * (100 / conc);
 
     // When exactly 2 overlap and the second starts below the first's title
     // area, give it more width so it's easier to read.
     if (conc === 2 && col === 1) {
         const other = all.find(
             x => columnOf.get(x.entry.id) === 0 &&
-                Math.max(m.startMin, x.startMin) < Math.min(m.endMin, x.endMin),
+                Math.max(measured.startMin, x.startMin) < Math.min(measured.endMin, x.endMin),
         );
-        if (other && m.startMin >= other.startMin + titleMin) {
-            const bigger = w * ENTRY_SCALE_FACTOR;
-            o = Math.max(0, o - (bigger - w));
-            w = bigger;
+        if (other && measured.startMin >= other.startMin + titleMin) {
+            const bigger = width * ENTRY_SCALE_FACTOR;
+            offset = Math.max(0, offset - (bigger - width));
+            width = bigger;
         }
     }
 
-    if (o + w > 100) o = Math.max(0, 100 - w);
+    if (offset + width > 100) offset = Math.max(0, 100 - width);
 
     // Scale into the inner area (leave margin on both sides)
-    let sO = ENTRY_MARGIN_PCT + o * INNER_SCALE;
-    let sW = w * INNER_SCALE;
+    let scaleO = ENTRY_MARGIN_PCT + offset * INNER_SCALE;
+    let scaleW = width * INNER_SCALE;
 
     // Slight overlap between concurrent entries
     if (conc > 1 && ENTRY_OVERLAP_PCT > 0) {
         const shift = (ENTRY_OVERLAP_PCT * (col / Math.max(1, conc))) || 0;
-        sW = Math.min(100 - ENTRY_MARGIN_PCT - sO, sW + ENTRY_OVERLAP_PCT);
-        sO = Math.max(ENTRY_MARGIN_PCT, sO - shift);
+        scaleW = Math.min(100 - ENTRY_MARGIN_PCT - scaleO, scaleW + ENTRY_OVERLAP_PCT);
+        scaleO = Math.max(ENTRY_MARGIN_PCT, scaleO - shift);
     }
 
     // Clamp
-    if (sO + sW > 100) sW = Math.max(ENTRY_MIN_WIDTH, 100 - sO);
-    if (sW < ENTRY_MIN_WIDTH) {
-        sW = ENTRY_MIN_WIDTH;
-        if (sO + sW > 100) sO = Math.max(ENTRY_MARGIN_PCT, 100 - sW);
+    if (scaleO + scaleW > 100) scaleW = Math.max(ENTRY_MIN_WIDTH, 100 - scaleO);
+    if (scaleW < ENTRY_MIN_WIDTH) {
+        scaleW = ENTRY_MIN_WIDTH;
+        if (scaleO + scaleW > 100) scaleO = Math.max(ENTRY_MARGIN_PCT, 100 - scaleW);
     }
 
     return {
-        ...m.entry,
-        widthPct: sW,
-        offsetPct: sO,
+        ...measured.entry,
+        widthPct: scaleW,
+        offsetPct: scaleO,
         zIndex: 2 + col,
-        startMinute: m.startMin,
-        durationMinutes: m.endMin - m.startMin,
+        startMinute: measured.startMin,
+        durationMinutes: measured.endMin - measured.startMin,
     };
 }

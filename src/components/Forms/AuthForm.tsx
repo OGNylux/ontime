@@ -43,7 +43,7 @@ export default function AuthForm({ title, fields, onSubmit, submitLabel, extra }
                 }}
             />
 
-            <Box mt={4} p={3} boxShadow={3} borderRadius={2} width="100%" bgcolor="background.paper" sx={{ position: 'relative', zIndex: 1 }}>
+            <Box mt={4} p={3} boxShadow={3} borderRadius={2} width="100%" bgcolor="background.default" sx={{ position: 'relative', zIndex: 1 }}>
                 <Typography variant="h4" component="h2" mb={0.5} textAlign="center" fontWeight="bold">
                     {title}
                 </Typography>

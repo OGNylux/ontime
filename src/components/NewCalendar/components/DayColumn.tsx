@@ -34,15 +34,14 @@ interface Props {
     onStartRecording?: () => void;
 }
 
-/** Total visible minutes for one day (clamped to day boundaries). */
 function calcTotalMinutes(entries: CalendarEntry[], dateStr: string, tz: string): number {
-    const ds = dayjs.tz(dateStr, tz).startOf("day");
-    const de = ds.endOf("day");
+    const dayStart = dayjs.tz(dateStr, tz).startOf("day");
+    const dayEnd = dayStart.endOf("day");
     return entries.reduce((t, e) => {
         const s = toUserTimezone(e.start_time, tz);
         const end = toUserTimezone(e.end_time, tz);
-        if (end.isBefore(ds) || s.isAfter(de)) return t;
-        return t + Math.max(0, (end.isAfter(de) ? de : end).diff(s.isBefore(ds) ? ds : s, "minute"));
+        if (end.isBefore(dayStart) || s.isAfter(dayEnd)) return t;
+        return t + Math.max(0, (end.isAfter(dayEnd) ? dayEnd : end).diff(s.isBefore(dayStart) ? dayStart : s, "minute"));
     }, 0);
 }
 
@@ -63,21 +62,21 @@ export default function DayColumn({
     });
 
     //  Entry interaction callbacks 
-    const onEntryClick = useCallback((entry: CalendarEntry, e?: MouseEvent) => {
-        openEdit(entry, e ? { top: e.clientY, left: e.clientX } : null);
+    const onEntryClick = useCallback((entry: CalendarEntry, ev?: MouseEvent) => {
+        openEdit(entry, ev ? { top: ev.clientY, left: ev.clientX } : null);
     }, [openEdit]);
 
-    const onEntryCtx = useCallback((entry: CalendarEntry, e?: MouseEvent) => {
-        if (e) openMenu?.(entry, { top: e.clientY, left: e.clientX });
+    const onEntryCtx = useCallback((entry: CalendarEntry, ev?: MouseEvent) => {
+        if (ev) openMenu?.(entry, { top: ev.clientY, left: ev.clientX });
     }, [openMenu]);
 
-    const makeOnDragStart = useCallback((le: LayoutEntry) => (cx: number, cy: number) => {
+    const makeOnDragStart = useCallback((le: LayoutEntry) => (x: number, y: number) => {
         if (!ref.current) return;
         const rect = ref.current.getBoundingClientRect();
-        const offsetY = cy - rect.top;
+        const offsetY = y - rect.top;
         const pointerMinute = (offsetY / rect.height) * 1440;
         const offset = pointerMinute - le.startMinute;
-        beginMove({ dateStr, entryId: le.id, pointerOffset: offset, clientX: cx, clientY: cy });
+        beginMove({ dateStr, entryId: le.id, pointerOffset: offset, clientX: x, clientY: y });
     }, [beginMove, dateStr, ref]);
 
     const makeOnResizeStart = useCallback((le: LayoutEntry) => (edge: ResizeEdge, clientY: number) => {

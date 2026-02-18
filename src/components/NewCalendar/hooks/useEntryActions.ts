@@ -32,8 +32,6 @@ export interface EntryFormData {
     taskId?: string;
 }
 
-//  Helper: resolve taskId from name (auto-create if needed) 
-
 async function resolveTaskId(
     taskName: string | undefined,
     taskId: string | undefined,
@@ -46,10 +44,9 @@ async function resolveTaskId(
     if (!task) {
         let color: number | undefined;
         if (projectId) {
-            try { 
-                color = (await projectService.getProject(projectId)).color; 
-            } 
-            catch { }
+            try {
+                color = (await projectService.getProject(projectId)).color;
+            } catch { }
         }
         task = await taskService.createTask({
             name: taskName.trim(),
@@ -60,12 +57,9 @@ async function resolveTaskId(
     return task.id;
 }
 
-//  Hook 
-
 export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: Deps) {
     const { timezone } = useUserTimezone();
 
-    // Find an entry anywhere in the grouped map
     const find = useCallback((id: string): CalendarEntry | undefined => {
         for (const arr of Object.values(byDate)) {
             const hit = arr.find(e => e.id === id);
@@ -80,7 +74,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
     ) => {
         const base = parseAsUserTimezone(`${dateStr}T00:00:00`, timezone);
         const startUTC = dayjs.utc(base).add(startMin, "minute").toISOString();
-        const endUTC   = dayjs.utc(base).add(endMin, "minute").toISOString();
+        const endUTC = dayjs.utc(base).add(endMin, "minute").toISOString();
 
         // optimistic
         const existing = find(entryId);
@@ -97,7 +91,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
     //  Create 
     const create = useCallback(async (data: EntryFormData) => {
         const start_time = parseAsUserTimezone(`${data.dateStr}T${data.startTime}:00`, timezone);
-        const end_time   = parseAsUserTimezone(`${data.dateStr}T${data.endTime}:00`, timezone);
+        const end_time = parseAsUserTimezone(`${data.dateStr}T${data.endTime}:00`, timezone);
         const taskId = await resolveTaskId(data.taskName, data.taskId, data.projectId);
 
         // optimistic temp entry
@@ -120,13 +114,12 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         }
     }, [addOrReplace, removeLocal, refetch, timezone]);
 
-    //  Update (from dialog) 
     const update = useCallback(async (entryId: string, data: EntryFormData) => {
         const existing = find(entryId);
         if (!existing) return;
 
         const start_time = parseAsUserTimezone(`${data.dateStr}T${data.startTime}:00`, timezone);
-        const end_time   = parseAsUserTimezone(`${data.dateStr}T${data.endTime}:00`, timezone);
+        const end_time = parseAsUserTimezone(`${data.dateStr}T${data.endTime}:00`, timezone);
         const taskId = await resolveTaskId(data.taskName, data.taskId, data.projectId);
 
         addOrReplace({
@@ -145,8 +138,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
             refetch();
         }
     }, [find, addOrReplace, refetch, timezone]);
-
-    //  Duplicate 
+ 
     const duplicate = useCallback(async (entry: CalendarEntry) => {
         try {
             await calendarService.createEntry({
@@ -160,7 +152,6 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         }
     }, [refetch]);
 
-    //  Delete 
     const remove = useCallback(async (entryId: string) => {
         try {
             await calendarService.deleteEntry(entryId);

@@ -21,8 +21,8 @@ export interface ResizeStartPayload {
 type ByDate = Record<string, CalendarEntry[]>;
 
 function findEntry(byDate: ByDate, id: string): CalendarEntry | undefined {
-    for (const arr of Object.values(byDate)) {
-        const hit = arr.find(e => e.id === id);
+    for (const array of Object.values(byDate)) {
+        const hit = array.find(e => e.id === id);
         if (hit) return hit;
     }
     return undefined;
@@ -34,34 +34,34 @@ export function useDragToResize(
 ) {
     const [resizeState, setResizeState] = useState<ResizeState | null>(null);
 
-    const calcPos = useCallback((cx: number, cy: number, st: ResizeState) => {
-        const el = findDayElement(cx, cy);
-        if (!el) return null;
-        const ds = el.getAttribute("data-date");
-        const r  = el.getBoundingClientRect();
-        if (!ds || r.height <= 0) return null;
+    const calcPos = useCallback((x: number, y: number, resizeState: ResizeState) => {
+        const element = findDayElement(x, y);
+        if (!element) return null;
+        const date = element.getAttribute("data-date");
+        const rect = element.getBoundingClientRect();
+        if (!date || rect.height <= 0) return null;
 
-        const oy = clamp(cy - r.top, 0, r.height);
-        const pm = clampMin(snap((oy / r.height) * MINUTES_PER_DAY));
-        const dayDiff = dayjs(ds).diff(dayjs(st.dateStr), "day");
-        const absMin = pm + dayDiff * MINUTES_PER_DAY;
+        const offsetY = clamp(y - rect.top, 0, rect.height);
+        const pixelMin = clampMin(snap((offsetY / rect.height) * MINUTES_PER_DAY));
+        const dayDiff = dayjs(date).diff(dayjs(resizeState.dateStr), "day");
+        const absMin = pixelMin + dayDiff * MINUTES_PER_DAY;
 
-        let ns = st.newStart;
-        let ne = st.newEnd;
+        let newStart = resizeState.newStart;
+        let newEnd = resizeState.newEnd;
 
-        if (st.edge === "top") {
-            ns = absMin;
-            if (ns > st.originalEnd - MIN_RESIZE_DURATION) ns = st.originalEnd - MIN_RESIZE_DURATION;
+        if (resizeState.edge === "top") {
+            newStart = absMin;
+            if (newStart > resizeState.originalEnd - MIN_RESIZE_DURATION) newStart = resizeState.originalEnd - MIN_RESIZE_DURATION;
         } else {
-            ne = absMin;
-            if (ne < st.originalStart + MIN_RESIZE_DURATION) ne = st.originalStart + MIN_RESIZE_DURATION;
+            newEnd = absMin;
+            if (newEnd < resizeState.originalStart + MIN_RESIZE_DURATION) newEnd = resizeState.originalStart + MIN_RESIZE_DURATION;
         }
 
-        return { newStart: ns, newEnd: ne };
+        return { newStart, newEnd };
     }, []);
 
-    const commit = useCallback(async (st: ResizeState) => {
-        await onCommit(st.dateStr, st.entry.id, st.newStart, st.newEnd);
+    const commit = useCallback(async (resizeState: ResizeState) => {
+        await onCommit(resizeState.dateStr, resizeState.entry.id, resizeState.newStart, resizeState.newEnd);
     }, [onCommit]);
 
     //  Begin 
@@ -72,12 +72,12 @@ export function useDragToResize(
             if (!entry) return prev;
 
             const dayStart = dayjs(p.dateStr).startOf("day");
-            const sm = dayjs(entry.start_time).diff(dayStart, "minute");
-            const em = dayjs(entry.end_time).diff(dayStart, "minute");
+            const start = dayjs(entry.start_time).diff(dayStart, "minute");
+            const end = dayjs(entry.end_time).diff(dayStart, "minute");
 
             return {
                 entry, edge: p.edge, dateStr: p.dateStr,
-                originalStart: sm, originalEnd: em, newStart: sm, newEnd: em,
+                originalStart: start, originalEnd: end, newStart: start, newEnd: end,
             };
         });
     }, [byDate]);
@@ -102,29 +102,29 @@ export function useDragToResize(
                 if (!prev) return prev;
                 const { clientX: cx, clientY: cy } = clientCoords(ev, false);
                 const pos = calcPos(cx, cy, prev);
-                const ns = pos ? pos.newStart : prev.newStart;
-                const ne = pos ? pos.newEnd   : prev.newEnd;
-                commit({ ...prev, newStart: ns, newEnd: ne });
+                const newStart = pos ? pos.newStart : prev.newStart;
+                const newEnd = pos ? pos.newEnd   : prev.newEnd;
+                commit({ ...prev, newStart, newEnd });
                 return null;
             });
         };
 
-        window.addEventListener("pointermove", handleMove as any);
-        window.addEventListener("pointerup", handleEnd as any);
-        window.addEventListener("pointercancel", handleEnd as any);
-        window.addEventListener("touchmove", handleMove as any, { passive: false });
-        window.addEventListener("touchend", handleEnd as any);
-        window.addEventListener("mousemove", handleMove as any);
-        window.addEventListener("mouseup", handleEnd as any);
+        window.addEventListener("pointermove", handleMove);
+        window.addEventListener("pointerup", handleEnd);
+        window.addEventListener("pointercancel", handleEnd);
+        window.addEventListener("touchmove", handleMove, { passive: false });
+        window.addEventListener("touchend", handleEnd);
+        window.addEventListener("mousemove", handleMove);
+        window.addEventListener("mouseup", handleEnd);
 
         return () => {
-            window.removeEventListener("pointermove", handleMove as any);
-            window.removeEventListener("pointerup", handleEnd as any);
-            window.removeEventListener("pointercancel", handleEnd as any);
-            window.removeEventListener("touchmove", handleMove as any);
-            window.removeEventListener("touchend", handleEnd as any);
-            window.removeEventListener("mousemove", handleMove as any);
-            window.removeEventListener("mouseup", handleEnd as any);
+            window.removeEventListener("pointermove", handleMove);
+            window.removeEventListener("pointerup", handleEnd);
+            window.removeEventListener("pointercancel", handleEnd);
+            window.removeEventListener("touchmove", handleMove);
+            window.removeEventListener("touchend", handleEnd);
+            window.removeEventListener("mousemove", handleMove);
+            window.removeEventListener("mouseup", handleEnd);
             unlockBodyScroll(saved);
         };
     }, [resizeState, calcPos, commit]);

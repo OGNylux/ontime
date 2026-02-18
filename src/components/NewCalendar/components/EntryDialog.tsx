@@ -64,14 +64,15 @@ export default function EntryDialog({
         }
     }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable, initialProjectId]);
 
-    // Debounced task search
     useEffect(() => {
         let active = true;
         const t = setTimeout(async () => {
             if (title.length < 3) { if (active) setOptions([]); return; }
             setLoading(true);
-            try { if (active) setOptions(await taskService.searchTasks(title)); }
-            catch { /* ignore */ }
+            try { 
+                if (active) setOptions(await taskService.searchTasks(title)); 
+            }
+            catch { }
             finally { if (active) setLoading(false); }
         }, 300);
         return () => { active = false; clearTimeout(t); };
@@ -92,8 +93,13 @@ export default function EntryDialog({
     const handleDelete = () => { setMenuEl(null); setConfirmOpen(true); };
     const confirmDelete = async () => {
         if (!editingEntryId) return;
-        try { setSaving(true); await actions.remove(editingEntryId); onClose(); }
-        catch { /* */ } finally { setSaving(false); setConfirmOpen(false); }
+        try { 
+            setSaving(true);
+            await actions.remove(editingEntryId); onClose(); 
+        } catch { } 
+        finally { 
+            setSaving(false); setConfirmOpen(false); 
+        }
     };
 
     const handleSave = async () => {
@@ -103,7 +109,8 @@ export default function EntryDialog({
             if (isEdit && editingEntryId) await actions.update(editingEntryId, data);
             else await actions.create(data);
             onClose();
-        } catch { /* */ } finally { setSaving(false); }
+        } catch { } 
+        finally { setSaving(false); }
     };
 
     //  Content 

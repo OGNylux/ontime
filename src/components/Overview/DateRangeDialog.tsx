@@ -333,7 +333,7 @@ export default function DateRangeDialog({
                     </Box>
                 </Box>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2, pb: isMobile ? 8 : 0 }}>
+            <DialogActions sx={{ px: 3, py: 2, pb: isMobile ? 8 : 2 }}>
                 <Button onClick={onClose}>Cancel</Button>
                 <Button
                     onClick={handleApply}

@@ -26,7 +26,7 @@ export default function RegisterPage() {
   const [passwordRepeat, setPasswordRepeat] = useState("");
 
   const checkAvailability = async () => {
-        if (!email && !name) return;
+    if (!email && !name) return;
 
     try {
       const result = await authService.checkAvailability(email, name);
@@ -50,7 +50,7 @@ export default function RegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-        if (emailError || nameError) return;
+    if (emailError || nameError) return;
 
     if (password == passwordRepeat) {
       try {
@@ -74,9 +74,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <Container maxWidth="lg" className="h-full flex items-center justify-center">
-      <Box display="flex" flexDirection="column" alignItems="center" width="100%">
-        {error && <Alert severity="error" className="mb-2 w-full max-w-96">{error}</Alert>}
+    <Container maxWidth="lg" sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        width="100%"
+      >
+        {error && <Alert severity="error" sx={{ marginBottom: 2, width: "100%", maxWidth: 384, zIndex: 100, bgcolor: 'background.default' }}>{error}</Alert>}
+
         <AuthForm
           title="Register"
           fields={[

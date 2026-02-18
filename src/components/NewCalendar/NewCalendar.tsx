@@ -44,7 +44,6 @@ export default function NewCalendar() {
 
     const { byDate, refetch, addOrReplace, removeLocal } = useEntries(nav.days);
 
-    //  CRUD 
     const actions = useEntryActions({ byDate, addOrReplace, removeLocal, refetch });
 
     const dialogs = useDialogs();
@@ -66,7 +65,7 @@ export default function NewCalendar() {
 
     const allEntries = useMemo(() => Object.values(byDate).flat(), [byDate]);
     const totalWeekTime = useMemo(() => {
-        const mins = allEntries.reduce((s, e) => s + Math.max(0, dayjs(e.end_time).diff(dayjs(e.start_time), "minute")), 0);
+        const mins = allEntries.reduce((sum, entry) => sum + Math.max(0, dayjs(entry.end_time).diff(dayjs(entry.start_time), "minute")), 0);
         return formatDuration(mins);
     }, [allEntries]);
 

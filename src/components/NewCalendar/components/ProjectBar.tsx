@@ -13,18 +13,18 @@ interface Props { entries: CalendarEntry[]; }
 interface Segment { id: string; name: string; color: string; mins: number; pct: number; }
 
 function buildSegments(entries: CalendarEntry[]): Segment[] {
-    const m = new Map<string, { name: string; color: string; mins: number }>();
+    const projectMap = new Map<string, { name: string; color: string; mins: number }>();
 
     entries.forEach(e => {
-        const pid = e.project_id || "none";
+        const projectId = e.project_id || "none";
         const mins = dayjs(e.end_time).diff(dayjs(e.start_time), "minute");
-        const cur = m.get(pid);
-        if (cur) { cur.mins += mins; }
-        else { m.set(pid, { name: e.project?.name || "No Project", color: TAILWIND_COLORS[e.project?.color || 0].value, mins }); }
+        const current = projectMap.get(projectId);
+        if (current) { current.mins += mins; }
+        else { projectMap.set(projectId, { name: e.project?.name || "No Project", color: TAILWIND_COLORS[e.project?.color || 0].value, mins }); }
     });
 
-    const total = [...m.values()].reduce((s, v) => s + v.mins, 0);
-    return [...m.entries()]
+    const total = [...projectMap.values()].reduce((s, v) => s + v.mins, 0);
+    return [...projectMap.entries()]
         .map(([id, v]) => ({ id, name: v.name, color: v.color, mins: v.mins, pct: total > 0 ? (v.mins / total) * 100 : 0 }))
         .sort((a, b) => b.mins - a.mins);
 }

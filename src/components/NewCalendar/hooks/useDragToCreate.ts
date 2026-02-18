@@ -52,13 +52,13 @@ export function useDragToCreate({ pxPerMin, dateStr, isTouch, zoom, onOpen, onPr
     const onMouseUp = useCallback((e: MouseEvent) => {
         if (!drag.active || isTouch) return;
         const end = yToMin(e.clientY);
-        const lo  = Math.min(drag.startMinute, end);
-        const hi  = Math.max(drag.startMinute, end);
-        const isClick = Math.abs(hi - lo) < SNAP_INTERVAL;
-        const finalEnd = isClick ? clampMin(lo + zoom) : hi;
+        const low  = Math.min(drag.startMinute, end);
+        const high  = Math.max(drag.startMinute, end);
+        const isClick = Math.abs(high - low) < SNAP_INTERVAL;
+        const finalEnd = isClick ? clampMin(low + zoom) : high;
 
-        onPreviewSet?.({ dateStr, startMinute: lo, endMinute: finalEnd });
-        onOpen(dateStr, lo, finalEnd, { top: e.clientY, left: e.clientX });
+        onPreviewSet?.({ dateStr, startMinute: low, endMinute: finalEnd });
+        onOpen(dateStr, low, finalEnd, { top: e.clientY, left: e.clientX });
         setDrag(INITIAL);
     }, [drag.active, drag.startMinute, yToMin, dateStr, zoom, onOpen, isTouch, onPreviewSet]);
 

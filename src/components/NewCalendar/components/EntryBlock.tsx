@@ -32,11 +32,11 @@ interface Props {
 }
 
 function computeLayout(entry: LayoutEntry, hourHeight: number, timezone: string) {
-    const st = toUserTimezone(entry.start_time, timezone);
-    const sm = entry.startMinute ?? (st.hour() * MINUTES_PER_HOUR + st.minute() + st.second() / 60);
-    const dur = entry.durationMinutes ?? toUserTimezone(entry.end_time, timezone).diff(st, "minute", true);
+    const startTime = toUserTimezone(entry.start_time, timezone);
+    const startMinute = entry.startMinute ?? (startTime.hour() * MINUTES_PER_HOUR + startTime.minute() + startTime.second() / 60);
+    const duration = entry.durationMinutes ?? toUserTimezone(entry.end_time, timezone).diff(startTime, "minute", true);
     const pxPerMin = hourHeight / MINUTES_PER_HOUR;
-    return { top: sm * pxPerMin, height: Math.max(dur * pxPerMin, 5), durationMinutes: Math.max(0, Math.round(dur)) };
+    return { top: startMinute * pxPerMin, height: Math.max(duration * pxPerMin, 5), durationMinutes: Math.max(0, Math.round(duration)) };
 }
 
 export default function EntryBlock({
@@ -66,10 +66,10 @@ export default function EntryBlock({
 
     useLongPress(paperRef, onDragStart);
 
-    const handleMouseDown = useCallback((e: MouseEvent<HTMLDivElement>) => {
-        e.stopPropagation();
-        if (e.button !== 0 || isPreview || isDragging) return;
-        dragStart.current = { x: e.clientX, y: e.clientY };
+    const handleMouseDown = useCallback((ev: MouseEvent<HTMLDivElement>) => {
+        ev.stopPropagation();
+        if (ev.button !== 0 || isPreview || isDragging) return;
+        dragStart.current = { x: ev.clientX, y: ev.clientY };
         isDraggingRef.current = false;
 
         const onMove = (ev: globalThis.MouseEvent) => {
