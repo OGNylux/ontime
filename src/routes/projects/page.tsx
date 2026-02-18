@@ -26,7 +26,7 @@ import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import ProjectDialog from '../../components/ProjectDialog';
 import dayjs from 'dayjs';
-import { formatDuration } from '../../components/Calendar/util/calendarUtility';
+import { formatDuration } from '../../components/NewCalendar/layout/timeUtils';
 
 
 const formatDate = (dateStr?: string) => {

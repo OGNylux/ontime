@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Box, Typography, IconButton, Chip } from '@mui/material';
 import { KeyboardArrowDown, KeyboardArrowRight } from '@mui/icons-material';
 import { DataTable, Column } from '../DataTable';
-import { formatDuration } from '../Calendar/util/calendarUtility';
+import { formatDuration } from '../NewCalendar/layout/timeUtils';
 
 interface TaskData {
     taskId: string;

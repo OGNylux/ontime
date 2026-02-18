@@ -28,8 +28,8 @@ import PieChartSection from '../../components/Overview/PieChartSection';
 import ProjectTaskTable from '../../components/Overview/ProjectTaskTable';
 import DateRangeDialog from '../../components/Overview/DateRangeDialog';
 import { useOverviewData } from '../../components/Overview/hooks/useOverviewData';
-import { formatDuration } from '../../components/Calendar/util/calendarUtility';
 import LoadingBanner from '../../components/Loading/LoadingBanner';
+import { formatDuration } from '../../components/NewCalendar/layout/timeUtils';
 
 dayjs.extend(quarterOfYear);
 

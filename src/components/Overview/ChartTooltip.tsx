@@ -1,5 +1,5 @@
 import { Box, Paper, Typography } from '@mui/material';
-import { formatDuration } from '../Calendar/util/calendarUtility';
+import { formatDuration } from '../NewCalendar/layout/timeUtils';
 
 interface ChartTooltipProps {
     active?: boolean;
