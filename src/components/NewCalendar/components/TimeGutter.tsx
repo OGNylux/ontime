@@ -16,7 +16,9 @@ interface Props {
 
 export default function TimeGutter({ isCompact, zoom, onZoomChange, slotHeight }: Props) {
     const slots: number[] = [];
-    for (let m = 0; m < MINUTES_PER_DAY; m += zoom) slots.push(m);
+    for (let minute = 0; minute < MINUTES_PER_DAY; minute += zoom) {
+        slots.push(minute);
+    }
     const totalHeight = 64 + (slots.length * slotHeight); // header + all time slots
 
     return (

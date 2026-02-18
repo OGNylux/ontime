@@ -24,12 +24,9 @@ export default function Toolbar({
 }: Props) {
     return (
         <>
-            {/* Recorder row */}
             <Box sx={{ display: "flex", px: 1, pt: 1 }}>
                 <Recorder addOrReplace={addOrReplace} onRecordingStart={onRecordingStart} />
             </Box>
-
-            {/* Nav + view selector row */}
             <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2} pb={1} px={1}
                 flexWrap={{ xs: "wrap", lg: "nowrap" }} mx={1} borderBottom={t => `1px solid ${t.palette.divider}`}>
                 <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: { xs: "flex-start", md: "center" }, gap: { xs: 0, md: 2 } }}>

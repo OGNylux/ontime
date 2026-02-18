@@ -18,7 +18,6 @@ export function useNavigation() {
     const [viewMode, setViewMode] = useState<ViewMode>("week");
     const [ready, setReady] = useState(false);
 
-    // Re-init date once timezone loads so "today" is correct.
     useEffect(() => {
         if (!tzLoading) {
             setDate(dayjs().tz(timezone));
@@ -37,11 +36,11 @@ export function useNavigation() {
         const start = date.startOf("isoWeek");
         const count = viewMode === "work_week" ? 5 : 7;
         return Array.from({ length: count }, (_, i) => {
-            const d = start.add(i, "day");
+            const day = start.add(i, "day");
             return {
-                dateStr: d.format("YYYY-MM-DD"),
-                dayOfMonth: d.format("D"),
-                dayOfWeek: d.format("ddd"),
+                dateStr: day.format("YYYY-MM-DD"),
+                dayOfMonth: day.format("D"),
+                dayOfWeek: day.format("ddd"),
             };
         });
     }, [date, viewMode]);

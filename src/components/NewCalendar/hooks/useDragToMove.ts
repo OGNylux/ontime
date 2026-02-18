@@ -19,7 +19,6 @@ import { clamp, clampMin, snap, findDayElement, lockBodyScroll, unlockBodyScroll
 export interface MoveStartPayload {
     dateStr: string;
     entryId: string;
-    /** Minutes between pointer pos and entry start. */
     pointerOffset: number;
     clientX: number;
     clientY: number;
@@ -27,13 +26,10 @@ export interface MoveStartPayload {
 
 type ByDate = Record<string, CalendarEntry[]>;
 
-// Find an entry by id, falling back across all days
 function findEntry(byDate: ByDate, dateStr: string, id: string): CalendarEntry | undefined {
     return byDate[dateStr]?.find(e => e.id === id)
         ?? Object.values(byDate).flat().find(e => e.id === id);
 }
-
-//  Hook 
 
 export function useDragToMove(
     byDate: ByDate,
@@ -44,48 +40,54 @@ export function useDragToMove(
     const savedRef = useRef<SavedBodyStyles | null>(null);
 
     // Compute new position from pointer coords
-    const calcPos = useCallback((cx: number, cy: number, st: MoveState) => {
-        const el = findDayElement(cx, cy);
-        const ds = el?.getAttribute("data-date");
-        const r  = el?.getBoundingClientRect();
-        if (!ds || !r || r.height <= 0) return null;
-        const oy = clamp(cy - r.top, 0, r.height);
-        const pm = clampMin(snap((oy / r.height) * MINUTES_PER_DAY));
-        const sm = snap(pm - st.pointerOffset);
-        return { dateStr: ds, startMinute: sm, endMinute: sm + st.durationMinutes };
+    const calcPos = useCallback((x: number, y: number, moveState: MoveState) => {
+        const element = findDayElement(x, y);
+        const date = element?.getAttribute("data-date");
+        const rect = element?.getBoundingClientRect();
+        if (!date || !rect || rect.height <= 0) return null;
+        const offsetY = clamp(y - rect.top, 0, rect.height);
+        const pixelMin = clampMin(snap((offsetY / rect.height) * MINUTES_PER_DAY));
+        const startMinute = snap(pixelMin - moveState.pointerOffset);
+        return { dateStr: date, startMinute, endMinute: startMinute + moveState.durationMinutes };
     }, []);
 
-    const commit = useCallback(async (st: MoveState) => {
-        let { currentDateStr: ds, startMinute: sm, endMinute: em } = st;
-        if (sm < 0)           { ds = dayjs(ds).subtract(1, "day").format("YYYY-MM-DD"); sm += MINUTES_PER_DAY; em += MINUTES_PER_DAY; }
-        if (sm >= MINUTES_PER_DAY) { ds = dayjs(ds).add(1, "day").format("YYYY-MM-DD");      sm -= MINUTES_PER_DAY; em -= MINUTES_PER_DAY; }
-        await onCommit(ds, st.entry.id, sm, em);
+    const commit = useCallback(async (moveState: MoveState) => {
+        let { currentDateStr, startMinute, endMinute } = moveState;
+        if (startMinute < 0) { 
+            currentDateStr = dayjs(currentDateStr).subtract(1, "day").format("YYYY-MM-DD"); 
+            startMinute += MINUTES_PER_DAY; endMinute += MINUTES_PER_DAY; 
+        }
+        if (endMinute >= MINUTES_PER_DAY) { 
+            currentDateStr = dayjs(currentDateStr).add(1, "day").format("YYYY-MM-DD");      
+            startMinute -= MINUTES_PER_DAY; endMinute -= MINUTES_PER_DAY; 
+        }
+        await onCommit(currentDateStr, moveState.entry.id, startMinute, endMinute);
     }, [onCommit]);
 
-    const updatePos = useCallback((cx: number, cy: number) => {
+    const updatePos = useCallback((x: number, y: number) => {
         setMoveState(prev => {
             if (!prev) return prev;
-            const pos = calcPos(cx, cy, prev);
+            const pos = calcPos(x, y, prev);
             if (!pos || (pos.dateStr === prev.currentDateStr && pos.startMinute === prev.startMinute)) return prev;
             return { ...prev, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute };
         });
     }, [calcPos]);
 
     //  Begin a move 
-    const beginMove = useCallback((p: MoveStartPayload) => {
-        const entry = findEntry(byDate, p.dateStr, p.entryId);
+    const beginMove = useCallback((data: MoveStartPayload) => {
+        const entry = findEntry(byDate, data.dateStr, data.entryId);
         if (!entry) return;
 
-        const start    = dayjs(entry.start_time);
+        const start = dayjs(entry.start_time);
         const duration = dayjs(entry.end_time).diff(start, "minute");
-        const dayStart = dayjs(p.dateStr).startOf("day");
-        const sm       = start.diff(dayStart, "minute");
+        const dayStart = dayjs(data.dateStr).startOf("day");
+        const startMinute = start.diff(dayStart, "minute");
 
         const base: MoveState = {
-            entry, fromDateStr: p.dateStr, pointerOffset: p.pointerOffset,
-            durationMinutes: duration, currentDateStr: p.dateStr, startMinute: sm, endMinute: sm + duration,
+            entry, fromDateStr: data.dateStr, pointerOffset: data.pointerOffset,
+            durationMinutes: duration, currentDateStr: data.dateStr, startMinute, endMinute: startMinute + duration,
         };
-        const pos = calcPos(p.clientX, p.clientY, base);
+        const pos = calcPos(data.clientX, data.clientY, base);
         setMoveState(pos ? { ...base, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute } : base);
     }, [byDate, calcPos]);
 
@@ -94,43 +96,43 @@ export function useDragToMove(
         if (!moveState) return;
         savedRef.current = lockBodyScroll();
 
-        const handleMove = (cx: number, cy: number, ev?: Event) => {
+        const handleMove = (x: number, y: number, ev?: Event) => {
             if (ev?.cancelable) ev.preventDefault();
             if (rafRef.current) return;
-            rafRef.current = requestAnimationFrame(() => { rafRef.current = null; updatePos(cx, cy); });
+            rafRef.current = requestAnimationFrame(() => { rafRef.current = null; updatePos(x, y); });
         };
 
-        const handleEnd = (cx: number, cy: number) => {
+        const handleEnd = (x: number, y: number) => {
             if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-            updatePos(cx, cy);
+            updatePos(x, y);
             setMoveState(prev => { if (prev) commit(prev); return null; });
         };
 
-        const mm = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
-        const mu = (e: MouseEvent) => handleEnd(e.clientX, e.clientY);
-        const pm = (e: PointerEvent) => handleMove(e.clientX, e.clientY, e);
-        const pe = (e: PointerEvent) => handleEnd(e.clientX, e.clientY);
-        const tm = (e: TouchEvent) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e);
-        const te = (e: TouchEvent) => handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        const move = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+        const moveEnd = (e: MouseEvent) => handleEnd(e.clientX, e.clientY);
+        const pointer = (e: PointerEvent) => handleMove(e.clientX, e.clientY, e);
+        const pointerEnd = (e: PointerEvent) => handleEnd(e.clientX, e.clientY);
+        const touch = (e: TouchEvent) => handleMove(e.touches[0].clientX, e.touches[0].clientY, e);
+        const touchEnd = (e: TouchEvent) => handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
 
-        window.addEventListener("mousemove", mm);
-        window.addEventListener("mouseup", mu);
-        window.addEventListener("pointermove", pm, { passive: false, capture: true });
-        window.addEventListener("pointerup", pe);
-        window.addEventListener("pointercancel", pe);
-        window.addEventListener("touchmove", tm, { passive: false, capture: true });
-        window.addEventListener("touchend", te);
-        window.addEventListener("touchcancel", te);
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", moveEnd);
+        window.addEventListener("pointermove", pointer, { passive: false, capture: true });
+        window.addEventListener("pointerup", pointerEnd);
+        window.addEventListener("pointercancel", pointerEnd);
+        window.addEventListener("touchmove", touch, { passive: false, capture: true });
+        window.addEventListener("touchend", touchEnd);
+        window.addEventListener("touchcancel", touchEnd);
 
         return () => {
-            window.removeEventListener("mousemove", mm);
-            window.removeEventListener("mouseup", mu);
-            window.removeEventListener("pointermove", pm, true);
-            window.removeEventListener("pointerup", pe);
-            window.removeEventListener("pointercancel", pe);
-            window.removeEventListener("touchmove", tm, true);
-            window.removeEventListener("touchend", te);
-            window.removeEventListener("touchcancel", te);
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", moveEnd);
+            window.removeEventListener("pointermove", pointer, true);
+            window.removeEventListener("pointerup", pointerEnd);
+            window.removeEventListener("pointercancel", pointerEnd);
+            window.removeEventListener("touchmove", touch, true);
+            window.removeEventListener("touchend", touchEnd);
+            window.removeEventListener("touchcancel", touchEnd);
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             if (savedRef.current) unlockBodyScroll(savedRef.current);
         };
@@ -145,15 +147,15 @@ export function useLongPress(
     ref: React.RefObject<HTMLElement | null>,
     onDragStart?: (cx: number, cy: number) => void,
 ) {
-    const timer   = useRef<number | null>(null);
-    const origin  = useRef<{ x: number; y: number } | null>(null);
-    const active  = useRef(false);
-    const cbRef   = useRef(onDragStart);
+    const timer = useRef<number | null>(null);
+    const origin = useRef<{ x: number; y: number } | null>(null);
+    const active = useRef(false);
+    const cbRef = useRef(onDragStart);
     useEffect(() => { cbRef.current = onDragStart; }, [onDragStart]);
 
     useEffect(() => {
-        const el = ref.current;
-        if (!el) return;
+        const element = ref.current;
+        if (!element) return;
 
         const clear = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
         const reset = () => { clear(); origin.current = null; active.current = false; };
@@ -170,48 +172,54 @@ export function useLongPress(
             active.current = false;
             timer.current = window.setTimeout(() => {
                 active.current = true;
-                if (pid !== undefined) try { el.setPointerCapture(pid); } catch { /* */ }
-                try { navigator.vibrate?.(50); } catch { /* */ }
+                if (pid !== undefined) {
+                    try { 
+                        element.setPointerCapture(pid); 
+                    } catch { }
+                }
+                try { 
+                    navigator.vibrate?.(50); 
+                } catch { }
                 cbRef.current?.(cx, cy);
                 timer.current = null;
             }, LONG_PRESS_MS);
         };
 
-        const pd = (e: PointerEvent) => {
+        const pointerDown = (e: PointerEvent) => {
             if (!cbRef.current || e.button !== 0) return;
             if ((e.target as Element)?.closest?.(".resize-handle")) return;
             start(e.clientX, e.clientY, e.pointerId);
         };
-        const pMove = (e: PointerEvent) => {
+        const pointerMove = (e: PointerEvent) => {
             if (timer.current && !active.current && moved(e.clientX, e.clientY)) reset();
             if (active.current && e.cancelable) e.preventDefault();
         };
-        const pUp = () => reset();
-        const ts = (e: TouchEvent) => { if (cbRef.current) start(e.touches[0].clientX, e.touches[0].clientY); };
-        const tMove = (e: TouchEvent) => {
+        const pointerUp = () => reset();
+        const touchStart = (e: TouchEvent) => { if (cbRef.current) start(e.touches[0].clientX, e.touches[0].clientY); };
+        const touchMove = (e: TouchEvent) => {
             if (timer.current && !active.current && moved(e.touches[0].clientX, e.touches[0].clientY)) reset();
             if (active.current && e.cancelable) e.preventDefault();
         };
-        const tEnd = () => reset();
+        const touchEnd = () => reset();
 
-        el.addEventListener("pointerdown", pd);
-        el.addEventListener("pointermove", pMove);
-        window.addEventListener("pointerup", pUp);
-        window.addEventListener("pointercancel", pUp);
-        el.addEventListener("touchstart", ts, { passive: true });
-        el.addEventListener("touchmove", tMove, { passive: false });
-        el.addEventListener("touchend", tEnd);
-        el.addEventListener("touchcancel", tEnd);
+        element.addEventListener("pointerdown", pointerDown);
+        element.addEventListener("pointermove", pointerMove);
+        window.addEventListener("pointerup", pointerUp);
+        window.addEventListener("pointercancel", pointerUp);
+        element.addEventListener("touchstart", touchStart, { passive: true });
+        element.addEventListener("touchmove", touchMove, { passive: false });
+        element.addEventListener("touchend", touchEnd);
+        element.addEventListener("touchcancel", touchEnd);
 
         return () => {
-            el.removeEventListener("pointerdown", pd);
-            el.removeEventListener("pointermove", pMove);
-            window.removeEventListener("pointerup", pUp);
-            window.removeEventListener("pointercancel", pUp);
-            el.removeEventListener("touchstart", ts);
-            el.removeEventListener("touchmove", tMove);
-            el.removeEventListener("touchend", tEnd);
-            el.removeEventListener("touchcancel", tEnd);
+            element.removeEventListener("pointerdown", pointerDown);
+            element.removeEventListener("pointermove", pointerMove);
+            window.removeEventListener("pointerup", pointerUp);
+            window.removeEventListener("pointercancel", pointerUp);
+            element.removeEventListener("touchstart", touchStart);
+            element.removeEventListener("touchmove", touchMove);
+            element.removeEventListener("touchend", touchEnd);
+            element.removeEventListener("touchcancel", touchEnd);
             clear();
         };
     }, [ref]);

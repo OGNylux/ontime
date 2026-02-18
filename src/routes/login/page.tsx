@@ -29,7 +29,7 @@ export default function LoginPage() {
     };
 
     return (
-        <Container maxWidth="lg" className="h-full flex items-center justify-center">
+        <Container maxWidth="lg" sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Box
                 display="flex"
                 flexDirection="column"
@@ -37,7 +37,7 @@ export default function LoginPage() {
                 alignItems="center"
                 width="100%"
             >
-                {error && <Alert severity="error" className="mb-2 w-full max-w-96">{error}</Alert>}
+                {error && <Alert severity="error" sx={{ marginBottom: 2, width: "100%", maxWidth: 384, zIndex: 100, bgcolor: 'background.default' }}>{error}</Alert>}
 
                 <AuthForm
                     title="Welcome Back!"

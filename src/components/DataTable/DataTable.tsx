@@ -60,8 +60,9 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     disableSorting = false,
     groupBy,
 }: DataTableProps<T>) {
-    const [order, setOrder] = useState<Order>(defaultSortOrder);
     type OrderBy = (keyof T & string) | '';
+
+    const [order, setOrder] = useState<Order>(defaultSortOrder);
     const [orderBy, setOrderBy] = useState<OrderBy>(disableSorting ? '' : ((defaultSortField as OrderBy) || ''));
     const [page, setPage] = useState(1);
 
@@ -75,7 +76,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     const sortedData = useMemo(() => {
         if (disableSorting || !orderBy) return data;
 
-                if (groupBy) {
+        if (groupBy) {
             type Group = { rows: T[] };
             const groups: Group[] = [];
             const groupIndex = new Map<string, number>();
@@ -83,7 +84,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
             data.forEach((row) => {
                 const key = groupBy(row);
                 if (!key) {
-                                        groups.push({ rows: [row] });
+                    groups.push({ rows: [row] });
                     return;
                 }
 
@@ -96,9 +97,9 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                 groups[idx]!.rows.push(row);
             });
 
-            groups.sort((ga, gb) => {
-                const a = ga.rows[0];
-                const b = gb.rows[0];
+            groups.sort((groupA, groupB) => {
+                const a = groupA.rows[0];
+                const b = groupB.rows[0];
 
                 const aPinned = (a as T).pinned;
                 const bPinned = (b as T).pinned;
@@ -130,13 +131,13 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
             return groups.flatMap((g) => g.rows);
         }
 
-                return [...data].sort((a, b) => {
+        return [...data].sort((a, b) => {
             const aPinned = (a as T).pinned;
             const bPinned = (b as T).pinned;
-            
+
             if (aPinned && !bPinned) return -1;
             if (!aPinned && bPinned) return 1;
-            
+
             const aVal = (a as T)[orderBy as keyof T] as OrderBy;
             const bVal = (b as T)[orderBy as keyof T] as OrderBy;
 
@@ -290,8 +291,8 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                         )}
                                         {columns.map((col) => (
                                             <TableCell key={col.field} align={col.align || 'left'} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-                                                {col.render 
-                                                    ? col.render(row) 
+                                                {col.render
+                                                    ? col.render(row)
                                                     : (typeof col.field === 'string' && col.field in (row as unknown as Record<string, unknown>))
                                                         ? String((row as any)[col.field] ?? '-')
                                                         : '-'}
