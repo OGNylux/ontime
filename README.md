@@ -1,12 +1,20 @@
 # OnTime
 
-> OnTime - a Tauri + Vite React time tracking app with Supabase backend.
+OnTime - a Tauri + React time tracking app with Supabase backend.
+Demo here: https://ognylux.github.io/ontime/
 
 ## Requirements
 
-- Node.js (LTS)
-- Rust (stable) for Tauri native builds
-- npm, yarn or pnpm (examples below use `npm`)
+- Node.js
+- Rust [Download Rust](https://rust-lang.org/tools/install/)
+
+### Windows
+- Microsoft C++ Build Tools
+
+### macOS
+ - Xcode
+
+More information on Tauri requirements: https://v2.tauri.app/start/prerequisites/
 
 ## Local development
 

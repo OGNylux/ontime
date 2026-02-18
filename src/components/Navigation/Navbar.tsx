@@ -47,7 +47,7 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                     <Link to="/" style={{ textDecoration: 'none', color: 'inherit', alignItems: 'center' }}>
                         <Box
                             component="img"
-                            src="/assets/WordLogo.svg"
+                            src="/WordLogo.svg"
                             alt="OnTime"
                             sx={{
                                 height: 48,
