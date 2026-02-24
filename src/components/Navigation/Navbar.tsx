@@ -3,6 +3,7 @@ import { AppBar, Toolbar, IconButton, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import ThemeToggler from './ThemeToggler';
+import WordLogo from '../../assets/WordLogo.svg';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import Popover from '@mui/material/Popover';
 import { NotificationsList } from './NotificationsDialog';
@@ -47,7 +48,7 @@ export default function Navbar({ showMenuButton = false, onMenuClick }: NavbarPr
                     <Link to="/" style={{ textDecoration: 'none', color: 'inherit', alignItems: 'center' }}>
                         <Box
                             component="img"
-                            src="../../../WordLogo.svg"
+                            src={WordLogo}
                             alt="OnTime"
                             sx={{
                                 height: 48,
