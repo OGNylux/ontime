@@ -30,7 +30,7 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
 
     const selectedProject = projects.find(p => p.id === selectedProjectId) || null;
 
-    const filteredProjects = projects.filter(p => 
+    const filteredProjects = projects.filter(p =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
         (p.client?.name || "").toLowerCase().includes(search.toLowerCase())
     );
@@ -47,7 +47,7 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
     return (
         <>
             <Tooltip title={selectedProject ? selectedProject.name : "Select Project"}>
-                <IconButton 
+                <IconButton
                     onClick={(e) => setAnchorEl(e.currentTarget)}
                     color={selectedProject ? "secondary" : "default"}
                 >
@@ -91,8 +91,8 @@ export default function ProjectSelector({ selectedProjectId, onSelect }: Project
                                 <ul>
                                     <ListSubheader sx={{ bgcolor: "background.default" }}>{client}</ListSubheader>
                                     {projectsByClient[client].map((project) => (
-                                        <ListItemButton 
-                                            key={project.id} 
+                                        <ListItemButton
+                                            key={project.id}
                                             onClick={() => {
                                                 onSelect(project);
                                                 setAnchorEl(null);

@@ -65,7 +65,7 @@ export default function SidebarContent({
 
     return (
         <List>
-                        {navItems.map((item) => {
+            {navItems.map((item) => {
                 const isActive = isPathActive(item.path);
                 return (
                     <ListItem key={item.path} disablePadding>
@@ -105,7 +105,7 @@ export default function SidebarContent({
                 );
             })}
 
-                        {navSections.map((section) => {
+            {navSections.map((section) => {
                 const isActive = isSectionActive(section);
                 const isOpen = sectionStates[section.label] ?? false;
 
@@ -183,13 +183,13 @@ export default function SidebarContent({
                                                     }}
                                                     onClick={() => onNavigate(subItem.path)}
                                                 >
-                                                    <ListItemText 
+                                                    <ListItemText
                                                         primary={subItem.label}
                                                         sx={{
-                                                            '&:hover':  {
+                                                            '&:hover': {
                                                                 color: subItemActive ? 'primary.contrastText' : 'inherit'
                                                             }
-                                                        }} 
+                                                        }}
                                                     />
                                                 </ListItemButton>
                                             </Box>

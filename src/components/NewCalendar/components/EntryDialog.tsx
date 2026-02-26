@@ -69,8 +69,8 @@ export default function EntryDialog({
         const t = setTimeout(async () => {
             if (title.length < 3) { if (active) setOptions([]); return; }
             setLoading(true);
-            try { 
-                if (active) setOptions(await taskService.searchTasks(title)); 
+            try {
+                if (active) setOptions(await taskService.searchTasks(title));
             }
             catch { }
             finally { if (active) setLoading(false); }
@@ -93,12 +93,12 @@ export default function EntryDialog({
     const handleDelete = () => { setMenuEl(null); setConfirmOpen(true); };
     const confirmDelete = async () => {
         if (!editingEntryId) return;
-        try { 
+        try {
             setSaving(true);
-            await actions.remove(editingEntryId); onClose(); 
-        } catch { } 
-        finally { 
-            setSaving(false); setConfirmOpen(false); 
+            await actions.remove(editingEntryId); onClose();
+        } catch { }
+        finally {
+            setSaving(false); setConfirmOpen(false);
         }
     };
 
@@ -109,7 +109,7 @@ export default function EntryDialog({
             if (isEdit && editingEntryId) await actions.update(editingEntryId, data);
             else await actions.create(data);
             onClose();
-        } catch { } 
+        } catch { }
         finally { setSaving(false); }
     };
 
@@ -167,7 +167,7 @@ export default function EntryDialog({
 
     if (mobile) {
         return (
-            <SwipeableDrawer anchor="bottom" open={open} onClose={onClose} onOpen={() => {}} disableSwipeToOpen
+            <SwipeableDrawer anchor="bottom" open={open} onClose={onClose} onOpen={() => { }} disableSwipeToOpen
                 PaperProps={{ sx: { borderTopLeftRadius: 16, borderTopRightRadius: 16, bgcolor: "background.default", backgroundImage: "none", pb: 6 } }}>
                 <Box sx={{ width: 40, height: 4, bgcolor: "grey.300", borderRadius: 2, mx: "auto", mt: 2, mb: 1 }} />
                 <Typography variant="h6" align="center" sx={{ mb: 1 }}>{isEdit ? "Edit Entry" : "Create New Entry"}</Typography>

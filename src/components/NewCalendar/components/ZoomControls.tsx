@@ -13,7 +13,7 @@ interface Props {
 
 export default function ZoomControls({ zoom, onChange }: Props) {
     const idx = ZOOM_OPTIONS.indexOf(zoom);
-    const canIn  = idx > 0;
+    const canIn = idx > 0;
     const canOut = idx < ZOOM_OPTIONS.length - 1;
 
     return (

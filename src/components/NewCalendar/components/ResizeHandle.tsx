@@ -18,7 +18,7 @@ interface Props {
 
 export default function ResizeHandle({ edge, onResize, onClick }: Props) {
     const startRef = useRef<{ x: number; y: number } | null>(null);
-    const didDrag  = useRef(false);
+    const didDrag = useRef(false);
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         e.stopPropagation();

@@ -46,7 +46,7 @@ export default function BottomAppBar() {
                 navigate('/timer');
                 break;
             case 3:
-                                navigate('/notifications');
+                navigate('/notifications');
                 break;
             case 4:
                 navigate('/settings');
@@ -78,7 +78,7 @@ export default function BottomAppBar() {
             }}
             elevation={3}
         >
-                        <Collapse in={fabOpen}>
+            <Collapse in={fabOpen}>
                 <Box
                     display="flex"
                     justifyContent="center"
@@ -138,7 +138,7 @@ export default function BottomAppBar() {
                 </Box>
             </Collapse>
 
-                        <Box position="relative">
+            <Box position="relative">
                 <BottomNavigation
                     value={getNavValue()}
                     onChange={handleNavChange}
@@ -155,12 +155,12 @@ export default function BottomAppBar() {
                 >
                     <BottomNavigationAction label="Home" icon={<Home />} />
                     <BottomNavigationAction label="Timer" icon={<CalendarMonth />} />
-                                        <Box sx={{ width: 72 }} />
+                    <Box sx={{ width: 72 }} />
                     <BottomNavigationAction label="Notifications" icon={<Notifications />} />
                     <BottomNavigationAction label="Settings" icon={<Settings />} />
                 </BottomNavigation>
 
-                                <Fab
+                <Fab
                     color="primary"
                     onClick={handleFabClick}
                     sx={(theme) => ({
@@ -178,6 +178,6 @@ export default function BottomAppBar() {
                     {fabOpen ? <Close /> : <Add />}
                 </Fab>
             </Box>
-                    </Paper>
+        </Paper>
     );
 }

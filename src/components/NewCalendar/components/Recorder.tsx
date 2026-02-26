@@ -36,11 +36,11 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
     const [billable, setBillable] = useState(false);
     const [elapsed, setElapsed] = useState(0);
     const stateRef = useRef<RecordingState | null>(null);
-    const tickRef  = useRef<number | null>(null);
+    const tickRef = useRef<number | null>(null);
 
     // Keep refs in sync with state
-    const titleRef    = useRef(title);
-    const projectRef  = useRef(project);
+    const titleRef = useRef(title);
+    const projectRef = useRef(project);
     const billableRef = useRef(billable);
     useEffect(() => { titleRef.current = title; }, [title]);
     useEffect(() => { projectRef.current = project; }, [project]);

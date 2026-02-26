@@ -6,10 +6,10 @@ interface TreeConnectorProps {
   hasActiveBelow?: boolean;
 }
 
-export default function TreeConnector({ 
-  isLast = false, 
-  isActive = false, 
-  hasActiveBelow = false 
+export default function TreeConnector({
+  isLast = false,
+  isActive = false,
+  hasActiveBelow = false
 }: TreeConnectorProps) {
   return (
     <Box
@@ -21,7 +21,7 @@ export default function TreeConnector({
       alignItems="center"
       alignSelf="stretch"
     >
-            <Box
+      <Box
         position="absolute"
         left={8}
         top={-6}
@@ -30,11 +30,11 @@ export default function TreeConnector({
         zIndex={2}
         bgcolor={hasActiveBelow || isActive ? 'primary.main' : 'text.secondary'}
       />
-            {!isLast && (
+      {!isLast && (
         <Box
           position="absolute"
           left={8}
-          top= '30%'
+          top='30%'
           bottom={-4}
           width={3}
           height='78%'
@@ -42,17 +42,17 @@ export default function TreeConnector({
           bgcolor={hasActiveBelow ? 'primary.main' : 'text.secondary'}
         />
       )}
-            <Box
-          position= 'absolute'
-          left={8}
-          top= '40%'
-          width={12}
-          height={12}
-          borderLeft={3}
-          borderBottom={3}
-          zIndex={isActive && !hasActiveBelow ? 2 : 0}
-          borderColor={isActive ? 'primary.main' : 'text.secondary'}
-          sx={{transform: "translateY(-50%)", borderBottomLeftRadius: 8}}
+      <Box
+        position='absolute'
+        left={8}
+        top='40%'
+        width={12}
+        height={12}
+        borderLeft={3}
+        borderBottom={3}
+        zIndex={isActive && !hasActiveBelow ? 2 : 0}
+        borderColor={isActive ? 'primary.main' : 'text.secondary'}
+        sx={{ transform: "translateY(-50%)", borderBottomLeftRadius: 8 }}
       />
     </Box>
   );

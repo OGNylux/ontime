@@ -62,7 +62,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
   const [userName, setUserName] = useState('');
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
 
-    useEffect(() => {
+  useEffect(() => {
     const newStates: Record<string, boolean> = {};
     NAV_SECTIONS.forEach((section) => {
       if (section.paths.some((path: string) => location.pathname.startsWith(path))) {
@@ -112,7 +112,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     [location.pathname, collapsed, sectionStates]
   );
 
-    if (isDrawer) {
+  if (isDrawer) {
     return (
       <Drawer
         variant="temporary"
@@ -159,7 +159,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
               navSections={[]}
               currentPath={location.pathname}
               sectionStates={{}}
-              onSectionToggle={() => {}}
+              onSectionToggle={() => { }}
               onNavigate={handleNavigate}
             />
           </Box>
@@ -168,7 +168,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     );
   }
 
-    return (
+  return (
     <Drawer
       variant="permanent"
       className={`h-full shrink-0 transition-all duration-300 pb-2 ${collapsed ? 'w-16' : 'w-72'}`}
@@ -220,7 +220,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
             currentPath={location.pathname}
             collapsed={collapsed}
             sectionStates={{}}
-            onSectionToggle={() => {}}
+            onSectionToggle={() => { }}
             onNavigate={handleNavigate}
           />
         </Box>
