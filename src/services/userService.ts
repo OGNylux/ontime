@@ -40,7 +40,7 @@ export const userService = {
             throw new Error('Not authenticated');
         }
 
-                if (updates.email && updates.email !== user.email) {
+        if (updates.email && updates.email !== user.email) {
             const { error: authError } = await supabase.auth.updateUser({ email: updates.email });
             if (authError) throw authError;
         }
@@ -67,7 +67,7 @@ export const userService = {
             throw new Error('Not authenticated');
         }
 
-                const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
             email: user.email!,
             password: currentPassword,
         });

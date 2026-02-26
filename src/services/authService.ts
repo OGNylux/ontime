@@ -18,7 +18,7 @@ export const authService = {
     },
 
     async register(request: User) {
-                const existsData = await this.checkAvailability(request.email, request.name!);
+        const existsData = await this.checkAvailability(request.email, request.name!);
 
         if (existsData) {
             if (existsData.emailExists) {
@@ -29,7 +29,7 @@ export const authService = {
             }
         }
 
-                const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabase.auth.signUp({
             email: request.email,
             password: request.password,
             options: {
@@ -54,7 +54,7 @@ export const authService = {
         if (authError) throw authError;
         if (!authData.user) throw new Error("Login failed: No user returned");
 
-                const { data: ontimeUser, error: ontimeUserError } = await supabase
+        const { data: ontimeUser, error: ontimeUserError } = await supabase
             .from('ontime_user')
             .select('*')
             .eq('id', authData.user.id)
@@ -69,7 +69,7 @@ export const authService = {
             profile: ontimeUser
         };
     },
-    
+
     async logout() {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;

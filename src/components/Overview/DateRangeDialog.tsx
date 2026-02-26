@@ -167,21 +167,21 @@ function CalendarMonth({
                                 backgroundColor: isSelected
                                     ? theme.palette.primary.main
                                     : inRange
-                                    ? theme.palette.primary.light
-                                    : 'transparent',
+                                        ? theme.palette.primary.light
+                                        : 'transparent',
                                 color: isSelected
                                     ? theme.palette.primary.contrastText
                                     : !isCurrentMonth
-                                    ? theme.palette.text.disabled
-                                    : theme.palette.text.primary,
+                                        ? theme.palette.text.disabled
+                                        : theme.palette.text.primary,
                                 cursor: isCurrentMonth ? 'pointer' : 'default',
                                 border: isToday ? `2px solid ${theme.palette.primary.main}` : 'none',
                                 '&:hover': isCurrentMonth
                                     ? {
-                                          backgroundColor: isSelected
-                                              ? theme.palette.primary.dark
-                                              : theme.palette.action.hover,
-                                      }
+                                        backgroundColor: isSelected
+                                            ? theme.palette.primary.dark
+                                            : theme.palette.action.hover,
+                                    }
                                     : {},
                             }}
                         >
@@ -260,7 +260,7 @@ export default function DateRangeDialog({
                         flexDirection: isSmall ? 'column' : 'row',
                     }}
                 >
-                                        <Box sx={{ minWidth: isSmall ? 'auto' : 150 }}>
+                    <Box sx={{ minWidth: isSmall ? 'auto' : 150 }}>
                         <List
                             dense
                             sx={{
@@ -291,7 +291,7 @@ export default function DateRangeDialog({
                         </List>
                     </Box>
 
-                                        <Box flex={1}>
+                    <Box flex={1}>
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <IconButton onClick={() => setCalendarMonth((m) => m.subtract(1, 'month'))}>
                                 <ChevronLeft />

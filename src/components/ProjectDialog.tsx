@@ -14,7 +14,7 @@ import {
     SelectChangeEvent,
     Box,
     Typography,
-    
+
 } from '@mui/material';
 import dayjs from 'dayjs';
 import { Project } from '../services/projectService';
@@ -128,7 +128,7 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                                 fullWidth
                             />
                         </Box>
-                        
+
                         <Box>
                             <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Client *</Typography>
                             <FormControl fullWidth>
@@ -139,14 +139,14 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                                     renderValue={(value) => value ? clients.find(c => c.id === value)?.name : <em style={{ opacity: 0.6 }}>Select a client</em>}
                                     required
                                 >
-                                <MenuItem value="">
-                                    <em>None</em>
-                                </MenuItem>
-                                {clients.map((client) => (
-                                    <MenuItem key={client.id} value={client.id}>
-                                        {client.name}
+                                    <MenuItem value="">
+                                        <em>None</em>
                                     </MenuItem>
-                                ))}
+                                    {clients.map((client) => (
+                                        <MenuItem key={client.id} value={client.id}>
+                                            {client.name}
+                                        </MenuItem>
+                                    ))}
                                 </Select>
                             </FormControl>
                         </Box>
@@ -154,7 +154,7 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                         <Box display="flex" gap={2}>
                             <Box display="flex" flexDirection="column">
                                 <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Color</Typography>
-                                    <ColorSelector value={colorIndex} onChange={(i: number) => setColorIndex(i)} />
+                                <ColorSelector value={colorIndex} onChange={(i: number) => setColorIndex(i)} />
                             </Box>
 
                             <Box display="flex" flexDirection="column" flexGrow={1}>

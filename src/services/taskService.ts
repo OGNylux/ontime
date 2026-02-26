@@ -81,7 +81,7 @@ export const taskService = {
             .from('ontime_task')
             .select('*')
             .eq('name', name);
-        
+
         if (projectId) {
             query = query.eq('project_id', projectId);
         } else {
@@ -89,7 +89,7 @@ export const taskService = {
         }
 
         const { data, error } = await query.maybeSingle();
-        
+
         if (error) throw error;
         return data as Task | null;
     },

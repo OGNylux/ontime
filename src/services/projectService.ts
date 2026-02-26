@@ -18,7 +18,7 @@ export interface Project {
 
 export const TAILWIND_COLORS = [
     { name: 'Gray', value: '#6b7280', secondary: '#d1d5db' },
-    { name: 'Red', value: '#ef4444', secondary: '#fca5a5'},
+    { name: 'Red', value: '#ef4444', secondary: '#fca5a5' },
     { name: 'Orange', value: '#f97316', secondary: '#fdbA74' },
     { name: 'Amber', value: '#f59e0b', secondary: '#fde68a' },
     { name: 'Yellow', value: '#eab308', secondary: '#fef3c7' },
@@ -49,7 +49,7 @@ export const projectService = {
             .order('created_at', { ascending: false });
         if (error) throw error;
 
-                const projectsWithTime = (data as any[]).map(project => {
+        const projectsWithTime = (data as any[]).map(project => {
             const entries = project.calendar_entries || [];
             const totalMinutes = entries.reduce((sum: number, entry: CalendarEntry) => {
                 if (entry.start_time && entry.end_time) {
@@ -61,7 +61,7 @@ export const projectService = {
                 return sum;
             }, 0);
 
-                        const { calendar_entries, ...projectData } = project;
+            const { calendar_entries, ...projectData } = project;
             return {
                 ...projectData,
                 total_time: Math.round(totalMinutes)

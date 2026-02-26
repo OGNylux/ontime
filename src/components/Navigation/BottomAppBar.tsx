@@ -28,7 +28,7 @@ export default function BottomAppBar() {
     const location = useLocation();
     const [fabOpen, setFabOpen] = useState(false);
 
-        const getNavValue = () => {
+    const getNavValue = () => {
         if (location.pathname === '/' || location.pathname === '/overview') return 0;
         if (location.pathname === '/timer') return 1;
         if (location.pathname === '/notifications') return 3;
@@ -64,7 +64,7 @@ export default function BottomAppBar() {
     };
 
     return (
-        <Paper 
+        <Paper
             sx={{
                 position: 'fixed',
                 bottom: 0,
@@ -144,7 +144,7 @@ export default function BottomAppBar() {
                     onChange={handleNavChange}
                     showLabels
                     sx={{
-                        
+
                         bgcolor: 'background.default',
                         height: 64,
                         '& .MuiBottomNavigationAction-root': {

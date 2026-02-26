@@ -47,7 +47,7 @@ export function layoutEntries(
 
     const titleMin = (titleHeightPx / hourHeight) * MINUTES_PER_HOUR;
     return measured.map(m => toLayout(m, columnOf, peakOf, measured, titleMin));
-} 
+}
 
 function measure(entries: CalendarEntry[], dateStr: string): Measured[] {
     const dayStart = dayjs(dateStr).startOf("day");

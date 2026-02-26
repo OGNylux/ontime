@@ -31,13 +31,13 @@ function AppLayout() {
   const [isTauriMobile, setIsTauriMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
     const checkPlatform = async () => {
       try {
         const platformType = await platform();
         setIsTauriMobile(platformType === 'android' || platformType === 'ios');
       } catch {
-                setIsTauriMobile(false);
+        setIsTauriMobile(false);
       }
     };
     checkPlatform();
@@ -77,9 +77,9 @@ function AppLayout() {
 
   return (
     <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
-            {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
-      
-      <Box 
+      {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
+
+      <Box
         display="flex"
         flexDirection="row"
         pt={!hideNav ? { xs: 7, md: 8 } : 0}
@@ -88,14 +88,14 @@ function AppLayout() {
         minHeight={0}
         overflow="hidden"
       >
-                {!isTauriMobile && !hideNav && (
-          <Sidebar 
-            isDrawer={isSmallDesktop} 
-            open={sidebarOpen} 
-            onClose={() => setSidebarOpen(false)} 
+        {!isTauriMobile && !hideNav && (
+          <Sidebar
+            isDrawer={isSmallDesktop}
+            open={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
           />
         )}
-        
+
         <Box component="main" display="flex" flex={1} flexDirection="column" overflow="auto" minWidth={0} minHeight={0} padding={1.5}>
           <Routes>
             <Route path="/" element={<Timer />} />
@@ -112,7 +112,7 @@ function AppLayout() {
         </Box>
       </Box>
 
-            {isTauriMobile && !hideNav && <BottomAppBar />}
+      {isTauriMobile && !hideNav && <BottomAppBar />}
     </Box>
   );
 }
