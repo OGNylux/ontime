@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { clearWorkspaceCache } from "./workspaceContext";
 
 export interface User {
     email: string;
@@ -6,72 +7,63 @@ export interface User {
     name?: string;
 }
 
-export const authService = {
-    async checkAvailability(email: string, name: string) {
-        const { data, error } = await supabase.rpc('check_user_exists', {
-            email_input: email,
-            name_input: name
-        });
+export interface AvailabilityResult {
+    emailExists: boolean;
+}
 
+export const authService = {
+    async checkAvailability(email: string): Promise<AvailabilityResult> {
+        const { data, error } = await supabase.rpc("check_user_exists", {
+            email_input: email,
+        });
         if (error) throw error;
-        return data as { emailExists: boolean, nameExists: boolean };
+        return data as AvailabilityResult;
     },
 
     async register(request: User) {
-        const existsData = await this.checkAvailability(request.email, request.name!);
+        if (!request.name) throw new Error("Username is required");
 
-        if (existsData) {
-            if (existsData.emailExists) {
-                throw new Error("Email already registered");
-            }
-            if (existsData.nameExists) {
-                throw new Error("Username already taken");
-            }
-        }
-
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
             email: request.email,
             password: request.password,
-            options: {
-                data: {
-                    name: request.name,
-                }
-            }
+            options: { data: { name: request.name } },
         });
+        if (error) throw error;
+        if (!data.user) throw new Error("Registration failed: no user returned");
 
-        if (authError) throw authError;
-        if (!authData.user) throw new Error("Registration failed: No user returned");
-
-        return authData.user;
+        return data.user;
     },
 
     async login(request: User) {
+        clearWorkspaceCache();
+
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
             email: request.email,
             password: request.password,
         });
-
         if (authError) throw authError;
-        if (!authData.user) throw new Error("Login failed: No user returned");
+        if (!authData.user) throw new Error("Login failed: no user returned");
 
-        const { data: ontimeUser, error: ontimeUserError } = await supabase
-            .from('ontime_user')
-            .select('*')
-            .eq('id', authData.user.id)
+        const { data: profile, error: profileError } = await supabase
+            .from("ontime_user")
+            .select("*")
+            .eq("id", authData.user.id)
             .single();
-
-        if (ontimeUserError) {
-            console.warn("Could not fetch ontime_user:", ontimeUserError.message);
+        if (profileError) {
+            console.warn("Could not fetch ontime_user:", profileError.message);
         }
 
-        return {
-            user: authData.user,
-            profile: ontimeUser
-        };
+        return { user: authData.user, profile };
     },
 
     async logout() {
         const { error } = await supabase.auth.signOut();
+        clearWorkspaceCache();
         if (error) throw error;
-    }
+    },
+
+    async resetPassword(email: string) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) throw error;
+    },
 };

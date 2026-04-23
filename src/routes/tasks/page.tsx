@@ -25,11 +25,7 @@ import PageHeader from '../../components/PageHeader';
 import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import TaskDialog from '../../components/TaskDialog';
-import dayjs from 'dayjs';
-
-interface TaskWithTime extends Task {
-    total_time?: number;
-}
+import { useEntityListState } from '../../hooks/useEntityListState';
 
 const formatTotalTime = (minutes?: number) => {
     if (!minutes) return '0h';
@@ -40,7 +36,7 @@ const formatTotalTime = (minutes?: number) => {
 };
 
 export default function TasksPage() {
-    const [tasks, setTasks] = useState<TaskWithTime[]>([]);
+    const [tasks, setTasks] = useState<Task[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -57,6 +53,8 @@ export default function TasksPage() {
     const [projectFilter, setProjectFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
+    const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setTasks);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -65,24 +63,10 @@ export default function TasksPage() {
         setLoading(true);
         try {
             const [tasksData, projectsData] = await Promise.all([
-                taskService.getTasks(),
-                projectService.getProjects(),
+                taskService.getTasksWithTotals(),
+                projectService.getProjectsLight(),
             ]);
-
-            const tasksWithTime = tasksData.map(task => {
-                const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
-                    const start = dayjs(entry.start_time);
-                    const end = dayjs(entry.end_time);
-                    return total + end.diff(start, 'minute');
-                }, 0) || 0;
-
-                return {
-                    ...task,
-                    total_time: Math.round(totalMinutes),
-                };
-            });
-
-            setTasks(tasksWithTime);
+            setTasks(tasksData);
             setProjects(projectsData);
         } catch (error) {
             console.error('Failed to load data:', error);
@@ -91,12 +75,20 @@ export default function TasksPage() {
         }
     };
 
+    const projectsById = useMemo(() => {
+        const map = new Map<string, Project>();
+        projects.forEach((project) => {
+            if (project.id) map.set(project.id, project);
+        });
+        return map;
+    }, [projects]);
+
     const filteredTasks = useMemo(() => {
         return tasks
             .filter((task) => {
                 const query = searchQuery.toLowerCase();
                 const matchesTaskName = task.name.toLowerCase().includes(query);
-                const project = projects.find(p => p.id === task.project_id);
+                const project = projectsById.get(task.project_id);
                 const matchesProjectName = project?.name?.toLowerCase().includes(query);
                 const matchesSearch = matchesTaskName || matchesProjectName;
                 const matchesProject = !projectFilter || task.project_id === projectFilter;
@@ -107,9 +99,9 @@ export default function TasksPage() {
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
-    }, [tasks, projects, searchQuery, projectFilter]);
+    }, [tasks, projectsById, searchQuery, projectFilter]);
 
-    const columns: Column<TaskWithTime>[] = useMemo(() => [
+    const columns: Column<Task>[] = useMemo(() => [
         {
             field: 'name',
             label: 'Task',
@@ -119,7 +111,7 @@ export default function TasksPage() {
             field: 'project',
             label: 'Project',
             render: (row) => {
-                const project = projects.find(p => p.id === row.project_id);
+                const project = projectsById.get(row.project_id);
                 return project?.name || '-';
             },
         },
@@ -138,7 +130,7 @@ export default function TasksPage() {
                 ) : null,
             align: 'center',
         },
-    ], [projects]);
+    ], [projectsById]);
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
         setMenuAnchorEl(event.currentTarget);
@@ -170,7 +162,7 @@ export default function TasksPage() {
         if (menuTask && menuTask.id) {
             try {
                 const updated = await taskService.togglePin(menuTask.id, !menuTask.pinned);
-                setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...updated, total_time: t.total_time } : t)));
+                replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
             } catch (error) {
                 console.error('Failed to toggle pin:', error);
             }
@@ -182,7 +174,7 @@ export default function TasksPage() {
         if (taskToDelete && taskToDelete.id) {
             try {
                 await taskService.deleteTask(taskToDelete.id);
-                setTasks((prev) => prev.filter((t) => t.id !== taskToDelete.id));
+                removeOne(taskToDelete.id);
             } catch (error) {
                 console.error('Failed to delete task:', error);
             }
@@ -193,8 +185,8 @@ export default function TasksPage() {
 
     const handleBulkDelete = async () => {
         try {
-            await Promise.all(selectedIds.map((id) => taskService.deleteTask(id)));
-            setTasks((prev) => prev.filter((t) => !selectedIds.includes(t.id!)));
+            await taskService.bulkDeleteTasks(selectedIds);
+            removeMany(selectedIds);
             setSelectedIds([]);
         } catch (error) {
             console.error('Failed to delete tasks:', error);
@@ -203,23 +195,9 @@ export default function TasksPage() {
 
     const handleBulkPin = async (pinned: boolean) => {
         try {
-            await Promise.all(
-                selectedIds.map((id) => taskService.togglePin(id, pinned))
-            );
-            const updatedTasks = await taskService.getTasks();
-            const tasksWithTime = updatedTasks.map(task => {
-                const totalMinutes = task.calendar_entries?.reduce((total, entry) => {
-                    const start = dayjs(entry.start_time);
-                    const end = dayjs(entry.end_time);
-                    return total + end.diff(start, 'minute');
-                }, 0) || 0;
-
-                return {
-                    ...task,
-                    total_time: Math.round(totalMinutes),
-                };
-            });
-            setTasks(tasksWithTime);
+            await taskService.bulkSetPinned(selectedIds, pinned);
+            const idSet = new Set(selectedIds);
+            setTasks((prev) => prev.map((t) => t.id && idSet.has(t.id) ? { ...t, pinned } : t));
             setSelectedIds([]);
         } catch (error) {
             console.error('Failed to pin tasks:', error);
@@ -229,10 +207,10 @@ export default function TasksPage() {
     const handleSaveTask = async (taskData: Task) => {
         if (editingTask && editingTask.id) {
             const updated = await taskService.updateTask(editingTask.id, taskData);
-            setTasks((prev) => prev.map((t) => (t.id === updated.id ? { ...updated, total_time: t.total_time } : t)));
+            replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
         } else {
             const created = await taskService.createTask(taskData);
-            setTasks((prev) => [{ ...created, total_time: 0 }, ...prev]);
+            prependOne({ ...created, total_time: 0 });
         }
         setEditingTask(null);
     };

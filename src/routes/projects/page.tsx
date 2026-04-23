@@ -27,9 +27,10 @@ import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import ProjectDialog from '../../components/ProjectDialog';
 import dayjs from 'dayjs';
 import { formatDuration } from '../../components/NewCalendar/layout/timeUtils';
+import { useEntityListState } from '../../hooks/useEntityListState';
 
 
-const formatDate = (dateStr?: string) => {
+const formatDate = (dateStr?: string | null) => {
     if (!dateStr) return '-';
     return dayjs(dateStr).format('MMM D');
 };
@@ -52,6 +53,8 @@ export default function ProjectsPage() {
         const [clientFilter, setClientFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
+        const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setProjects);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -60,8 +63,8 @@ export default function ProjectsPage() {
         setLoading(true);
         try {
             const [projectsData, clientsData] = await Promise.all([
-                projectService.getProjects(),
-                clientService.getClients(),
+                projectService.getProjectsWithTotals(),
+                clientService.getClientsLight(),
             ]);
             setProjects(projectsData);
             setClients(clientsData);
@@ -107,7 +110,7 @@ export default function ProjectsPage() {
         {
             field: 'total_time',
             label: 'Total Time',
-            render: (row) => formatDuration(row.total_time! * 60),
+            render: (row) => formatDuration((row.total_time ?? 0) * 60),
         },
         {
             field: 'pinned',
@@ -151,7 +154,7 @@ export default function ProjectsPage() {
         if (menuProject) {
             try {
                 const updated = await projectService.togglePin(menuProject.id!, !menuProject.pinned);
-                setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                replaceOne(updated, (current, next) => ({ ...next, total_time: current.total_time }));
             } catch (error) {
                 console.error('Failed to toggle pin:', error);
             }
@@ -163,7 +166,7 @@ export default function ProjectsPage() {
         if (projectToDelete) {
             try {
                 await projectService.deleteProject(projectToDelete.id!);
-                setProjects((prev) => prev.filter((p) => p.id !== projectToDelete.id));
+                removeOne(projectToDelete.id!);
             } catch (error) {
                 console.error('Failed to delete project:', error);
             }
@@ -174,8 +177,8 @@ export default function ProjectsPage() {
 
     const handleBulkDelete = async () => {
         try {
-            await Promise.all(selectedIds.map((id) => projectService.deleteProject(id)));
-            setProjects((prev) => prev.filter((p) => !selectedIds.includes(p.id!)));
+            await projectService.bulkDeleteProjects(selectedIds);
+            removeMany(selectedIds);
             setSelectedIds([]);
         } catch (error) {
             console.error('Failed to delete projects:', error);
@@ -184,11 +187,9 @@ export default function ProjectsPage() {
 
     const handleBulkPin = async (pinned: boolean) => {
         try {
-            await Promise.all(
-                selectedIds.map((id) => projectService.togglePin(id, pinned))
-            );
-            const updatedProjects = await projectService.getProjects();
-            setProjects(updatedProjects);
+            await projectService.bulkSetPinned(selectedIds, pinned);
+            const idSet = new Set(selectedIds);
+            setProjects((prev) => prev.map((p) => p.id && idSet.has(p.id) ? { ...p, pinned } : p));
             setSelectedIds([]);
         } catch (error) {
             console.error('Failed to pin projects:', error);
@@ -198,10 +199,10 @@ export default function ProjectsPage() {
     const handleSaveProject = async (projectData: Project) => {
         if (editingProject) {
             const updated = await projectService.updateProject(editingProject.id!, projectData);
-            setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+            replaceOne(updated, (current, next) => ({ ...next, total_time: current.total_time }));
         } else {
             const created = await projectService.createProject(projectData as Project);
-            setProjects((prev) => [created, ...prev]);
+            prependOne({ ...created, total_time: 0 });
         }
         setEditingProject(null);
     };

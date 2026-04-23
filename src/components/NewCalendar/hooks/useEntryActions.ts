@@ -28,17 +28,17 @@ export interface EntryFormData {
     endTime: string;     // "HH:mm"
     taskName?: string;
     isBillable: boolean;
-    projectId?: string | null;
+    projectId?: string;
     taskId?: string;
 }
 
 async function resolveTaskId(
     taskName: string | undefined,
     taskId: string | undefined,
-    projectId: string | null | undefined,
+    projectId: string | undefined,
 ): Promise<string | undefined> {
     if (taskId) return taskId;
-    if (!taskName?.trim()) return undefined;
+    if (!taskName?.trim() || !projectId) return undefined;
 
     let task = await taskService.getTaskByName(taskName.trim(), projectId);
     if (!task) {
@@ -50,7 +50,7 @@ async function resolveTaskId(
         }
         task = await taskService.createTask({
             name: taskName.trim(),
-            project_id: projectId ?? undefined,
+            project_id: projectId,
             color,
         });
     }
@@ -138,7 +138,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
             refetch();
         }
     }, [find, addOrReplace, refetch, timezone]);
- 
+
     const duplicate = useCallback(async (entry: CalendarEntry) => {
         try {
             await calendarService.createEntry({

@@ -49,7 +49,8 @@ export default function OverviewPage() {
         stats,
         dailyChartData,
         pieChartData,
-        projectDataWithExpansion,
+        projectTableData,
+        expandedProjectIds,
         selectedClientIds,
         selectedProjectIds,
         toggleProject,
@@ -256,8 +257,9 @@ export default function OverviewPage() {
                     </Box>
 
                                         <ProjectTaskTable
-                        data={projectDataWithExpansion}
+                        data={projectTableData}
                         loading={loading}
+                        expandedIds={expandedProjectIds}
                         onToggleProject={toggleProject}
                     />
 

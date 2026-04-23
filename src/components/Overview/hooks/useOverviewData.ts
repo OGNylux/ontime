@@ -1,12 +1,17 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
-import { calendarService, CalendarEntry } from '../../../services/calendarService';
 import { projectService, Project, TAILWIND_COLORS } from '../../../services/projectService';
 import { clientService, Client } from '../../../services/clientService';
+import { analyticsService, OverviewAggregateRow } from '../../../services/analyticsService';
 import { ProjectRowData } from '../ProjectTaskTable';
 
+export interface DailyChartPoint {
+    date: string;
+    [projectId: string]: string | number;
+}
+
 export interface DailyChartData {
-    data: any[];
+    data: DailyChartPoint[];
     projectNames: Record<string, string>;
     projectColors: Record<string, string>;
     projectIds: string[];
@@ -27,215 +32,185 @@ export interface Stats {
     daysInRange: number;
 }
 
+interface ProjectAggregate {
+    project: Project;
+    totalMinutes: number;
+    billableMinutes: number;
+    revenue: number;
+    tasks: Map<string, { taskName: string; minutes: number }>;
+}
+
+const projectColor = (project: Project) => TAILWIND_COLORS[project.color ?? 0].value;
+
 export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
-    const [entries, setEntries] = useState<CalendarEntry[]>([]);
+    const [aggregateRows, setAggregateRows] = useState<OverviewAggregateRow[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
 
     const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
     const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
-
-    const [projectDataWithExpansion, setProjectDataWithExpansion] = useState<ProjectRowData[]>([]);
+    const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(() => new Set());
 
     useEffect(() => {
-        const load = async () => {
-            setLoading(true);
-            try {
-                const [e, p, c] = await Promise.all([
-                    calendarService.getEntries(startDate.toISOString(), endDate.toISOString()),
-                    projectService.getProjects(),
-                    clientService.getClients(),
-                ]);
-                setEntries(e);
+        let cancelled = false;
+        setLoading(true);
+        Promise.all([
+            analyticsService.overviewAggregates(
+                startDate.startOf('day').toISOString(),
+                endDate.endOf('day').toISOString(),
+            ),
+            projectService.getProjectsLight(),
+            clientService.getClientsLight(),
+        ])
+            .then(([rows, p, c]) => {
+                if (cancelled) return;
+                setAggregateRows(rows);
                 setProjects(p);
                 setClients(c);
-            } catch (err) {
-                console.error('Failed to load data:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        load();
+            })
+            .catch((err) => console.error('Failed to load data:', err))
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
     }, [startDate, endDate]);
 
-    const filteredEntries = useMemo(() => {
-        return entries.filter((entry) => {
-            if (selectedClientIds.length > 0 && entry.project?.client_id) {
-                if (!selectedClientIds.includes(entry.project.client_id)) return false;
-            }
-            if (selectedProjectIds.length > 0 && entry.project_id) {
-                if (!selectedProjectIds.includes(entry.project_id)) return false;
+    const filteredRows = useMemo(() => {
+        const clientFilter = new Set(selectedClientIds);
+        const projectFilter = new Set(selectedProjectIds);
+        return aggregateRows.filter((row) => {
+            if (projectFilter.size && !projectFilter.has(row.project_id)) return false;
+            if (clientFilter.size) {
+                const clientId = row.client_id;
+                if (!clientId || !clientFilter.has(clientId)) return false;
             }
             return true;
         });
-    }, [entries, selectedClientIds, selectedProjectIds]);
+    }, [aggregateRows, selectedClientIds, selectedProjectIds]);
 
-    const stats: Stats = useMemo(() => {
+    /**
+     * Single pass over SQL-aggregated rows that builds every aggregate the
+     * page needs (stats, daily breakdown, pie chart, project/task table).
+     */
+    const aggregates = useMemo(() => {
+        const dayBuckets = new Map<string, Map<string, number>>(); // dayKey -> projectId -> hours
+        const projectAggs = new Map<string, ProjectAggregate>();
+
+        let current = startDate.startOf('day');
+        const last = endDate.startOf('day');
+        while (current.isBefore(last) || current.isSame(last)) {
+            dayBuckets.set(current.format('YYYY-MM-DD'), new Map());
+            current = current.add(1, 'day');
+        }
+
         let totalMinutes = 0;
         let billableMinutes = 0;
         let revenue = 0;
 
-        filteredEntries.forEach((entry) => {
-            if (entry.start_time && entry.end_time) {
-                const start = dayjs(entry.start_time);
-                const end = dayjs(entry.end_time);
-                const duration = end.diff(start, 'minute');
-                totalMinutes += duration;
+        for (const row of filteredRows) {
+            const minutes = Number(row.total_minutes ?? 0);
+            if (minutes <= 0) continue;
 
-                if (entry.is_billable) {
-                    billableMinutes += duration;
-                    const hourlyRate = (entry.project as Project)?.hourly_rate ?? 0;
-                    revenue += (duration / 60) * hourlyRate;
-                }
+            const rowBillableMinutes = Number(row.billable_minutes ?? 0);
+            const rowRevenue = Number(row.revenue ?? 0);
+            const projectId = row.project_id;
+            const project: Project = {
+                id: projectId,
+                name: row.project_name,
+                color: row.project_color ?? 0,
+            };
+
+            totalMinutes += minutes;
+            billableMinutes += rowBillableMinutes;
+            revenue += rowRevenue;
+
+            const dayBucket = dayBuckets.get(dayjs(row.day).format('YYYY-MM-DD'));
+            if (dayBucket) {
+                dayBucket.set(projectId, (dayBucket.get(projectId) ?? 0) + minutes / 60);
             }
-        });
 
-        const daysInRange = endDate.diff(startDate, 'day') + 1;
-        return {
-            totalMinutes,
-            billableMinutes,
-            revenue,
-            avgMinutesPerDay: totalMinutes / daysInRange,
-            daysInRange,
-        };
-    }, [filteredEntries, startDate, endDate]);
+            let agg = projectAggs.get(projectId);
+            if (!agg) {
+                agg = { project, totalMinutes: 0, billableMinutes: 0, revenue: 0, tasks: new Map() };
+                projectAggs.set(projectId, agg);
+            }
+            agg.totalMinutes += minutes;
+            agg.billableMinutes += rowBillableMinutes;
+            agg.revenue += rowRevenue;
 
-    const dailyChartData: DailyChartData = useMemo(() => {
-        const dayMap = new Map<string, Map<string, number>>();
-        const projectNames = new Map<string, string>();
-        const projectColors = new Map<string, string>();
-
-        let current = startDate;
-        while (current.isBefore(endDate) || current.isSame(endDate, 'day')) {
-            dayMap.set(current.format('YYYY-MM-DD'), new Map());
-            current = current.add(1, 'day');
+            if (row.task_id && row.task_name) {
+                const taskAgg = agg.tasks.get(row.task_id);
+                if (taskAgg) taskAgg.minutes += minutes;
+                else agg.tasks.set(row.task_id, { taskName: row.task_name, minutes });
+            }
         }
 
-        filteredEntries.forEach((entry) => {
-            if (!entry.start_time || !entry.end_time || !entry.project_id) return;
-            const project = entry.project || projects.find((p) => p.id === entry.project_id);
-            if (!project) return;
+        return { dayBuckets, projectAggs, totalMinutes, billableMinutes, revenue };
+    }, [filteredRows, startDate, endDate]);
 
-            const projectId = project.id || 'unknown';
-            projectNames.set(projectId, project.name);
-            projectColors.set(projectId, TAILWIND_COLORS[project.color || 0].value);
-
-            const start = dayjs(entry.start_time);
-            const end = dayjs(entry.end_time);
-            const duration = end.diff(start, 'minute') / 60;
-            const dayKey = start.format('YYYY-MM-DD');
-
-            if (dayMap.has(dayKey)) {
-                const projectMap = dayMap.get(dayKey)!;
-                projectMap.set(projectId, (projectMap.get(projectId) || 0) + duration);
-            }
-        });
-
-        const data: any[] = [];
-        dayMap.forEach((projectMap, dayKey) => {
-            const dayData: any = { date: dayjs(dayKey).format('D MMM') };
-            projectMap.forEach((hours, projectId) => {
-                dayData[projectId] = Number(hours.toFixed(2));
-            });
-            data.push(dayData);
-        });
-
+    const stats: Stats = useMemo(() => {
+        const daysInRange = endDate.diff(startDate, 'day') + 1;
         return {
-            data,
-            projectNames: Object.fromEntries(projectNames),
-            projectColors: Object.fromEntries(projectColors),
-            projectIds: Array.from(projectNames.keys()),
+            totalMinutes: aggregates.totalMinutes,
+            billableMinutes: aggregates.billableMinutes,
+            revenue: aggregates.revenue,
+            avgMinutesPerDay: daysInRange > 0 ? aggregates.totalMinutes / daysInRange : 0,
+            daysInRange,
         };
-    }, [filteredEntries, projects, startDate, endDate]);
+    }, [aggregates, startDate, endDate]);
+
+    const dailyChartData: DailyChartData = useMemo(() => {
+        const projectNames: Record<string, string> = {};
+        const projectColors: Record<string, string> = {};
+
+        aggregates.projectAggs.forEach((agg, id) => {
+            projectNames[id] = agg.project.name;
+            projectColors[id] = projectColor(agg.project);
+        });
+
+        const data: DailyChartPoint[] = [];
+        aggregates.dayBuckets.forEach((projectMap, dayKey) => {
+            const point: DailyChartPoint = { date: dayjs(dayKey).format('D MMM') };
+            projectMap.forEach((hours, pid) => { point[pid] = Number(hours.toFixed(2)); });
+            data.push(point);
+        });
+
+        return { data, projectNames, projectColors, projectIds: Object.keys(projectNames) };
+    }, [aggregates]);
 
     const pieChartData: PieChartItem[] = useMemo(() => {
-        const projectMinutes = new Map<string, { name: string; minutes: number; color: string }>();
-
-        filteredEntries.forEach((entry) => {
-            if (!entry.start_time || !entry.end_time || !entry.project_id) return;
-            const project = entry.project || projects.find((p) => p.id === entry.project_id);
-            if (!project) return;
-
-            const projectId = project.id || 'unknown';
-            const start = dayjs(entry.start_time);
-            const end = dayjs(entry.end_time);
-            const duration = end.diff(start, 'minute');
-
-            if (!projectMinutes.has(projectId)) {
-                projectMinutes.set(projectId, {
-                    name: project.name,
-                    minutes: 0,
-                    color: TAILWIND_COLORS[project.color || 0].value,
-                });
-            }
-            projectMinutes.get(projectId)!.minutes += duration;
-        });
-
-        return Array.from(projectMinutes.values()).map((p) => ({
-            name: p.name,
-            value: p.minutes,
-            color: p.color,
+        return Array.from(aggregates.projectAggs.values()).map((agg) => ({
+            name: agg.project.name,
+            value: agg.totalMinutes,
+            color: projectColor(agg.project),
         }));
-    }, [filteredEntries, projects]);
+    }, [aggregates]);
 
-    useEffect(() => {
-        const projectMap = new Map<
-            string,
-            { project: Project; totalMinutes: number; tasks: Map<string, { taskName: string; minutes: number }> }
-        >();
-
-        filteredEntries.forEach((entry) => {
-            if (!entry.start_time || !entry.end_time || !entry.project_id) return;
-            const project = entry.project || projects.find((p) => p.id === entry.project_id);
-            if (!project || !project.id) return;
-
-            const start = dayjs(entry.start_time);
-            const end = dayjs(entry.end_time);
-            const duration = end.diff(start, 'minute');
-
-            if (!projectMap.has(project.id)) {
-                projectMap.set(project.id, { project, totalMinutes: 0, tasks: new Map() });
-            }
-
-            const pd = projectMap.get(project.id)!;
-            pd.totalMinutes += duration;
-
-            if (entry.task) {
-                const taskId = entry.task.id || 'unknown';
-                if (!pd.tasks.has(taskId)) {
-                    pd.tasks.set(taskId, { taskName: entry.task.name, minutes: 0 });
-                }
-                pd.tasks.get(taskId)!.minutes += duration;
-            }
-        });
-
-        const totalAll = Array.from(projectMap.values()).reduce((s, p) => s + p.totalMinutes, 0);
-
-        const newData: ProjectRowData[] = Array.from(projectMap.values())
-            .map((d) => ({
-                id: d.project.id!,
-                projectId: d.project.id!,
-                projectName: d.project.name,
-                projectColor: TAILWIND_COLORS[d.project.color || 0].value,
-                totalMinutes: d.totalMinutes,
-                percentage: totalAll > 0 ? (d.totalMinutes / totalAll) * 100 : 0,
-                tasks: Array.from(d.tasks.entries()).map(([taskId, td]) => ({
+    const projectTableData: ProjectRowData[] = useMemo(() => {
+        const total = aggregates.totalMinutes;
+        return Array.from(aggregates.projectAggs.values())
+            .map<ProjectRowData>((agg) => ({
+                id: agg.project.id!,
+                projectId: agg.project.id!,
+                projectName: agg.project.name,
+                projectColor: projectColor(agg.project),
+                totalMinutes: agg.totalMinutes,
+                percentage: total > 0 ? (agg.totalMinutes / total) * 100 : 0,
+                tasks: Array.from(agg.tasks.entries()).map(([taskId, t]) => ({
                     taskId,
-                    taskName: td.taskName,
-                    totalMinutes: td.minutes,
+                    taskName: t.taskName,
+                    totalMinutes: t.minutes,
                 })),
-                _expanded: false,
             }))
             .sort((a, b) => b.totalMinutes - a.totalMinutes);
-
-        setProjectDataWithExpansion(newData);
-    }, [filteredEntries, projects]);
+    }, [aggregates]);
 
     const toggleProject = useCallback((projectId: string) => {
-        setProjectDataWithExpansion((prev) =>
-            prev.map((p) => (p.projectId === projectId ? { ...p, _expanded: !p._expanded } : p))
-        );
+        setExpandedProjectIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(projectId)) next.delete(projectId);
+            else next.add(projectId);
+            return next;
+        });
     }, []);
 
     const toggleClient = useCallback((clientId: string) => {
@@ -257,7 +232,8 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
         stats,
         dailyChartData,
         pieChartData,
-        projectDataWithExpansion,
+        projectTableData,
+        expandedProjectIds,
         selectedClientIds,
         selectedProjectIds,
         toggleProject,

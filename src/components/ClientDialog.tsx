@@ -22,7 +22,7 @@ interface ClientDialogProps {
 
 export default function ClientDialog({ open, onClose, onSave, client }: ClientDialogProps) {
     const [name, setName] = useState('');
-    const [address, setAddress] = useState('');
+    const [street, setStreet] = useState('');
     const [postalCode, setPostalCode] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
@@ -34,14 +34,14 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
         if (open) {
             if (client) {
                 setName(client.name || '');
-                setAddress(client.info?.address || '');
+                setStreet(client.info?.street || '');
                 setPostalCode(client.info?.postal_code || '');
                 setCity(client.info?.city || '');
                 setState(client.info?.state || '');
                 setCountry(client.info?.country || '');
             } else {
                 setName('');
-                setAddress('');
+                setStreet('');
                 setPostalCode('');
                 setCity('');
                 setState('');
@@ -62,7 +62,7 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
             await onSave({
                 name: name.trim(),
                 info: {
-                    address: address.trim() || undefined,
+                    street: street.trim() || undefined,
                     postal_code: postalCode.trim() || undefined,
                     city: city.trim() || undefined,
                     state: state.trim() || undefined,
@@ -97,11 +97,11 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
                         </Box>
 
                         <Box>
-                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Address</Typography>
+                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Street</Typography>
                             <TextField
-                                placeholder="Enter address"
-                                value={address}
-                                onChange={(e) => setAddress(e.target.value)}
+                                placeholder="Enter street name"
+                                value={street}
+                                onChange={(e) => setStreet(e.target.value)}
                                 fullWidth
                             />
                         </Box>

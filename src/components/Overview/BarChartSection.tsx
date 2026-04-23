@@ -11,11 +11,6 @@ import {
 } from 'recharts';
 import ChartTooltip from './ChartTooltip';
 
-const FALLBACK_COLORS = [
-    '#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#0088fe',
-    '#00C49F', '#FFBB28', '#FF8042', '#a4de6c', '#d0ed57',
-];
-
 interface BarChartSectionProps {
     data: any[];
     projectIds: string[];
@@ -94,12 +89,12 @@ export default function BarChartSection({
                         cursor={{ fill: theme.palette.background.paper }}
                     />
                     <Legend content={renderLegend} />
-                    {projectIds.map((projectId, idx) => (
+                    {projectIds.map((projectId, _) => (
                         <Bar
                             key={projectId}
                             dataKey={projectId}
                             stackId="a"
-                            fill={projectColors[projectId] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length]}
+                            fill={projectColors[projectId]}
                         />
                     ))}
                 </BarChart>

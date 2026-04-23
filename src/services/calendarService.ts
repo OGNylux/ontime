@@ -1,155 +1,118 @@
 import { supabase } from "../lib/supabase";
 import dayjs from "dayjs";
+import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { Task } from "./taskService";
 import { Project } from "./projectService";
 
 export interface CalendarEntry {
     id: string;
-    user_id?: string;
+    workspace_id?: string;
+    created_by?: string;
     project_id?: string;
-    task_id?: string;
+    task_id?: string | null;
     start_time: string;
     end_time: string;
     is_billable?: boolean;
     created_at?: string;
-    task?: Task;
-    project?: Project;
+    task?: Task | null;
+    project?: Project | null;
 }
+
+const ENTRY_SELECT = `
+    *,
+    task:ontime_task(*),
+    project:ontime_project(*, client:ontime_client(*))
+`;
 
 export const calendarService = {
     async getEntries(startDate: string, endDate: string): Promise<CalendarEntry[]> {
-        const start = dayjs(startDate).startOf('day').toISOString();
-        const end = dayjs(endDate).endOf('day').toISOString();
+        const workspaceId = await getActiveWorkspaceId();
+        const start = dayjs(startDate).startOf("day").toISOString();
+        const end = dayjs(endDate).endOf("day").toISOString();
 
         const { data, error } = await supabase
-            .from('ontime_calendar_entry')
-            .select(`
-                *,
-                task:ontime_task(*),
-                project:ontime_project(*, client:ontime_client(*))
-            `)
-            .gte('start_time', start)
-            .lte('start_time', end);
-
+            .from("ontime_calendar_entry")
+            .select(ENTRY_SELECT)
+            .eq("workspace_id", workspaceId)
+            .gte("start_time", start)
+            .lte("start_time", end)
+            .order("start_time", { ascending: true });
         if (error) throw error;
 
         return data as CalendarEntry[];
     },
 
-    async createEntry(request: Omit<CalendarEntry, 'id'>): Promise<CalendarEntry> {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not authenticated");
-
-        const { data, error } = await supabase
-            .from('ontime_calendar_entry')
-            .insert({
-                user_id: user.id,
-                task_id: request.task_id,
-                project_id: request.project_id,
-                is_billable: request.is_billable,
-                start_time: request.start_time,
-                end_time: request.end_time,
-            })
-            .select(`
-                *,
-                task:ontime_task(*),
-                project:ontime_project(*, client:ontime_client(*))
-            `)
-            .single();
-
-        if (error) throw error;
-
-        const entry = data as CalendarEntry;
-
-                try {
-            if (request.task_id && request.project_id) {
-                const { error: taskError } = await supabase
-                    .from('ontime_task')
-                    .update({ project_id: request.project_id })
-                    .eq('id', request.task_id);
-
-                if (taskError) console.error('Failed to update task project_id for task', request.task_id, taskError);
-            }
-        } catch (e) {
-            console.error('Error updating task project_id after creating calendar entry', e);
-        }
-
-        return entry;
-    },
-
-
-    async updateEntry(id: string, request: Partial<CalendarEntry>): Promise<CalendarEntry> {
-        const { data, error } = await supabase
-            .from('ontime_calendar_entry')
-            .update({
-                task_id: request.task_id,
-                project_id: request.project_id,
-                is_billable: request.is_billable,
-                start_time: request.start_time,
-                end_time: request.end_time,
-            })
-            .eq('id', id)
-            .select(`
-                *,
-                task:ontime_task(*),
-                project:ontime_project(*, client:ontime_client(*))
-            `)
-            .single();
-        if (error) throw error;
-        const entry = data as CalendarEntry;
-
-                try {
-            if (request.task_id && request.project_id) {
-                const { error: taskError } = await supabase
-                    .from('ontime_task')
-                    .update({ project_id: request.project_id })
-                    .eq('id', request.task_id);
-
-                if (taskError) console.error('Failed to update task project_id for task', request.task_id, taskError);
-            }
-        } catch (e) {
-            console.error('Error updating task project_id after updating calendar entry', e);
-        }
-
-        return entry;
-    },
-
-    async deleteEntry(id: string): Promise<void> {
-        const { error } = await supabase
-            .from('ontime_calendar_entry')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw error;
-    },
-
     async getEntryById(id: string): Promise<CalendarEntry> {
         const { data, error } = await supabase
-            .from('ontime_calendar_entry')
-            .select(`
-                *,
-                task:ontime_task(*),
-                project:ontime_project(*, client:ontime_client(*))
-            `)
-            .eq('id', id)
+            .from("ontime_calendar_entry")
+            .select(ENTRY_SELECT)
+            .eq("id", id)
             .single();
+        if (error) throw error;
+        return data as CalendarEntry;
+    },
 
+    async createEntry(request: Omit<CalendarEntry, "id">): Promise<CalendarEntry> {
+        if (!request.project_id) throw new Error("project_id is required");
+        const userId = await requireUserId();
+        const workspaceId = await getActiveWorkspaceId();
+
+        const { data, error } = await supabase
+            .from("ontime_calendar_entry")
+            .insert({
+                workspace_id: workspaceId,
+                created_by: userId,
+                project_id: request.project_id,
+                task_id: request.task_id ?? null,
+                is_billable: request.is_billable ?? false,
+                start_time: request.start_time,
+                end_time: request.end_time,
+            })
+            .select(ENTRY_SELECT)
+            .single();
         if (error) throw error;
 
         return data as CalendarEntry;
     },
 
+    async updateEntry(id: string, request: Partial<CalendarEntry>): Promise<CalendarEntry> {
+        const payload: Record<string, unknown> = {};
+        if (request.project_id !== undefined) payload.project_id = request.project_id;
+        if (request.task_id !== undefined) payload.task_id = request.task_id;
+        if (request.is_billable !== undefined) payload.is_billable = request.is_billable;
+        if (request.start_time !== undefined) payload.start_time = request.start_time;
+        if (request.end_time !== undefined) payload.end_time = request.end_time;
+
+        const { data, error } = await supabase
+            .from("ontime_calendar_entry")
+            .update(payload)
+            .eq("id", id)
+            .select(ENTRY_SELECT)
+            .single();
+        if (error) throw error;
+
+        return data as CalendarEntry;
+    },
+
+    async deleteEntry(id: string): Promise<void> {
+        const { error } = await supabase
+            .from("ontime_calendar_entry")
+            .delete()
+            .eq("id", id);
+        if (error) throw error;
+    },
+
     subscribeToChanges(callbacks: {
-        onInsertOrUpdate: (id: string, startTime: string, eventType: 'INSERT' | 'UPDATE') => void;
+        onInsertOrUpdate: (id: string, startTime: string, eventType: "INSERT" | "UPDATE") => void;
         onDelete: (id: string) => void;
     }): () => void {
         const channel = supabase
-            .channel('ontime-calendar-entries')
+            .channel("ontime-calendar-entries")
             .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'ontime_calendar_entry' },
+                "postgres_changes",
+                { event: "*", schema: "public", table: "ontime_calendar_entry" },
                 (payload) => {
-                    if (payload.eventType === 'DELETE') {
+                    if (payload.eventType === "DELETE") {
                         callbacks.onDelete((payload.old as { id: string }).id);
                     } else {
                         const row = payload.new as { id: string; start_time: string };

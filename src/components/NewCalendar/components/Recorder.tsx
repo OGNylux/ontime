@@ -69,7 +69,7 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         } catch (err) { console.error("Auto-save failed:", err); }
     }, [addOrReplace]);
 
-    const beginTickRef = useRef<() => void>(() => {});
+    const beginTickRef = useRef<() => void>(() => { });
     const beginTick = useCallback(() => {
         clearTick();
         tickRef.current = window.setInterval(() => {
@@ -85,21 +85,21 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
 
     // Reusable: given a persisted ActiveRecording row, restore all UI state and
     // start ticking. Used by the mount effect AND the realtime handler.
-    const applyRecordingRef = useRef<(rec: ActiveRecording) => Promise<void>>(async () => {});
+    const applyRecordingRef = useRef<(rec: ActiveRecording) => Promise<void>>(async () => { });
     const applyRecording = useCallback(async (rec: ActiveRecording) => {
         if (stateRef.current) return; // already recording locally
         activeRecordingIdRef.current = rec.id;
         const s: RecordingState = {
-            entryId:    rec.calendar_entry_id ?? `recording-${Date.now()}`,
-            dbId:       rec.calendar_entry_id ?? null,
-            startTime:  rec.started_at,
-            lastSave:   Date.now(),
-            title:      rec.title ?? "",
-            projectId:  rec.project_id ?? undefined,
+            entryId: rec.calendar_entry_id ?? `recording-${Date.now()}`,
+            dbId: rec.calendar_entry_id ?? null,
+            startTime: rec.started_at,
+            lastSave: Date.now(),
+            title: rec.title ?? "",
+            projectId: rec.project_id ?? undefined,
             isBillable: rec.is_billable,
         };
-        stateRef.current   = s;
-        titleRef.current   = rec.title ?? "";
+        stateRef.current = s;
+        titleRef.current = rec.title ?? "";
         billableRef.current = rec.is_billable;
         setTitle(rec.title ?? "");
         setBillable(rec.is_billable);
@@ -127,7 +127,7 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
             addOrReplace({ ...c, id: oldId });
             setTimeout(() => addOrReplace(c), 0);
             if (activeRecordingIdRef.current) {
-                recordingService.updateCalendarEntryId(activeRecordingIdRef.current, c.id)
+                recordingService.setCalendarEntryId(activeRecordingIdRef.current, c.id)
                     .catch(err => console.error("Failed to update calendar_entry_id:", err));
             }
         } catch (err) { console.error("createDb failed:", err); }
@@ -150,7 +150,7 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
             title: title || null,
             started_at: now,
         }).then(rec => { activeRecordingIdRef.current = rec.id; })
-          .catch(err => console.error("Failed to persist recording start:", err));
+            .catch(err => console.error("Failed to persist recording start:", err));
         createDb(s);
     }, [updateLocal, beginTick, createDb, title, project, billable]);
 
@@ -195,7 +195,7 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
             onDelete: () => {
                 if (!stateRef.current) return;
                 clearTick();
-                stateRef.current             = null;
+                stateRef.current = null;
                 activeRecordingIdRef.current = null;
                 setRecording(false);
                 setTitle('');

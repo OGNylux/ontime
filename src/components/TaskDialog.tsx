@@ -60,7 +60,7 @@ export default function TaskDialog({ open, onClose, onSave, task, projects }: Ta
             await onSave({
                 name: name.trim(),
                 color: colorIndex,
-                project_id: projectId || undefined,
+                project_id: projectId,
             });
             onClose();
         } catch (err: unknown) {

@@ -20,28 +20,15 @@ export default function RegisterPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
-  const [nameError, setNameError] = useState<string | null>(null);
 
   const [password, setPassword] = useState("");
   const [passwordRepeat, setPasswordRepeat] = useState("");
 
-  const checkAvailability = async () => {
-    if (!email && !name) return;
-
+  const checkEmailAvailability = async () => {
+    if (!email) return;
     try {
-      const result = await authService.checkAvailability(email, name);
-
-      if (email && result.emailExists) {
-        setEmailError("Email already registered");
-      } else {
-        setEmailError(null);
-      }
-
-      if (name && result.nameExists) {
-        setNameError("Username already taken");
-      } else {
-        setNameError(null);
-      }
+      const { emailExists } = await authService.checkAvailability(email);
+      setEmailError(emailExists ? "Email already registered" : null);
     } catch (err) {
       console.error("Failed to check availability", err);
     }
@@ -50,7 +37,7 @@ export default function RegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (emailError || nameError) return;
+    if (emailError) return;
 
     if (password == passwordRepeat) {
       try {
@@ -93,7 +80,7 @@ export default function RegisterPage() {
               placeholder: "user@example.com",
               value: email,
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value),
-              onBlur: checkAvailability,
+              onBlur: checkEmailAvailability,
               required: true,
               error: !!emailError,
               helperText: emailError || "",
@@ -104,10 +91,7 @@ export default function RegisterPage() {
               placeholder: "Choose a username",
               value: name,
               onChange: (e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value),
-              onBlur: checkAvailability,
               required: true,
-              error: !!nameError,
-              helperText: nameError || "",
             },
             {
               label: "Password",

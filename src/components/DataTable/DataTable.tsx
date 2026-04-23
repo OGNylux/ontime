@@ -39,7 +39,42 @@ interface DataTableProps<T extends { id?: string; pinned?: boolean }> {
     bulkActions?: ReactNode;
     isRowSelectable?: (row: T) => boolean;
     disableSorting?: boolean;
+    /** Group rows by the returned key; rows in the same group stay adjacent. */
     groupBy?: (row: T) => string | undefined;
+    /** When true, rows with `pinned: true` always come first. Defaults to true. */
+    pinFirst?: boolean;
+}
+
+const cellSx = { borderBottom: '1px solid', borderColor: 'divider' } as const;
+
+function compareValues(aVal: unknown, bVal: unknown, order: Order): number {
+    if (aVal === undefined || aVal === null) return order === 'asc' ? 1 : -1;
+    if (bVal === undefined || bVal === null) return order === 'asc' ? -1 : 1;
+
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return order === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    }
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+
+    const aStr = String(aVal);
+    const bStr = String(bVal);
+    return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+}
+
+function makeRowComparator<T extends { pinned?: boolean }>(
+    orderBy: keyof T,
+    order: Order,
+    pinFirst: boolean,
+) {
+    return (a: T, b: T): number => {
+        if (pinFirst) {
+            if (a.pinned && !b.pinned) return -1;
+            if (!a.pinned && b.pinned) return 1;
+        }
+        return compareValues(a[orderBy], b[orderBy], order);
+    };
 }
 
 export default function DataTable<T extends { id?: string; pinned?: boolean }>({
@@ -59,6 +94,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     isRowSelectable = () => true,
     disableSorting = false,
     groupBy,
+    pinFirst = true,
 }: DataTableProps<T>) {
     type OrderBy = (keyof T & string) | '';
 
@@ -75,90 +111,22 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
 
     const sortedData = useMemo(() => {
         if (disableSorting || !orderBy) return data;
+        const compare = makeRowComparator<T>(orderBy as keyof T, order, pinFirst);
 
-        if (groupBy) {
-            type Group = { rows: T[] };
-            const groups: Group[] = [];
-            const groupIndex = new Map<string, number>();
+        if (!groupBy) return [...data].sort(compare);
 
-            data.forEach((row) => {
-                const key = groupBy(row);
-                if (!key) {
-                    groups.push({ rows: [row] });
-                    return;
-                }
-
-                let idx = groupIndex.get(key);
-                if (idx === undefined) {
-                    idx = groups.length;
-                    groupIndex.set(key, idx);
-                    groups.push({ rows: [] });
-                }
-                groups[idx]!.rows.push(row);
-            });
-
-            groups.sort((groupA, groupB) => {
-                const a = groupA.rows[0];
-                const b = groupB.rows[0];
-
-                const aPinned = (a as T).pinned;
-                const bPinned = (b as T).pinned;
-
-                if (aPinned && !bPinned) return -1;
-                if (!aPinned && bPinned) return 1;
-
-                const aVal = (a as T)[orderBy as keyof T] as OrderBy;
-                const bVal = (b as T)[orderBy as keyof T] as OrderBy;
-
-                if (aVal === undefined || aVal === null) return order === 'asc' ? 1 : -1;
-                if (bVal === undefined || bVal === null) return order === 'asc' ? -1 : 1;
-
-                if (typeof aVal === 'string' && typeof bVal === 'string') {
-                    return order === 'asc'
-                        ? aVal.localeCompare(bVal)
-                        : bVal.localeCompare(aVal);
-                }
-
-                if (typeof aVal === 'number' && typeof bVal === 'number') {
-                    return order === 'asc' ? (aVal - bVal) : (bVal - aVal);
-                }
-
-                const aStr = String(aVal);
-                const bStr = String(bVal);
-                return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
-            });
-
-            return groups.flatMap((g) => g.rows);
-        }
-
-        return [...data].sort((a, b) => {
-            const aPinned = (a as T).pinned;
-            const bPinned = (b as T).pinned;
-
-            if (aPinned && !bPinned) return -1;
-            if (!aPinned && bPinned) return 1;
-
-            const aVal = (a as T)[orderBy as keyof T] as OrderBy;
-            const bVal = (b as T)[orderBy as keyof T] as OrderBy;
-
-            if (aVal === undefined || aVal === null) return order === 'asc' ? 1 : -1;
-            if (bVal === undefined || bVal === null) return order === 'asc' ? -1 : 1;
-
-            if (typeof aVal === 'string' && typeof bVal === 'string') {
-                return order === 'asc'
-                    ? aVal.localeCompare(bVal)
-                    : bVal.localeCompare(aVal);
-            }
-
-            if (typeof aVal === 'number' && typeof bVal === 'number') {
-                return order === 'asc' ? (aVal - bVal) : (bVal - aVal);
-            }
-
-            const aStr = String(aVal);
-            const bStr = String(bVal);
-            return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+        const groups = new Map<string | symbol, T[]>();
+        data.forEach((row) => {
+            const key = groupBy(row) ?? Symbol();
+            const bucket = groups.get(key);
+            if (bucket) bucket.push(row);
+            else groups.set(key, [row]);
         });
-    }, [data, orderBy, order, disableSorting, groupBy]);
+
+        return Array.from(groups.values())
+            .sort((a, b) => compare(a[0], b[0]))
+            .flat();
+    }, [data, orderBy, order, disableSorting, groupBy, pinFirst]);
 
     const paginatedData = useMemo(() => {
         const start = (page - 1) * rowsPerPage;
@@ -186,6 +154,8 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
     const allSelected = selectableRows.length > 0 && selectableRows.every((row) => selectedIds.includes(getRowId(row)));
     const someSelected = selectableRows.some((row) => selectedIds.includes(getRowId(row))) && !allSelected;
 
+    const totalCols = columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0);
+
     return (
         <Box display="flex" flexDirection="column" flex={1} minHeight={0}>
             <TableContainer sx={{ flex: 1, minHeight: 0, overflowX: 'auto', width: '100%' }}>
@@ -194,7 +164,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                         {selectedIds.length > 0 && bulkActions ? (
                             <TableRow>
                                 {selectable && (
-                                    <TableCell padding="checkbox" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                    <TableCell padding="checkbox" sx={cellSx}>
                                         <Checkbox
                                             indeterminate={someSelected}
                                             checked={allSelected}
@@ -202,10 +172,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                         />
                                     </TableCell>
                                 )}
-                                <TableCell
-                                    colSpan={columns.length + (rowActions ? 1 : 0)}
-                                    sx={{ borderBottom: '1px solid', borderColor: 'divider' }}
-                                >
+                                <TableCell colSpan={columns.length + (rowActions ? 1 : 0)} sx={cellSx}>
                                     <Box display="flex" alignItems="center" gap={2}>
                                         <Typography variant="subtitle2" fontWeight="bold">
                                             {selectedIds.length} selected
@@ -217,7 +184,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                         ) : (
                             <TableRow>
                                 {selectable && (
-                                    <TableCell padding="checkbox" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                    <TableCell padding="checkbox" sx={cellSx}>
                                         <Checkbox
                                             indeterminate={someSelected}
                                             checked={allSelected}
@@ -226,7 +193,7 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                     </TableCell>
                                 )}
                                 {columns.map((col) => (
-                                    <TableCell key={col.field} align={col.align || 'left'} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                    <TableCell key={col.field} align={col.align || 'left'} sx={cellSx}>
                                         {col.sortable !== false && !disableSorting ? (
                                             <SortHeader
                                                 label={col.label}
@@ -240,20 +207,20 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                         )}
                                     </TableCell>
                                 ))}
-                                {rowActions && <TableCell align="right" sx={{ borderBottom: '1px solid', borderColor: 'divider' }} />}
+                                {rowActions && <TableCell align="right" sx={cellSx} />}
                             </TableRow>
                         )}
                     </TableHead>
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0)} align="center" sx={{ borderBottom: '1px solid', borderColor: 'divider', p: 2 }}>
+                                <TableCell colSpan={totalCols} align="center" sx={{ ...cellSx, p: 2 }}>
                                     <LoadingBanner message="Loading..." />
                                 </TableCell>
                             </TableRow>
                         ) : paginatedData.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={columns.length + (selectable ? 1 : 0) + (rowActions ? 1 : 0)} align="center" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                <TableCell colSpan={totalCols} align="center" sx={cellSx}>
                                     <Typography color="text.secondary">{emptyMessage}</Typography>
                                 </TableCell>
                             </TableRow>
@@ -269,12 +236,11 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                         selected={isSelected}
                                         sx={{
                                             '&:hover .row-checkbox': { opacity: 1, pointerEvents: 'auto' },
-                                            borderBottom: '1px solid',
-                                            borderColor: 'divider',
+                                            ...cellSx,
                                         }}
                                     >
                                         {selectable && (
-                                            <TableCell padding="checkbox" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                            <TableCell padding="checkbox" sx={cellSx}>
                                                 {rowSelectable ? (
                                                     <Checkbox
                                                         className="row-checkbox"
@@ -290,16 +256,16 @@ export default function DataTable<T extends { id?: string; pinned?: boolean }>({
                                             </TableCell>
                                         )}
                                         {columns.map((col) => (
-                                            <TableCell key={col.field} align={col.align || 'left'} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                            <TableCell key={col.field} align={col.align || 'left'} sx={cellSx}>
                                                 {col.render
                                                     ? col.render(row)
                                                     : (typeof col.field === 'string' && col.field in (row as unknown as Record<string, unknown>))
-                                                        ? String((row as any)[col.field] ?? '-')
+                                                        ? String((row as unknown as Record<string, unknown>)[col.field] ?? '-')
                                                         : '-'}
                                             </TableCell>
                                         ))}
                                         {rowActions && (
-                                            <TableCell align="right" sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                            <TableCell align="right" sx={cellSx}>
                                                 {rowActions(row)}
                                             </TableCell>
                                         )}

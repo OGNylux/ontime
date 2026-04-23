@@ -25,6 +25,7 @@ import PageHeader from '../../components/PageHeader';
 import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import ClientDialog from '../../components/ClientDialog';
+import { useEntityListState } from '../../hooks/useEntityListState';
 
 interface ClientWithExpansion extends Client {
     _expanded?: boolean;
@@ -54,6 +55,8 @@ export default function ClientsPage() {
     const [clientDialogOpen, setClientDialogOpen] = useState(false);
     const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
 
+    const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setClients);
+
     useEffect(() => {
         loadData();
     }, []);
@@ -61,7 +64,7 @@ export default function ClientsPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const clientsData = await clientService.getClients();
+            const clientsData = await clientService.getClientsWithProjects();
             setClients(clientsData.map(c => ({ ...c, _expanded: false })));
         } catch (error) {
             console.error('Failed to load clients:', error);
@@ -244,7 +247,7 @@ export default function ClientsPage() {
         if (menuClient && menuClient.id) {
             try {
                 const updated = await clientService.togglePin(menuClient.id, !menuClient.pinned);
-                setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, _expanded: c._expanded } : c)));
+                replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
             } catch (error) {
                 console.error('Failed to toggle pin:', error);
             }
@@ -254,8 +257,8 @@ export default function ClientsPage() {
 
     const handleBulkDelete = async () => {
         try {
-            await Promise.all(selectedIds.map((id) => clientService.deleteClient(id)));
-            setClients((prev) => prev.filter((c) => !selectedIds.includes(c.id!)));
+            await clientService.bulkDeleteClients(selectedIds);
+            removeMany(selectedIds);
             setSelectedIds([]);
         } catch (error) {
             console.error('Failed to delete clients:', error);
@@ -264,10 +267,8 @@ export default function ClientsPage() {
 
     const handleBulkPin = async (pinned: boolean) => {
         try {
-            await Promise.all(
-                selectedIds.map((id) => clientService.togglePin(id, pinned))
-            );
-            const updatedClients = await clientService.getClients();
+            await clientService.bulkSetPinned(selectedIds, pinned);
+            const updatedClients = await clientService.getClientsWithProjects();
             setClients(updatedClients.map(c => ({ ...c, _expanded: false })));
             setSelectedIds([]);
         } catch (error) {
@@ -279,7 +280,7 @@ export default function ClientsPage() {
         if (clientToDelete && clientToDelete.id) {
             try {
                 await clientService.deleteClient(clientToDelete.id);
-                setClients((prev) => prev.filter((c) => c.id !== clientToDelete.id));
+                removeOne(clientToDelete.id);
             } catch (error) {
                 console.error('Failed to delete client:', error);
             }
@@ -296,10 +297,10 @@ export default function ClientsPage() {
     const handleSaveClient = async (client: Client) => {
         if (clientToEdit && clientToEdit.id) {
             const updated = await clientService.updateClient({ ...client, id: clientToEdit.id });
-            setClients((prev) => prev.map((c) => (c.id === updated.id ? { ...updated, _expanded: c._expanded } : c)));
+            replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
         } else {
             const created = await clientService.createClient(client);
-            setClients((prev) => [{ ...created, _expanded: false }, ...prev]);
+            prependOne({ ...created, _expanded: false });
         }
     };
 

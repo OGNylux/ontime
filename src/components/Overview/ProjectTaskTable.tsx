@@ -18,54 +18,56 @@ export interface ProjectRowData {
     totalMinutes: number;
     percentage: number;
     tasks: TaskData[];
-    _expanded?: boolean;
 }
 
 interface TableRow {
     id: string;
     type: 'project' | 'task';
-    projectData?: ProjectRowData;
-    taskData?: TaskData;
+    projectId: string;
     name: string;
     totalMinutes: number;
     percentage?: number;
     projectColor?: string;
     taskCount?: number;
+    expanded?: boolean;
 }
 
 interface ProjectTaskTableProps {
     data: ProjectRowData[];
     loading: boolean;
+    expandedIds: Set<string>;
     onToggleProject: (projectId: string) => void;
 }
 
 export default function ProjectTaskTable({
     data,
     loading,
+    expandedIds,
     onToggleProject,
 }: ProjectTaskTableProps) {
     const tableRows = useMemo(() => {
         const rows: TableRow[] = [];
 
         data.forEach((project) => {
+            const expanded = expandedIds.has(project.projectId);
             rows.push({
                 id: project.projectId,
                 type: 'project',
-                projectData: project,
+                projectId: project.projectId,
                 name: project.projectName,
                 totalMinutes: project.totalMinutes,
                 percentage: project.percentage,
                 projectColor: project.projectColor,
                 taskCount: project.tasks.length,
+                expanded,
             });
 
-            if (project._expanded && project.tasks.length > 0) {
+            if (expanded) {
                 project.tasks.forEach((task) => {
                     rows.push({
                         id: `${project.projectId}-${task.taskId}`,
                         type: 'task',
-                        taskData: task,
-                        projectData: project,
+                        projectId: project.projectId,
                         name: task.taskName,
                         totalMinutes: task.totalMinutes,
                         projectColor: project.projectColor,
@@ -75,7 +77,7 @@ export default function ProjectTaskTable({
         });
 
         return rows;
-    }, [data]);
+    }, [data, expandedIds]);
 
     const columns: Column<TableRow>[] = useMemo(
         () => [
@@ -94,7 +96,7 @@ export default function ProjectTaskTable({
                                 onToggleProject(row.id);
                             }}
                         >
-                            {row.projectData?._expanded ? <KeyboardArrowDown /> : <KeyboardArrowRight />}
+                            {row.expanded ? <KeyboardArrowDown /> : <KeyboardArrowRight />}
                         </IconButton>
                     );
                 },
@@ -198,7 +200,7 @@ export default function ProjectTaskTable({
                     getRowId={(row) => row.id}
                     defaultSortField="name"
                     defaultSortOrder='asc'
-                    groupBy={(row) => row.type === 'project' ? row.id : row.projectData?.projectId}
+                    groupBy={(row) => row.projectId}
                     rowsPerPage={20}
                 />
             </Box>
