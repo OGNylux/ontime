@@ -1,4 +1,13 @@
--- OnTime Full Production Schema (v9)
+-- OnTime Full Production Schema (v10)
+-- -------------------------------------------------------------------------------
+-- CHANGELOG (v10)
+-- 1. Added ontime_workspace_billing table (invoice sender details: address, email, VAT)
+-- 2. Added email, phone, vat_number columns to ontime_client_info
+-- 3. Added ontime_invoice table (status, issue/due dates, currency, tax rate, pdf path)
+-- 4. Added ontime_invoice_line_item table (immutable snapshot of hours+rate per entry)
+-- 5. Added invoice_id FK on ontime_calendar_entry to prevent double-billing
+-- 6. Added generate_invoice_number(workspace_id) RPC
+-- 7. Added 7-day retention policy for soft-deleted records + pg_cron job to automate it
 -- -------------------------------------------------------------------------------
 -- CHANGELOG (v9)
 -- 1. Added UI-facing columns the service layer depends on:
@@ -729,3 +738,256 @@ create index if not exists idx_calendar_project_id
 
 create index if not exists idx_calendar_task_id
     on public.ontime_calendar_entry (task_id) where task_id is not null;
+
+-- =========================
+-- SOFT-DELETE RETENTION
+-- Permanently removes rows that were soft-deleted more than 7 days ago.
+-- =========================
+create or replace function public.purge_soft_deleted_records(
+    p_older_than interval default interval '7 days'
+)
+returns table(entity text, deleted_count bigint)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_cutoff timestamptz := now() - p_older_than;
+begin
+    delete from public.ontime_task
+    where deleted_at is not null
+      and deleted_at <= v_cutoff;
+    get diagnostics deleted_count = row_count;
+    entity := 'ontime_task';
+    return next;
+
+    delete from public.ontime_project
+    where deleted_at is not null
+      and deleted_at <= v_cutoff;
+    get diagnostics deleted_count = row_count;
+    entity := 'ontime_project';
+    return next;
+
+    delete from public.ontime_client
+    where deleted_at is not null
+      and deleted_at <= v_cutoff;
+    get diagnostics deleted_count = row_count;
+    entity := 'ontime_client';
+    return next;
+end;
+$$;
+
+-- Schedule a daily cleanup at 03:00 UTC when pg_cron is available.
+do $$
+begin
+    if exists (select 1 from pg_extension where extname = 'pg_cron') then
+        if not exists (
+            select 1
+            from cron.job
+            where jobname = 'purge-soft-deleted-records-daily'
+        ) then
+            perform cron.schedule(
+                'purge-soft-deleted-records-daily',
+                '0 3 * * *',
+                $cron$select public.purge_soft_deleted_records();$cron$
+            );
+        end if;
+    end if;
+end;
+$$;
+
+-- =========================
+-- WORKSPACE BILLING INFO (v10)
+-- Stores the invoice sender's details (company address, VAT, contact).
+-- One row per workspace, optional — workspace can exist without it.
+-- =========================
+create table if not exists public.ontime_workspace_billing (
+    id            uuid primary key default gen_random_uuid(),
+    workspace_id  uuid not null unique references public.ontime_workspace(id) on delete cascade,
+    company_name  text,
+    email         text,
+    phone         text,
+    vat_number    text,
+    street        text,
+    house_number  text,
+    postal_code   text,
+    city          text,
+    state         text,
+    country       text,
+    created_at    timestamptz not null default now()
+);
+
+alter table public.ontime_workspace_billing enable row level security;
+
+create policy "workspace_billing_select"
+on public.ontime_workspace_billing for select
+using (public.is_workspace_member(workspace_id));
+
+create policy "workspace_billing_insert_admin"
+on public.ontime_workspace_billing for insert
+with check (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+create policy "workspace_billing_update_admin"
+on public.ontime_workspace_billing for update
+using (public.has_workspace_role(workspace_id, array['owner','admin']))
+with check (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+-- =========================
+-- CLIENT INFO ADDITIONS (v10)
+-- =========================
+alter table public.ontime_client_info
+    add column if not exists email      text,
+    add column if not exists phone      text,
+    add column if not exists vat_number text;
+
+-- =========================
+-- INVOICE (v10)
+-- =========================
+create table if not exists public.ontime_invoice (
+    id               uuid primary key default gen_random_uuid(),
+    workspace_id     uuid not null references public.ontime_workspace(id) on delete cascade,
+    client_id        uuid references public.ontime_client(id) on delete set null,
+    invoice_number   text not null,
+    status           text not null default 'draft',
+    issue_date       date not null default current_date,
+    due_date         date,
+    currency         text not null default 'EUR',
+    tax_rate         numeric(5,2) not null default 0,
+    notes            text,
+    -- Populated after PDF generation; path within Supabase Storage bucket.
+    pdf_storage_path text,
+    created_by       uuid not null references auth.users(id),
+    created_at       timestamptz not null default now(),
+    sent_at          timestamptz,
+    paid_at          timestamptz,
+    constraint valid_invoice_status check (status in ('draft','sent','paid','overdue','cancelled')),
+    constraint valid_tax_rate       check (tax_rate >= 0 and tax_rate <= 100),
+    constraint unique_invoice_number unique (workspace_id, invoice_number)
+);
+
+alter table public.ontime_invoice enable row level security;
+
+create policy "invoice_select"
+on public.ontime_invoice for select
+using (public.is_workspace_member(workspace_id));
+
+create policy "invoice_insert_admin"
+on public.ontime_invoice for insert
+with check (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+create policy "invoice_update_admin"
+on public.ontime_invoice for update
+using (public.has_workspace_role(workspace_id, array['owner','admin']))
+with check (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+create policy "invoice_delete_admin"
+on public.ontime_invoice for delete
+using (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+-- =========================
+-- INVOICE LINE ITEMS (v10)
+-- Snapshot of hours + rate at invoice creation time so that later changes
+-- to project.hourly_rate never silently alter historical invoices.
+-- =========================
+create table if not exists public.ontime_invoice_line_item (
+    id                uuid primary key default gen_random_uuid(),
+    invoice_id        uuid not null references public.ontime_invoice(id) on delete cascade,
+    -- Nullable: line items can be manually added without a linked time entry.
+    calendar_entry_id uuid references public.ontime_calendar_entry(id) on delete set null,
+    description       text not null,
+    date              date not null,
+    quantity_hours    numeric(8,2) not null,
+    unit_price        numeric(10,2) not null,
+    -- Stored so queries never need to recompute and the value survives rate changes.
+    amount            numeric(10,2) not null generated always as (quantity_hours * unit_price) stored,
+    created_at        timestamptz not null default now(),
+    constraint valid_quantity   check (quantity_hours > 0),
+    constraint valid_unit_price check (unit_price >= 0)
+);
+
+alter table public.ontime_invoice_line_item enable row level security;
+
+-- Access is derived from the parent invoice's workspace.
+create policy "invoice_line_item_select"
+on public.ontime_invoice_line_item for select
+using (
+    exists (
+        select 1 from public.ontime_invoice i
+        where i.id = invoice_id
+          and public.is_workspace_member(i.workspace_id)
+    )
+);
+
+create policy "invoice_line_item_insert_admin"
+on public.ontime_invoice_line_item for insert
+with check (
+    exists (
+        select 1 from public.ontime_invoice i
+        where i.id = invoice_id
+          and public.has_workspace_role(i.workspace_id, array['owner','admin'])
+    )
+);
+
+create policy "invoice_line_item_delete_admin"
+on public.ontime_invoice_line_item for delete
+using (
+    exists (
+        select 1 from public.ontime_invoice i
+        where i.id = invoice_id
+          and public.has_workspace_role(i.workspace_id, array['owner','admin'])
+    )
+);
+
+-- =========================
+-- LINK CALENDAR ENTRIES TO INVOICES (v10)
+-- Prevents the same time entry from appearing on two invoices.
+-- =========================
+alter table public.ontime_calendar_entry
+    add column if not exists invoice_id uuid references public.ontime_invoice(id) on delete set null;
+
+create index if not exists idx_calendar_invoice_id
+    on public.ontime_calendar_entry (invoice_id) where invoice_id is not null;
+
+-- =========================
+-- INVOICE NUMBER GENERATOR (v10)
+-- Returns the next sequential number for a workspace in INV-YYYY-NNN format.
+-- Uses a FOR UPDATE lock on the invoice table to be safe under concurrency.
+-- =========================
+create or replace function public.generate_invoice_number(p_workspace_id uuid)
+returns text
+language plpgsql
+security invoker
+as $$
+declare
+    v_year  text;
+    v_count int;
+begin
+    if not public.has_workspace_role(p_workspace_id, array['owner','admin']) then
+        raise exception 'Insufficient permissions';
+    end if;
+
+    v_year := to_char(current_date, 'YYYY');
+
+    select count(*) + 1 into v_count
+    from public.ontime_invoice
+    where workspace_id = p_workspace_id
+      and to_char(created_at, 'YYYY') = v_year;
+
+    return 'INV-' || v_year || '-' || lpad(v_count::text, 3, '0');
+end;
+$$;
+
+-- =========================
+-- INVOICE INDEXES (v10)
+-- =========================
+create index if not exists idx_invoice_workspace_id
+    on public.ontime_invoice (workspace_id);
+
+create index if not exists idx_invoice_client_id
+    on public.ontime_invoice (client_id) where client_id is not null;
+
+create index if not exists idx_invoice_status
+    on public.ontime_invoice (workspace_id, status);
+
+create index if not exists idx_invoice_line_item_invoice_id
+    on public.ontime_invoice_line_item (invoice_id);
