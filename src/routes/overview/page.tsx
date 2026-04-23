@@ -239,10 +239,10 @@ export default function OverviewPage() {
                     </Box>
 
                                         <Box display="flex" gap={1.5} flexWrap="wrap">
-                        <StatCard icon={<AccessTime />} label="Total Hours" value={formatDuration(stats.totalMinutes)} />
-                        <StatCard icon={<AttachMoney />} label="Billable Hours" value={formatDuration(stats.billableMinutes)} />
+                        <StatCard icon={<AccessTime />} label="Total Hours" value={formatDuration(stats.totalMinutes * 60)} />
+                        <StatCard icon={<AttachMoney />} label="Billable Hours" value={formatDuration(stats.billableMinutes * 60)} />
                         <StatCard icon={<TrendingUp />} label="Revenue" value={`€${stats.revenue.toFixed(2)}`} />
-                        <StatCard icon={<CalendarMonth />} label="Avg Hours/Day" value={formatDuration(stats.avgMinutesPerDay)} />
+                        <StatCard icon={<CalendarMonth />} label="Avg Hours/Day" value={formatDuration(stats.avgMinutesPerDay * 60)} />
                     </Box>
 
                                         <Box display="flex" gap={2} flexWrap="wrap">

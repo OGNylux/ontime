@@ -147,7 +147,7 @@ export default function ProjectTaskTable({
                 field: 'totalMinutes',
                 label: 'Duration',
                 align: 'right',
-                render: (row) => formatDuration(row.totalMinutes),
+                render: (row) => formatDuration(row.totalMinutes * 60),
             },
             {
                 field: 'percentage',

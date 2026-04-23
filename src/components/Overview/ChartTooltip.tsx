@@ -27,7 +27,7 @@ export default function ChartTooltip({
         const p = payload[0];
         const name = p.name ?? p.dataKey ?? p.payload?.name ?? '';
         const color = getColor(p, name);
-        const formatted = formatDuration(Number(p.value));
+        const formatted = formatDuration(Number(p.value) * 60);
 
         return (
             <Paper sx={{ p: 1, bgcolor: 'background.paper', borderRadius: 2 }}>
@@ -59,8 +59,8 @@ export default function ChartTooltip({
                     const color = getColor(p, name);
                     const formatted =
                         type === 'bar'
-                            ? formatDuration(Number(p.value) * 60)
-                            : formatDuration(Number(p.value));
+                            ? formatDuration(Number(p.value) * 3600)
+                            : formatDuration(Number(p.value) * 60);
 
                     return (
                         <Box key={i} display="flex" alignItems="center" gap={1} mt={i ? 0.5 : 0}>

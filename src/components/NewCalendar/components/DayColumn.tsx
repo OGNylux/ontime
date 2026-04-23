@@ -34,14 +34,14 @@ interface Props {
     onStartRecording?: () => void;
 }
 
-function calcTotalMinutes(entries: CalendarEntry[], dateStr: string, tz: string): number {
+function calcTotalSeconds(entries: CalendarEntry[], dateStr: string, tz: string): number {
     const dayStart = dayjs.tz(dateStr, tz).startOf("day");
     const dayEnd = dayStart.endOf("day");
     return entries.reduce((t, e) => {
         const s = toUserTimezone(e.start_time, tz);
         const end = toUserTimezone(e.end_time, tz);
         if (end.isBefore(dayStart) || s.isAfter(dayEnd)) return t;
-        return t + Math.max(0, (end.isAfter(dayEnd) ? dayEnd : end).diff(s.isBefore(dayStart) ? dayStart : s, "minute"));
+        return t + Math.max(0, (end.isAfter(dayEnd) ? dayEnd : end).diff(s.isBefore(dayStart) ? dayStart : s, "second"));
     }, 0);
 }
 
@@ -54,7 +54,7 @@ export default function DayColumn({
     const isTouch = useMediaQuery("(pointer: coarse)") || useMediaQuery("(hover: none)");
     const isToday = dayjs().tz(timezone).format("YYYY-MM-DD") === dateStr;
 
-    const totalMins = useMemo(() => calcTotalMinutes(entries, dateStr, timezone), [entries, dateStr, timezone]);
+    const totalSecs = useMemo(() => calcTotalSeconds(entries, dateStr, timezone), [entries, dateStr, timezone]);
     const laidOut = useMemo(() => layoutEntries(entries, scale.pxPerHour, 30, dateStr), [entries, scale.pxPerHour, dateStr]);
 
     const { ref, preview, isDragging, handlers } = useDragToCreate({
@@ -91,7 +91,7 @@ export default function DayColumn({
     return (
         <Box flex="1 1 0" minWidth={0} alignSelf="stretch" height={totalColumnHeight}
             {...(isCompact && { flexBasis: `${wp}%`, maxWidth: `${wp}%` })}>
-            <DayHeader dayOfWeek={dayOfWeek} dayOfMonth={dayOfMonth} totalMinutes={totalMins} isToday={isToday} />
+            <DayHeader dayOfWeek={dayOfWeek} dayOfMonth={dayOfMonth} totalSeconds={totalSecs} isToday={isToday} />
 
             <Box ref={ref} data-date={dateStr} {...handlers}
                 position="relative" height={scale.totalHeight}

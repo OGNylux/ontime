@@ -15,7 +15,7 @@
  *
  * CalendarProvider pushes shared state down to DayColumn children.
  */
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import dayjs from "dayjs";
 
@@ -42,7 +42,24 @@ import ConfirmDialog from "../Forms/ConfirmDialog";
 export default function NewCalendar() {
     const nav = useNavigation();
 
-    const { byDate, refetch, addOrReplace, removeLocal } = useEntries(nav.days);
+    const { byDate, refetch, addOrReplace, removeLocal, prefetch } = useEntries(nav.days);
+
+    // Pre-load adjacent weeks so navigation feels instant
+    useEffect(() => {
+        if (nav.days.length === 0) return;
+        const step = nav.days.length;
+        const firstDay = dayjs(nav.days[0].dateStr);
+        const lastDay = dayjs(nav.days[nav.days.length - 1].dateStr);
+
+        prefetch(
+            firstDay.subtract(step, "day").format("YYYY-MM-DD"),
+            lastDay.subtract(step, "day").format("YYYY-MM-DD"),
+        );
+        prefetch(
+            firstDay.add(step, "day").format("YYYY-MM-DD"),
+            lastDay.add(step, "day").format("YYYY-MM-DD"),
+        );
+    }, [nav.days, prefetch]);
 
     const actions = useEntryActions({ byDate, addOrReplace, removeLocal, refetch });
 
@@ -65,8 +82,8 @@ export default function NewCalendar() {
 
     const allEntries = useMemo(() => Object.values(byDate).flat(), [byDate]);
     const totalWeekTime = useMemo(() => {
-        const mins = allEntries.reduce((sum, entry) => sum + Math.max(0, dayjs(entry.end_time).diff(dayjs(entry.start_time), "minute")), 0);
-        return formatDuration(mins);
+        const secs = allEntries.reduce((sum, entry) => sum + Math.max(0, dayjs(entry.end_time).diff(dayjs(entry.start_time), "second")), 0);
+        return formatDuration(secs);
     }, [allEntries]);
 
     const handleDialogClose = useCallback(() => {

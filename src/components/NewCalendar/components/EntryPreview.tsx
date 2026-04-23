@@ -21,7 +21,7 @@ export default function EntryPreview({ title = "", startIso, endIso, top, height
     let time = "";
     try {
         if (startIso && endIso) {
-            time = formatDuration(Math.max(0, dayjs(endIso).diff(dayjs(startIso), "minute")));
+            time = formatDuration(Math.max(0, dayjs(endIso).diff(dayjs(startIso), "second")));
         }
     } catch { /* ignore */ }
 

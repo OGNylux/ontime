@@ -8,11 +8,11 @@ import { formatDuration } from "../layout/timeUtils";
 interface Props {
     dayOfWeek: string;
     dayOfMonth: string;
-    totalMinutes?: number;
+    totalSeconds?: number;
     isToday?: boolean;
 }
 
-export default function DayHeader({ dayOfWeek, dayOfMonth, totalMinutes = 0, isToday = false }: Props) {
+export default function DayHeader({ dayOfWeek, dayOfMonth, totalSeconds = 0, isToday = false }: Props) {
     return (
         <Paper elevation={0} square sx={{
             height: 64, position: "sticky", top: 0, zIndex: 100,
@@ -38,7 +38,7 @@ export default function DayHeader({ dayOfWeek, dayOfMonth, totalMinutes = 0, isT
                     </Typography>
                     <Typography variant="subtitle2" color="text.secondary"
                         fontSize={{ xs: "0.7rem", sm: "0.85rem" }} mt={-0.3} lineHeight={1}>
-                        {formatDuration(totalMinutes)}
+                        {formatDuration(totalSeconds)}
                     </Typography>
                 </Box>
             </Box>

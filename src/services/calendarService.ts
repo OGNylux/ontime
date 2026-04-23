@@ -137,5 +137,28 @@ export const calendarService = {
         if (error) throw error;
 
         return data as CalendarEntry;
-    }
+    },
+
+    subscribeToChanges(callbacks: {
+        onInsertOrUpdate: (id: string, startTime: string, eventType: 'INSERT' | 'UPDATE') => void;
+        onDelete: (id: string) => void;
+    }): () => void {
+        const channel = supabase
+            .channel('ontime-calendar-entries')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'ontime_calendar_entry' },
+                (payload) => {
+                    if (payload.eventType === 'DELETE') {
+                        callbacks.onDelete((payload.old as { id: string }).id);
+                    } else {
+                        const row = payload.new as { id: string; start_time: string };
+                        callbacks.onInsertOrUpdate(row.id, row.start_time, payload.eventType);
+                    }
+                },
+            )
+            .subscribe();
+
+        return () => { void supabase.removeChannel(channel); };
+    },
 };

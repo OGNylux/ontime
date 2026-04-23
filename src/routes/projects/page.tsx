@@ -107,7 +107,7 @@ export default function ProjectsPage() {
         {
             field: 'total_time',
             label: 'Total Time',
-            render: (row) => formatDuration(row.total_time!),
+            render: (row) => formatDuration(row.total_time! * 60),
         },
         {
             field: 'pinned',

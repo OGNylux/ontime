@@ -35,5 +35,5 @@ export const MIN_RESIZE_DURATION = 15; // minutes - entries can't be shorter
 
 //  Recorder 
 
-export const RECORDER_SAVE_INTERVAL = 60_000; // ms - auto-save to DB
+export const RECORDER_SAVE_INTERVAL = 1_000; // ms - auto-save to DB
 export const RECORDER_TICK_INTERVAL = 1_000; // ms - UI timer update

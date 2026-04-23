@@ -35,8 +35,9 @@ function computeLayout(entry: LayoutEntry, hourHeight: number, timezone: string)
     const startTime = toUserTimezone(entry.start_time, timezone);
     const startMinute = entry.startMinute ?? (startTime.hour() * MINUTES_PER_HOUR + startTime.minute() + startTime.second() / 60);
     const duration = entry.durationMinutes ?? toUserTimezone(entry.end_time, timezone).diff(startTime, "minute", true);
+    const durationSeconds = toUserTimezone(entry.end_time, timezone).diff(startTime, "second");
     const pxPerMin = hourHeight / MINUTES_PER_HOUR;
-    return { top: startMinute * pxPerMin, height: Math.max(duration * pxPerMin, 5), durationMinutes: Math.max(0, Math.round(duration)) };
+    return { top: startMinute * pxPerMin, height: Math.max(duration * pxPerMin, 5), durationMinutes: Math.max(0, Math.round(duration)), durationSeconds: Math.max(0, durationSeconds) };
 }
 
 export default function EntryBlock({
@@ -111,7 +112,7 @@ export default function EntryBlock({
     }, [entry, onClick]);
 
     // Layout
-    const { top, height, durationMinutes } = computeLayout(entry, hourHeight, timezone);
+    const { top, height, durationSeconds } = computeLayout(entry, hourHeight, timezone);
     const colorIdx = entry.task?.color ?? 0;
     const color = TAILWIND_COLORS[colorIdx];
     const title = entry.task?.name || "";
@@ -160,7 +161,7 @@ export default function EntryBlock({
             )}
             {showDuration && (
                 <Typography variant="caption" color="background.default" display="block" noWrap fontSize="0.65rem" sx={{ position: "absolute", bottom: 4, left: 6 }}>
-                    {formatDuration(durationMinutes)}
+                    {formatDuration(durationSeconds)}
                 </Typography>
             )}
 

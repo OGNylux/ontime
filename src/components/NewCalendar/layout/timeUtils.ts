@@ -27,12 +27,13 @@ export function minutesToTime(minutes: number): string {
     return dayjs().hour(h).minute(m).format("HH:mm");
 }
 
-/** Total minutes -> "H:MM:SS" duration label. */
-export function formatDuration(minutes: number): string {
-    if (!minutes || minutes <= 0) return "0:00:00";
-    const hrs = Math.floor(minutes / 60);
-    const mins = Math.round(minutes % 60);
-    return `${hrs}:${mins.toString().padStart(2, "0")}:00`;
+/** Total seconds -> "H:MM:SS" duration label. */
+export function formatDuration(seconds: number): string {
+    if (!seconds || seconds <= 0) return "0:00:00";
+    const hrs  = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.round(seconds % 60);
+    return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
 /** Hour (0-23) or minute (when `useMinutes`) -> "h:mm A" display. */

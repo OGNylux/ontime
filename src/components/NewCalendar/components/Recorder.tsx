@@ -9,8 +9,9 @@ import { PlayArrow, Stop, AttachMoney } from "@mui/icons-material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
-import { Project } from "../../../services/projectService";
-// formatDuration is available but we use raw elapsed-seconds display instead
+import { Project, projectService } from "../../../services/projectService";
+import { recordingService, ActiveRecording } from "../../../services/recordingService";
+// Uses raw elapsed-seconds display; formatDuration also accepts seconds now
 import { RECORDER_SAVE_INTERVAL, RECORDER_TICK_INTERVAL } from "../constants";
 import ProjectSelector from "./ProjectSelector";
 
@@ -37,6 +38,7 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
     const [elapsed, setElapsed] = useState(0);
     const stateRef = useRef<RecordingState | null>(null);
     const tickRef = useRef<number | null>(null);
+    const activeRecordingIdRef = useRef<string | null>(null);
 
     // Keep refs in sync with state
     const titleRef = useRef(title);
@@ -67,6 +69,53 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         } catch (err) { console.error("Auto-save failed:", err); }
     }, [addOrReplace]);
 
+    const beginTickRef = useRef<() => void>(() => {});
+    const beginTick = useCallback(() => {
+        clearTick();
+        tickRef.current = window.setInterval(() => {
+            const cur = stateRef.current;
+            if (!cur) return;
+            const n = dayjs().toISOString();
+            setElapsed(Math.floor(dayjs(n).diff(dayjs(cur.startTime), "second")));
+            updateLocal(cur, n);
+            autoSave(cur, n);
+        }, RECORDER_TICK_INTERVAL);
+    }, [clearTick, updateLocal, autoSave]);
+    useEffect(() => { beginTickRef.current = beginTick; }, [beginTick]);
+
+    // Reusable: given a persisted ActiveRecording row, restore all UI state and
+    // start ticking. Used by the mount effect AND the realtime handler.
+    const applyRecordingRef = useRef<(rec: ActiveRecording) => Promise<void>>(async () => {});
+    const applyRecording = useCallback(async (rec: ActiveRecording) => {
+        if (stateRef.current) return; // already recording locally
+        activeRecordingIdRef.current = rec.id;
+        const s: RecordingState = {
+            entryId:    rec.calendar_entry_id ?? `recording-${Date.now()}`,
+            dbId:       rec.calendar_entry_id ?? null,
+            startTime:  rec.started_at,
+            lastSave:   Date.now(),
+            title:      rec.title ?? "",
+            projectId:  rec.project_id ?? undefined,
+            isBillable: rec.is_billable,
+        };
+        stateRef.current   = s;
+        titleRef.current   = rec.title ?? "";
+        billableRef.current = rec.is_billable;
+        setTitle(rec.title ?? "");
+        setBillable(rec.is_billable);
+        setElapsed(Math.floor((Date.now() - new Date(rec.started_at).getTime()) / 1000));
+        setRecording(true);
+        if (rec.project_id) {
+            try {
+                const proj = await projectService.getProject(rec.project_id);
+                projectRef.current = proj;
+                setProject(proj);
+            } catch { /* project may have been deleted */ }
+        }
+        beginTickRef.current();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { applyRecordingRef.current = applyRecording; }, [applyRecording]);
+
     const createDb = useCallback(async (s: RecordingState) => {
         try {
             const c = await calendarService.createEntry({
@@ -77,6 +126,10 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
             s.dbId = c.id; s.entryId = c.id; s.lastSave = Date.now();
             addOrReplace({ ...c, id: oldId });
             setTimeout(() => addOrReplace(c), 0);
+            if (activeRecordingIdRef.current) {
+                recordingService.updateCalendarEntryId(activeRecordingIdRef.current, c.id)
+                    .catch(err => console.error("Failed to update calendar_entry_id:", err));
+            }
         } catch (err) { console.error("createDb failed:", err); }
     }, [addOrReplace]);
 
@@ -90,21 +143,22 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         stateRef.current = s;
         updateLocal(s, now);
         setRecording(true); setElapsed(0);
-
-        tickRef.current = window.setInterval(() => {
-            const cur = stateRef.current;
-            if (!cur) return;
-            const n = dayjs().toISOString();
-            setElapsed(Math.floor(dayjs(n).diff(dayjs(cur.startTime), "second")));
-            updateLocal(cur, n);
-            autoSave(cur, n);
-        }, RECORDER_TICK_INTERVAL);
+        beginTick();
+        recordingService.startRecording({
+            project_id: project?.id ?? null,
+            is_billable: billable,
+            title: title || null,
+            started_at: now,
+        }).then(rec => { activeRecordingIdRef.current = rec.id; })
+          .catch(err => console.error("Failed to persist recording start:", err));
         createDb(s);
-    }, [updateLocal, autoSave, createDb, title, project, billable]);
+    }, [updateLocal, beginTick, createDb, title, project, billable]);
 
     const stop = useCallback(async () => {
         clearTick(); setRecording(false);
         const s = stateRef.current; stateRef.current = null;
+        activeRecordingIdRef.current = null;
+        recordingService.stopRecording().catch(err => console.error("Failed to clear active recording:", err));
         if (!s) return;
         const end = dayjs().toISOString();
         const t = titleRef.current, pid = projectRef.current?.id, b = billableRef.current;
@@ -119,6 +173,38 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         } catch (err) { console.error("stop failed:", err); }
         setTitle(""); setProject(null); setBillable(false); setElapsed(0);
     }, [addOrReplace, clearTick]);
+
+    // Restore active recording from DB on mount - survives page reload and other devices
+    useEffect(() => {
+        let cancelled = false;
+        recordingService.getActiveRecording()
+            .then(rec => { if (!cancelled && rec) applyRecordingRef.current(rec); })
+            .catch(console.error);
+        return () => { cancelled = true; };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Real-time: pick up recordings started / stopped on another device
+    useEffect(() => {
+        return recordingService.subscribeToChanges({
+            onUpsert: () => {
+                if (stateRef.current) return;
+                recordingService.getActiveRecording()
+                    .then(rec => { if (rec) applyRecordingRef.current(rec); })
+                    .catch(console.error);
+            },
+            onDelete: () => {
+                if (!stateRef.current) return;
+                clearTick();
+                stateRef.current             = null;
+                activeRecordingIdRef.current = null;
+                setRecording(false);
+                setTitle('');
+                setProject(null);
+                setBillable(false);
+                setElapsed(0);
+            },
+        });
+    }, [clearTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => { onRecordingStart?.(start); }, [onRecordingStart, start]);
     useEffect(() => clearTick, [clearTick]);
@@ -143,7 +229,7 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
                 </IconButton>
             </Tooltip>
             <Tooltip title={recording ? "Stop recording" : "Start recording"}>
-                <IconButton onClick={toggle} size="small" color={recording ? "error" : "secondary"}
+                <IconButton onClick={toggle} size="small" color="secondary"
                     sx={{ border: 1, borderColor: "secondary.main", transition: "transform 0.12s ease", "&:hover": { transform: "scale(1.18)" } }}>
                     {recording ? <Stop /> : <PlayArrow />}
                 </IconButton>
