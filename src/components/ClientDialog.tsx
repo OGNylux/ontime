@@ -10,6 +10,7 @@ import {
     Stack,
     Box,
     Typography,
+    Divider,
 } from '@mui/material';
 import { Client } from '../services/clientService';
 
@@ -23,10 +24,14 @@ interface ClientDialogProps {
 export default function ClientDialog({ open, onClose, onSave, client }: ClientDialogProps) {
     const [name, setName] = useState('');
     const [street, setStreet] = useState('');
+    const [houseNumber, setHouseNumber] = useState('');
     const [postalCode, setPostalCode] = useState('');
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
     const [country, setCountry] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [vatNumber, setVatNumber] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -35,17 +40,25 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
             if (client) {
                 setName(client.name || '');
                 setStreet(client.info?.street || '');
+                setHouseNumber(client.info?.house_number || '');
                 setPostalCode(client.info?.postal_code || '');
                 setCity(client.info?.city || '');
                 setState(client.info?.state || '');
                 setCountry(client.info?.country || '');
+                setEmail(client.info?.email || '');
+                setPhone(client.info?.phone || '');
+                setVatNumber(client.info?.vat_number || '');
             } else {
                 setName('');
                 setStreet('');
+                setHouseNumber('');
                 setPostalCode('');
                 setCity('');
                 setState('');
                 setCountry('');
+                setEmail('');
+                setPhone('');
+                setVatNumber('');
             }
             setError('');
         }
@@ -63,10 +76,14 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
                 name: name.trim(),
                 info: {
                     street: street.trim() || undefined,
+                    house_number: houseNumber.trim() || undefined,
                     postal_code: postalCode.trim() || undefined,
                     city: city.trim() || undefined,
                     state: state.trim() || undefined,
                     country: country.trim() || undefined,
+                    email: email.trim() || undefined,
+                    phone: phone.trim() || undefined,
+                    vat_number: vatNumber.trim() || undefined,
                 },
             });
             onClose();
@@ -96,14 +113,25 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
                             />
                         </Box>
 
-                        <Box>
-                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Street</Typography>
-                            <TextField
-                                placeholder="Enter street name"
-                                value={street}
-                                onChange={(e) => setStreet(e.target.value)}
-                                fullWidth
-                            />
+                        <Box display="flex" gap={2}>
+                            <Box flex={3}>
+                                <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Street</Typography>
+                                <TextField
+                                    placeholder="Enter street name"
+                                    value={street}
+                                    onChange={(e) => setStreet(e.target.value)}
+                                    fullWidth
+                                />
+                            </Box>
+                            <Box flex={1}>
+                                <Typography variant="body2" marginBottom={0.5} fontWeight={500}>No.</Typography>
+                                <TextField
+                                    placeholder="123"
+                                    value={houseNumber}
+                                    onChange={(e) => setHouseNumber(e.target.value)}
+                                    fullWidth
+                                />
+                            </Box>
                         </Box>
 
                         <Box display="flex" gap={2}>
@@ -146,6 +174,41 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
                                     fullWidth
                                 />
                             </Box>
+                        </Box>
+
+                        <Divider />
+                        <Typography variant="body2" fontWeight={600} color="text.secondary">Invoice Details</Typography>
+
+                        <Box display="flex" gap={2}>
+                            <Box flex={1}>
+                                <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Email</Typography>
+                                <TextField
+                                    placeholder="billing@company.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    fullWidth
+                                    type="email"
+                                />
+                            </Box>
+                            <Box flex={1}>
+                                <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Phone</Typography>
+                                <TextField
+                                    placeholder="+1 234 567 890"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    fullWidth
+                                />
+                            </Box>
+                        </Box>
+
+                        <Box>
+                            <Typography variant="body2" marginBottom={0.5} fontWeight={500}>VAT Number</Typography>
+                            <TextField
+                                placeholder="e.g. BE0123456789"
+                                value={vatNumber}
+                                onChange={(e) => setVatNumber(e.target.value)}
+                                fullWidth
+                            />
                         </Box>
                     </Stack>
                 </DialogContent>

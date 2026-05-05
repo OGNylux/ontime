@@ -20,6 +20,7 @@ import { CssBaseline, Box, useMediaQuery, useTheme } from "@mui/material";
 import theme from "./theme";
 import { platform } from "@tauri-apps/plugin-os";
 import NotificationsPage from "./routes/notifications/page";
+import InvoicesPage from "./routes/invoices/page";
 
 function AppLayout() {
   const muiTheme = useTheme();
@@ -77,12 +78,12 @@ function AppLayout() {
 
   return (
     <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
-      {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />}
+      {/* {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />} */}
 
       <Box
         display="flex"
         flexDirection="row"
-        pt={!hideNav ? { xs: 7, md: 8 } : 0}
+        // pt={!hideNav ? { xs: 7, md: 8 } : 0}
         pb={(isTauriMobile && !hideNav) ? '80px' : 0}
         flex={1}
         minHeight={0}
@@ -108,6 +109,7 @@ function AppLayout() {
             <Route path="/overview" element={<OverviewPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/invoices" element={<InvoicesPage />} />
           </Routes>
         </Box>
       </Box>

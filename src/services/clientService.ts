@@ -10,6 +10,9 @@ export interface ClientInfo {
     city?: string | null;
     state?: string | null;
     country?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    vat_number?: string | null;
 }
 
 export interface Client {
@@ -193,6 +196,7 @@ export const clientService = {
 function hasInfoFields(info: ClientInfo): boolean {
     return Boolean(
         info.street || info.house_number || info.postal_code ||
-        info.city || info.state || info.country,
+        info.city || info.state || info.country ||
+        info.email || info.phone || info.vat_number,
     );
 }

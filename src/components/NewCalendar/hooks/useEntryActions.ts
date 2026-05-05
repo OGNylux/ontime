@@ -38,7 +38,7 @@ async function resolveTaskId(
     projectId: string | undefined,
 ): Promise<string | undefined> {
     if (taskId) return taskId;
-    if (!taskName?.trim() || !projectId) return undefined;
+    if (!taskName?.trim()) return undefined;
 
     let task = await taskService.getTaskByName(taskName.trim(), projectId);
     if (!task) {
@@ -50,7 +50,7 @@ async function resolveTaskId(
         }
         task = await taskService.createTask({
             name: taskName.trim(),
-            project_id: projectId,
+            project_id: projectId ?? null,
             color,
         });
     }
@@ -98,13 +98,13 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         const tempId = `temp-${Date.now()}`;
         addOrReplace({
             id: tempId, start_time, end_time,
-            is_billable: data.isBillable, task_id: taskId, project_id: data.projectId ?? undefined,
+            is_billable: data.isBillable, task_id: taskId,
         } as CalendarEntry);
 
         try {
             const created = await calendarService.createEntry({
                 start_time, end_time,
-                is_billable: data.isBillable, task_id: taskId, project_id: data.projectId ?? undefined,
+                is_billable: data.isBillable, task_id: taskId,
             });
             addOrReplace(created);
             if (tempId !== created.id) removeLocal(tempId);
@@ -125,13 +125,13 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         addOrReplace({
             ...existing,
             start_time, end_time,
-            is_billable: data.isBillable, task_id: taskId, project_id: data.projectId ?? undefined,
+            is_billable: data.isBillable, task_id: taskId,
         });
 
         try {
             addOrReplace(await calendarService.updateEntry(entryId, {
                 start_time, end_time,
-                is_billable: data.isBillable, task_id: taskId, project_id: data.projectId ?? undefined,
+                is_billable: data.isBillable, task_id: taskId,
             }));
         } catch (err) {
             console.error("update failed:", err);
@@ -144,7 +144,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
             await calendarService.createEntry({
                 start_time: entry.start_time, end_time: entry.end_time,
                 is_billable: entry.is_billable || false,
-                task_id: entry.task_id, project_id: entry.project_id,
+                task_id: entry.task_id,
             });
             refetch();
         } catch (err) {

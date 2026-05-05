@@ -1,6 +1,25 @@
 import { supabase } from "../lib/supabase";
 import { requireUserId, setActiveWorkspaceIdCache } from "./workspaceContext";
 
+export interface WorkspaceBilling {
+    id?: string;
+    workspace_id?: string;
+    company_name?: string;
+    email?: string;
+    phone?: string;
+    vat_number?: string;
+    street?: string;
+    house_number?: string;
+    postal_code?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    bank_name?: string;
+    account_holder?: string;
+    iban?: string;
+    swift?: string;
+}
+
 export type WorkspaceRole = "owner" | "admin" | "member";
 
 export interface Workspace {
@@ -99,5 +118,28 @@ export const workspaceService = {
             .eq("workspace_id", workspaceId)
             .eq("user_id", userId);
         if (error) throw error;
+    },
+
+    async getBilling(workspaceId: string): Promise<WorkspaceBilling | null> {
+        const { data, error } = await supabase
+            .from("ontime_workspace_billing")
+            .select("*")
+            .eq("workspace_id", workspaceId)
+            .maybeSingle();
+        if (error) throw error;
+        return data as WorkspaceBilling | null;
+    },
+
+    async saveBilling(workspaceId: string, billing: Partial<WorkspaceBilling>): Promise<WorkspaceBilling> {
+        const payload = { ...billing, workspace_id: workspaceId };
+        delete payload.id;
+
+        const { data, error } = await supabase
+            .from("ontime_workspace_billing")
+            .upsert(payload, { onConflict: "workspace_id" })
+            .select("*")
+            .single();
+        if (error) throw error;
+        return data as WorkspaceBilling;
     },
 };

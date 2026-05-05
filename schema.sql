@@ -46,31 +46,35 @@ create extension if not exists pgcrypto;
 
 create or replace function public.is_workspace_member(p_workspace_id uuid)
 returns boolean
-language sql
+language plpgsql
 security definer
 stable
 set search_path = public
 as $$
-    select exists (
+begin
+    return exists (
         select 1 from public.ontime_workspace_member
         where workspace_id = p_workspace_id
           and user_id = auth.uid()
     );
+end;
 $$;
 
 create or replace function public.has_workspace_role(p_workspace_id uuid, p_roles text[])
 returns boolean
-language sql
+language plpgsql
 security definer
 stable
 set search_path = public
 as $$
-    select exists (
+begin
+    return exists (
         select 1 from public.ontime_workspace_member
         where workspace_id = p_workspace_id
           and user_id = auth.uid()
           and role = any(p_roles)
     );
+end;
 $$;
 
 -- =========================
@@ -90,19 +94,6 @@ alter table public.ontime_user enable row level security;
 create policy "user_select_own"
 on public.ontime_user for select
 using (auth.uid() = id);
-
--- Allow workspace members to see each other's display names
-create policy "user_select_same_workspace"
-on public.ontime_user for select
-using (
-    id in (
-        select m.user_id from public.ontime_workspace_member m
-        where m.workspace_id in (
-            select m2.workspace_id from public.ontime_workspace_member m2
-            where m2.user_id = auth.uid()
-        )
-    )
-);
 
 create policy "user_update_own"
 on public.ontime_user for update
@@ -136,8 +127,8 @@ begin
     values (v_name || '''s workspace', new.id)
     returning id into v_workspace_id;
 
-    insert into public.ontime_workspace_member (user_id, workspace_id, role)
-    values (new.id, v_workspace_id, 'owner');
+    -- trg_workspace_owner_member fires on the insert above and creates the
+    -- owner membership row automatically; no explicit insert needed here.
 
     update public.ontime_user
     set active_workspace_id = v_workspace_id
@@ -164,19 +155,8 @@ create table public.ontime_workspace (
 
 alter table public.ontime_workspace enable row level security;
 
-create policy "workspace_select"
-on public.ontime_workspace for select
-using (
-    exists (
-        select 1 from public.ontime_workspace_member m
-        where m.workspace_id = id and m.user_id = auth.uid()
-    )
-);
-
-create policy "workspace_update_admin"
-on public.ontime_workspace for update
-using (public.has_workspace_role(id, array['owner','admin']))
-with check (public.has_workspace_role(id, array['owner','admin']));
+-- workspace_select and workspace_update_admin are added after ontime_workspace_member
+-- is created (they reference that table directly in their predicate).
 
 -- Members can create new workspaces; the creator becomes a member via the
 -- bootstrap trigger below. We don't restrict insert beyond auth.uid() match.
@@ -223,7 +203,7 @@ end $$;
 -- WORKSPACE MEMBERS
 -- =========================
 create table public.ontime_workspace_member (
-    user_id uuid not null references auth.users(id) on delete cascade,
+    user_id uuid not null references public.ontime_user(id) on delete cascade,
     workspace_id uuid not null references public.ontime_workspace(id) on delete cascade,
     role text not null default 'owner',
     created_at timestamptz not null default now(),
@@ -233,15 +213,9 @@ create table public.ontime_workspace_member (
 
 alter table public.ontime_workspace_member enable row level security;
 
--- Direct subquery instead of is_workspace_member() to avoid circular recursion
 create policy "workspace_member_select"
 on public.ontime_workspace_member for select
-using (
-    workspace_id in (
-        select m2.workspace_id from public.ontime_workspace_member m2
-        where m2.user_id = auth.uid()
-    )
-);
+using (public.is_workspace_member(workspace_id));
 
 create policy "workspace_member_insert_admin"
 on public.ontime_workspace_member for insert
@@ -255,6 +229,33 @@ with check (public.has_workspace_role(workspace_id, array['owner','admin']));
 create policy "workspace_member_delete_admin"
 on public.ontime_workspace_member for delete
 using (public.has_workspace_role(workspace_id, array['owner','admin']));
+
+-- Policies deferred until ontime_workspace_member exists (inline subqueries).
+create policy "user_select_same_workspace"
+on public.ontime_user for select
+using (
+    id in (
+        select m.user_id from public.ontime_workspace_member m
+        where m.workspace_id in (
+            select m2.workspace_id from public.ontime_workspace_member m2
+            where m2.user_id = auth.uid()
+        )
+    )
+);
+
+create policy "workspace_select"
+on public.ontime_workspace for select
+using (
+    exists (
+        select 1 from public.ontime_workspace_member m
+        where m.workspace_id = id and m.user_id = auth.uid()
+    )
+);
+
+create policy "workspace_update_admin"
+on public.ontime_workspace for update
+using (public.has_workspace_role(id, array['owner','admin']))
+with check (public.has_workspace_role(id, array['owner','admin']));
 
 -- =========================
 -- CLIENT INFO
@@ -272,6 +273,43 @@ create table public.ontime_client_info (
 );
 
 alter table public.ontime_client_info enable row level security;
+
+create policy "client_info_select"
+on public.ontime_client_info for select
+using (
+    auth.uid() = created_by
+    or exists (
+        select 1 from public.ontime_client c
+        where c.info_id = id
+          and public.is_workspace_member(c.workspace_id)
+    )
+);
+
+create policy "client_info_insert"
+on public.ontime_client_info for insert
+with check (auth.uid() = created_by);
+
+create policy "client_info_update"
+on public.ontime_client_info for update
+using (
+    auth.uid() = created_by
+    or exists (
+        select 1 from public.ontime_client c
+        where c.info_id = id
+          and public.is_workspace_member(c.workspace_id)
+    )
+);
+
+create policy "client_info_delete"
+on public.ontime_client_info for delete
+using (
+    auth.uid() = created_by
+    or exists (
+        select 1 from public.ontime_client c
+        where c.info_id = id
+          and public.is_workspace_member(c.workspace_id)
+    )
+);
 
 -- =========================
 -- CLIENT
@@ -324,11 +362,12 @@ using (public.is_workspace_member(workspace_id) and deleted_at is null)
 with check (public.is_workspace_member(workspace_id));
 
 -- =========================
--- TASK (project required)
+-- TASK
 -- =========================
 create table public.ontime_task (
     id uuid primary key default gen_random_uuid(),
-    project_id uuid not null references public.ontime_project(id) on delete cascade,
+    workspace_id uuid not null references public.ontime_workspace(id) on delete cascade,
+    project_id uuid references public.ontime_project(id) on delete set null,
     name text not null,
     color integer,
     pinned boolean not null default false,
@@ -343,21 +382,8 @@ alter table public.ontime_task enable row level security;
 
 create policy "task_all"
 on public.ontime_task for all
-using (
-    exists (
-        select 1 from public.ontime_project p
-        where p.id = project_id
-        and public.is_workspace_member(p.workspace_id)
-    )
-    and deleted_at is null
-)
-with check (
-    exists (
-        select 1 from public.ontime_project p
-        where p.id = project_id
-        and public.is_workspace_member(p.workspace_id)
-    )
-);
+using (public.is_workspace_member(workspace_id) and deleted_at is null)
+with check (public.is_workspace_member(workspace_id));
 
 -- =========================
 -- CALENDAR ENTRY
@@ -366,7 +392,6 @@ create table public.ontime_calendar_entry (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.ontime_workspace(id) on delete cascade,
     created_by uuid not null references auth.users(id),
-    project_id uuid not null references public.ontime_project(id),
     task_id uuid references public.ontime_task(id),
     start_time timestamptz not null,
     end_time timestamptz not null,
@@ -382,28 +407,6 @@ on public.ontime_calendar_entry for all
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
 
--- Trigger: enforce task belongs to the same project as the calendar entry
-create or replace function public.check_task_project_consistency()
-returns trigger
-language plpgsql
-as $$
-begin
-    if new.task_id is not null then
-        if not exists (
-            select 1 from public.ontime_task t
-            where t.id = new.task_id
-              and t.project_id = new.project_id
-        ) then
-            raise exception 'Task does not belong to the specified project';
-        end if;
-    end if;
-    return new;
-end;
-$$;
-
-create trigger trg_calendar_task_project
-before insert or update on public.ontime_calendar_entry
-for each row execute function public.check_task_project_consistency();
 
 -- =========================
 -- ACTIVE RECORDING
@@ -412,10 +415,7 @@ create table public.ontime_active_recording (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.ontime_workspace(id) on delete cascade,
     created_by uuid not null references auth.users(id),
-    project_id uuid references public.ontime_project(id),
     task_id uuid references public.ontime_task(id),
-    -- Tracks the live calendar entry created when recording starts;
-    -- replaces the previous localStorage-based mapping.
     calendar_entry_id uuid references public.ontime_calendar_entry(id) on delete set null,
     title text,
     is_billable boolean not null default false,
@@ -431,9 +431,6 @@ on public.ontime_active_recording for all
 using (created_by = auth.uid() and public.is_workspace_member(workspace_id))
 with check (created_by = auth.uid() and public.is_workspace_member(workspace_id));
 
-create trigger trg_recording_task_project
-before insert or update on public.ontime_active_recording
-for each row execute function public.check_task_project_consistency();
 
 -- =========================
 -- INVITES
@@ -600,7 +597,7 @@ as $$
     select
         date_trunc('day', ce.start_time)::date as day,
         p.client_id,
-        ce.project_id,
+        t.project_id,
         p.name as project_name,
         p.color as project_color,
         ce.task_id,
@@ -619,20 +616,20 @@ as $$
             end
         ) as revenue
     from public.ontime_calendar_entry ce
-    join public.ontime_project p on p.id = ce.project_id
     left join public.ontime_task t on t.id = ce.task_id
+    left join public.ontime_project p on p.id = t.project_id
     where ce.workspace_id = p_workspace_id
       and public.is_workspace_member(p_workspace_id)
       and ce.start_time >= p_start
       and ce.start_time <= p_end
-      and p.deleted_at is null
+      and (p.id is null or p.deleted_at is null)
       and (t.id is null or t.deleted_at is null)
       and (p_client_ids is null or p.client_id = any(p_client_ids))
-      and (p_project_ids is null or ce.project_id = any(p_project_ids))
+      and (p_project_ids is null or t.project_id = any(p_project_ids))
     group by
         date_trunc('day', ce.start_time)::date,
         p.client_id,
-        ce.project_id,
+        t.project_id,
         p.name,
         p.color,
         ce.task_id,
@@ -646,58 +643,61 @@ $$;
 -- v_hours_per_day now groups by created_by so each user's time is tracked separately.
 -- =========================
 
-create or replace view public.v_hours_per_project with (security_barrier = true) as
+create or replace view public.v_hours_per_project with (security_invoker = true) as
 select
-    workspace_id,
-    created_by,
-    project_id,
-    sum(extract(epoch from (end_time - start_time))) / 3600 as total_hours,
-    sum(extract(epoch from (end_time - start_time)) filter (where is_billable)) / 3600 as billable_hours
-from public.ontime_calendar_entry
-group by workspace_id, created_by, project_id;
+    ce.workspace_id,
+    ce.created_by,
+    t.project_id,
+    sum(extract(epoch from (ce.end_time - ce.start_time))) / 3600 as total_hours,
+    sum(case when ce.is_billable then extract(epoch from (ce.end_time - ce.start_time)) else 0 end) / 3600 as billable_hours
+from public.ontime_calendar_entry ce
+join public.ontime_task t on t.id = ce.task_id
+group by ce.workspace_id, ce.created_by, t.project_id;
 
-create or replace view public.v_hours_per_task with (security_barrier = true) as
+create or replace view public.v_hours_per_task with (security_invoker = true) as
 select
-    workspace_id,
-    created_by,
-    project_id,
-    task_id,
-    sum(extract(epoch from (end_time - start_time))) / 3600 as total_hours,
-    sum(extract(epoch from (end_time - start_time)) filter (where is_billable)) / 3600 as billable_hours
-from public.ontime_calendar_entry
-group by workspace_id, created_by, project_id, task_id;
+    ce.workspace_id,
+    ce.created_by,
+    t.project_id,
+    ce.task_id,
+    sum(extract(epoch from (ce.end_time - ce.start_time))) / 3600 as total_hours,
+    sum(case when ce.is_billable then extract(epoch from (ce.end_time - ce.start_time)) else 0 end) / 3600 as billable_hours
+from public.ontime_calendar_entry ce
+join public.ontime_task t on t.id = ce.task_id
+group by ce.workspace_id, ce.created_by, t.project_id, ce.task_id;
 
-create or replace view public.v_hours_per_client with (security_barrier = true) as
+create or replace view public.v_hours_per_client with (security_invoker = true) as
 select
     ce.workspace_id,
     c.id as client_id,
     sum(extract(epoch from (ce.end_time - ce.start_time))) / 3600 as total_hours,
-    sum(extract(epoch from (ce.end_time - ce.start_time)) filter (where ce.is_billable)) / 3600 as billable_hours
+    sum(case when ce.is_billable then extract(epoch from (ce.end_time - ce.start_time)) else 0 end) / 3600 as billable_hours
 from public.ontime_calendar_entry ce
-join public.ontime_project p on p.id = ce.project_id
+join public.ontime_task t on t.id = ce.task_id
+join public.ontime_project p on p.id = t.project_id
 join public.ontime_client c on c.id = p.client_id
 group by ce.workspace_id, c.id;
 
-create or replace view public.v_hours_per_day with (security_barrier = true) as
+create or replace view public.v_hours_per_day with (security_invoker = true) as
 select
     workspace_id,
     created_by,
     date_trunc('day', start_time) as day,
     sum(extract(epoch from (end_time - start_time))) / 3600 as total_hours,
-    sum(extract(epoch from (end_time - start_time)) filter (where is_billable)) / 3600 as billable_hours
+    sum(case when is_billable then extract(epoch from (end_time - start_time)) else 0 end) / 3600 as billable_hours
 from public.ontime_calendar_entry
 group by workspace_id, created_by, day;
 
-create or replace view public.v_hours_per_user with (security_barrier = true) as
+create or replace view public.v_hours_per_user with (security_invoker = true) as
 select
     workspace_id,
     created_by,
     sum(extract(epoch from (end_time - start_time))) / 3600 as total_hours,
-    sum(extract(epoch from (end_time - start_time)) filter (where is_billable)) / 3600 as billable_hours
+    sum(case when is_billable then extract(epoch from (end_time - start_time)) else 0 end) / 3600 as billable_hours
 from public.ontime_calendar_entry
 group by workspace_id, created_by;
 
-create or replace view public.v_billable_summary with (security_barrier = true) as
+create or replace view public.v_billable_summary with (security_invoker = true) as
 select
     workspace_id,
     is_billable,
@@ -716,6 +716,9 @@ create index if not exists idx_calendar_created_by_time
 
 create index if not exists idx_task_project_id
     on public.ontime_task (project_id);
+
+create index if not exists idx_task_workspace_id
+    on public.ontime_task (workspace_id);
 
 create index if not exists idx_project_workspace_id
     on public.ontime_project (workspace_id);
@@ -814,6 +817,10 @@ create table if not exists public.ontime_workspace_billing (
     city          text,
     state         text,
     country       text,
+    bank_name     text,
+    account_holder text,
+    iban          text,
+    swift         text,
     created_at    timestamptz not null default now()
 );
 
@@ -894,6 +901,7 @@ create table if not exists public.ontime_invoice_line_item (
     invoice_id        uuid not null references public.ontime_invoice(id) on delete cascade,
     -- Nullable: line items can be manually added without a linked time entry.
     calendar_entry_id uuid references public.ontime_calendar_entry(id) on delete set null,
+    project_name      text,
     description       text not null,
     date              date not null,
     quantity_hours    numeric(8,2) not null,

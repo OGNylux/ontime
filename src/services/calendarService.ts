@@ -8,20 +8,17 @@ export interface CalendarEntry {
     id: string;
     workspace_id?: string;
     created_by?: string;
-    project_id?: string;
     task_id?: string | null;
     start_time: string;
     end_time: string;
     is_billable?: boolean;
     created_at?: string;
     task?: Task | null;
-    project?: Project | null;
 }
 
 const ENTRY_SELECT = `
     *,
-    task:ontime_task(*),
-    project:ontime_project(*, client:ontime_client(*))
+    task:ontime_task(*, project:ontime_project(*, client:ontime_client(*)))
 `;
 
 export const calendarService = {
@@ -53,7 +50,6 @@ export const calendarService = {
     },
 
     async createEntry(request: Omit<CalendarEntry, "id">): Promise<CalendarEntry> {
-        if (!request.project_id) throw new Error("project_id is required");
         const userId = await requireUserId();
         const workspaceId = await getActiveWorkspaceId();
 
@@ -62,7 +58,6 @@ export const calendarService = {
             .insert({
                 workspace_id: workspaceId,
                 created_by: userId,
-                project_id: request.project_id,
                 task_id: request.task_id ?? null,
                 is_billable: request.is_billable ?? false,
                 start_time: request.start_time,
@@ -77,7 +72,6 @@ export const calendarService = {
 
     async updateEntry(id: string, request: Partial<CalendarEntry>): Promise<CalendarEntry> {
         const payload: Record<string, unknown> = {};
-        if (request.project_id !== undefined) payload.project_id = request.project_id;
         if (request.task_id !== undefined) payload.task_id = request.task_id;
         if (request.is_billable !== undefined) payload.is_billable = request.is_billable;
         if (request.start_time !== undefined) payload.start_time = request.start_time;

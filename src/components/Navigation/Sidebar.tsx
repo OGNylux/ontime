@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Drawer, Box, IconButton, Divider, Typography, Theme } from '@mui/material';
+import { Drawer, Box, IconButton, Divider, Theme } from '@mui/material';
 import {
   Timer,
   Add,
@@ -9,8 +9,8 @@ import {
   Settings,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { userService } from '../../services/userService';
 import SidebarContent, { NavItem, NavSection } from './SidebarContent';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 interface SidebarProps {
   isDrawer?: boolean;
@@ -34,11 +34,12 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Create',
     icon: <Add />,
-    paths: ['/clients', '/projects', '/tasks'],
+    paths: ['/clients', '/projects', '/tasks', '/invoices'],
     subItems: [
       { label: 'Clients', path: '/clients', pathMatch: 'startsWith' },
       { label: 'Projects', path: '/projects', pathMatch: 'startsWith' },
       { label: 'Tasks', path: '/tasks', pathMatch: 'startsWith' },
+      { label: 'Invoices', path: '/invoices', pathMatch: 'startsWith' },
     ],
   },
 ];
@@ -46,7 +47,6 @@ const NAV_SECTIONS: NavSection[] = [
 const drawerPaperSx = {
   width: 280,
   top: { xs: '56px', md: '64px' },
-  height: { xs: 'calc(100% - 56px)', md: 'calc(100% - 64px)' },
   background: (theme: Theme) =>
     `linear-gradient(90deg, ${theme.palette.primary.main} -150%, ${theme.palette.background.default} 70%)`,
   borderTopRightRadius: 12,
@@ -59,7 +59,6 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
-  const [userName, setUserName] = useState('');
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -71,12 +70,6 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     });
     setSectionStates((prev) => ({ ...prev, ...newStates }));
   }, [location.pathname]);
-
-  useEffect(() => {
-    userService.getCurrentUserName().then((name) => {
-      if (name) setUserName(name);
-    });
-  }, []);
 
   const handleSectionToggle = (label: string) => {
     if (collapsed) {
@@ -120,23 +113,9 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         onClose={onClose}
         ModalProps={{ keepMounted: true }}
         slotProps={{ paper: { sx: drawerPaperSx } }}
-        sx={{ '& .MuiBackdrop-root': { top: { xs: '56px', md: '64px' } } }}
       >
         <Box display="flex" alignItems="center" px={2} py={2}>
-          <Typography
-            variant="h5"
-            fontWeight="bold"
-            color="text.primary"
-            noWrap
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '100%',
-            }}
-          >
-            {userName}'s Workspace
-          </Typography>
+          <WorkspaceSwitcher />
         </Box>
         <Divider />
         <Box display="flex" flexDirection="column" height="100%">
@@ -174,9 +153,9 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
       className={`h-full shrink-0 transition-all duration-300 pb-2 ${collapsed ? 'w-16' : 'w-72'}`}
       slotProps={{
         paper: {
-          className: `h-full transition-all duration-300 overflow-x-hidden mt-19 rounded-tr-xl rounded-br-xl ${collapsed ? 'w-16' : 'w-72'}`,
+          className: `h-full transition-all duration-300 overflow-x-hidden rounded-tr-xl rounded-br-xl ${collapsed ? 'w-16' : 'w-72'}`,
           sx: {
-            height: 'calc(100vh - 78px)',
+            height: '100%',
             background: (theme) =>
               `linear-gradient(90deg, ${theme.palette.primary.main} -250%, ${theme.palette.background.default} 70%)`,
             boxShadow: 4,
@@ -189,22 +168,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
       }}
     >
       <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
-        {!collapsed && (
-          <Typography
-            variant="h5"
-            fontWeight="bold"
-            color="text.primary"
-            noWrap
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '100%',
-            }}
-          >
-            {userName}'s Workspace
-          </Typography>
-        )}
+        {!collapsed && <WorkspaceSwitcher />}
         <IconButton onClick={handleDrawerToggle} sx={{ ml: 1 }}>
           {collapsed ? <ChevronRight /> : <ChevronLeft />}
         </IconButton>

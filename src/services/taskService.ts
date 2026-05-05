@@ -1,14 +1,17 @@
 import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { CalendarEntry } from "./calendarService";
+import type { Project } from "./projectService";
 
 export interface Task {
     id?: string;
-    project_id: string;
+    workspace_id?: string;
+    project_id?: string | null;
     name: string;
     color?: number | null;
     pinned?: boolean;
     total_time?: number;
+    project?: Project | null;
     calendar_entries?: CalendarEntry[];
     created_by?: string;
     created_at?: string;
@@ -36,8 +39,8 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from("ontime_task")
-            .select(`${TASK_WITH_ENTRIES_SELECT}, project:ontime_project!inner(workspace_id)`)
-            .eq("project.workspace_id", workspaceId)
+            .select(TASK_WITH_ENTRIES_SELECT)
+            .eq("workspace_id", workspaceId)
             .order("pinned", { ascending: false })
             .order("created_at", { ascending: false });
         if (error) throw error;
@@ -50,13 +53,13 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from("ontime_task")
-            .select(`${TASK_SELECT}, project:ontime_project!inner(workspace_id)`)
-            .eq("project.workspace_id", workspaceId)
+            .select(TASK_SELECT)
+            .eq("workspace_id", workspaceId)
             .order("pinned", { ascending: false })
             .order("created_at", { ascending: false });
         if (error) throw error;
 
-        return (data ?? []).map(({ project: _drop, ...rest }) => rest as Task);
+        return (data ?? []).map(rowToTask);
     },
 
     async getTasksLight(): Promise<Task[]> {
@@ -64,13 +67,13 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from("ontime_task")
-            .select(`${TASK_LIGHT_SELECT}, project:ontime_project!inner(workspace_id)`)
-            .eq("project.workspace_id", workspaceId)
+            .select(TASK_LIGHT_SELECT)
+            .eq("workspace_id", workspaceId)
             .order("pinned", { ascending: false })
             .order("created_at", { ascending: false });
         if (error) throw error;
 
-        return (data ?? []).map(({ project: _drop, ...rest }) => rest as Task);
+        return data as Task[];
     },
 
     async getTasksForProject(projectId: string): Promise<Task[]> {
@@ -85,13 +88,14 @@ export const taskService = {
     },
 
     async createTask(request: Task): Promise<Task> {
-        if (!request.project_id) throw new Error("project_id is required");
         const userId = await requireUserId();
+        const workspaceId = request.workspace_id ?? await getActiveWorkspaceId();
 
         const { data, error } = await supabase
             .from("ontime_task")
             .insert({
-                project_id: request.project_id,
+                workspace_id: workspaceId,
+                project_id: request.project_id ?? null,
                 name: request.name,
                 color: request.color ?? null,
                 pinned: request.pinned ?? false,
@@ -132,22 +136,30 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from("ontime_task")
-            .select(`*, project:ontime_project!inner(workspace_id)`)
-            .eq("project.workspace_id", workspaceId)
+            .select("*")
+            .eq("workspace_id", workspaceId)
             .ilike("name", `%${query}%`)
             .limit(10);
         if (error) throw error;
 
-        return (data ?? []).map(({ project: _drop, ...rest }) => rest as Task);
+        return data as Task[];
     },
 
-    async getTaskByName(name: string, projectId: string): Promise<Task | null> {
-        const { data, error } = await supabase
+    async getTaskByName(name: string, projectId?: string | null): Promise<Task | null> {
+        const workspaceId = await getActiveWorkspaceId();
+        let query = supabase
             .from("ontime_task")
             .select("*")
-            .eq("name", name)
-            .eq("project_id", projectId)
-            .maybeSingle();
+            .eq("workspace_id", workspaceId)
+            .eq("name", name);
+
+        if (projectId) {
+            query = query.eq("project_id", projectId);
+        } else {
+            query = query.is("project_id", null);
+        }
+
+        const { data, error } = await query.maybeSingle();
         if (error) throw error;
         return data as Task | null;
     },

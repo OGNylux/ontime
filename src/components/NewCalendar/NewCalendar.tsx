@@ -158,7 +158,7 @@ export default function NewCalendar() {
                     dateStr={dialogs.dialog.dateStr}
                     initialTitle={dialogs.dialog.editingEntry?.task?.name}
                     initialIsBillable={dialogs.dialog.editingEntry?.is_billable ?? true}
-                    initialProjectId={dialogs.dialog.editingEntry?.project_id ?? dialogs.dialog.editingEntry?.project?.id ?? null}
+                    initialProjectId={dialogs.dialog.editingEntry?.task?.project_id ?? null}
                     isEdit={Boolean(dialogs.dialog.editingEntry)}
                     editingEntryId={dialogs.dialog.editingEntry?.id || null}
                 />

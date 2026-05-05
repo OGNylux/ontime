@@ -5,7 +5,6 @@ export interface ActiveRecording {
     id: string;
     workspace_id: string;
     created_by: string;
-    project_id: string | null;
     task_id: string | null;
     calendar_entry_id: string | null;
     title: string | null;
@@ -15,7 +14,6 @@ export interface ActiveRecording {
 }
 
 export interface StartRecordingRequest {
-    project_id?: string | null;
     task_id?: string | null;
     title?: string | null;
     is_billable?: boolean;
@@ -45,7 +43,6 @@ export const recordingService = {
             .upsert({
                 workspace_id: workspaceId,
                 created_by: userId,
-                project_id: request.project_id ?? null,
                 task_id: request.task_id ?? null,
                 calendar_entry_id: null,
                 title: request.title ?? null,
@@ -61,7 +58,7 @@ export const recordingService = {
 
     async updateRecording(
         id: string,
-        updates: Partial<Pick<ActiveRecording, "project_id" | "task_id" | "title" | "is_billable" | "calendar_entry_id">>,
+        updates: Partial<Pick<ActiveRecording, "task_id" | "title" | "is_billable" | "calendar_entry_id">>,
     ): Promise<ActiveRecording> {
         const { data, error } = await supabase
             .from("ontime_active_recording")
