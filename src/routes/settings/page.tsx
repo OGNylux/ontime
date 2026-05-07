@@ -123,10 +123,8 @@ export default function SettingsPage() {
       <PageHeader title="Settings" />
 
       <Grid container spacing={3}>
-        {/* ── Left column ── */}
         <Grid size={{ xs: 12, md: 8 }}>
 
-          {/* Calendar Settings */}
           <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default" mb={3}>
             <Typography variant="h6" gutterBottom>Calendar Settings</Typography>
             <Divider sx={{ mb: 2 }} />
@@ -157,22 +155,9 @@ export default function SettingsPage() {
                   <ToggleButton value="12h">AM / PM</ToggleButton>
                 </ToggleButtonGroup>
               </Grid>
-
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={prefs.showWeekBar}
-                      onChange={(e) => updatePrefs({ showWeekBar: e.target.checked })}
-                    />
-                  }
-                  label="Show percentage bar for current / hovered week"
-                />
-              </Grid>
             </Grid>
           </Box>
 
-          {/* ── WORKSPACE SETTINGS ── */}
 
           {/* Invoice Info */}
           <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default" mb={3}>
@@ -237,7 +222,7 @@ export default function SettingsPage() {
                   onChange={(e) => setBilling((b) => ({ ...b, vat_number: e.target.value }))}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
+              {/* <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Invoice Email"
                   type="email"
@@ -253,7 +238,7 @@ export default function SettingsPage() {
                   value={billing.phone ?? ""}
                   onChange={(e) => setBilling((b) => ({ ...b, phone: e.target.value }))}
                 />
-              </Grid>
+              </Grid> */}
 
               {/* Address */}
               <Grid size={{ xs: 12, sm: 8 }}>

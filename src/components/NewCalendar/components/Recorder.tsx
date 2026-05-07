@@ -9,7 +9,8 @@ import { PlayArrow, Stop, AttachMoney } from "@mui/icons-material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
-import { Project } from "../../../services/projectService";
+import { Project, projectService } from "../../../services/projectService";
+import { taskService } from "../../../services/taskService";
 import { recordingService, ActiveRecording } from "../../../services/recordingService";
 // Uses raw elapsed-seconds display; formatDuration also accepts seconds now
 import { RECORDER_SAVE_INTERVAL, RECORDER_TICK_INTERVAL } from "../constants";
@@ -26,10 +27,13 @@ interface RecordingState {
 
 interface Props {
     addOrReplace: (e: CalendarEntry) => void;
+    removeLocal: (id: string) => void;
+    refetch: () => void;
     onRecordingStart?: (fn: () => void) => void;
+    onRecordingChange?: (isRecording: boolean) => void;
 }
 
-export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
+export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordingStart, onRecordingChange }: Props) {
     const [recording, setRecording] = useState(false);
     const [title, setTitle] = useState("");
     const [project, setProject] = useState<Project | null>(null);
@@ -38,22 +42,29 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
     const stateRef = useRef<RecordingState | null>(null);
     const tickRef = useRef<number | null>(null);
     const activeRecordingIdRef = useRef<string | null>(null);
+    const createDbPromiseRef = useRef<Promise<void> | null>(null);
 
     // Keep refs in sync with state
     const titleRef = useRef(title);
     const billableRef = useRef(billable);
+    const projectRef = useRef<Project | null>(project);
     useEffect(() => { titleRef.current = title; }, [title]);
     useEffect(() => { billableRef.current = billable; }, [billable]);
+    useEffect(() => { projectRef.current = project; }, [project]);
 
     const clearTick = useCallback(() => { if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; } }, []);
 
     const updateLocal = useCallback((s: RecordingState, end: string) => {
         s.title = titleRef.current;
         s.isBillable = billableRef.current;
+        const proj = projectRef.current;
+        const taskShape = (s.title || proj)
+            ? ({ name: s.title || proj?.name || '', color: proj?.color, project: proj ?? undefined } as any)
+            : undefined;
         addOrReplace({
             id: s.entryId, start_time: s.startTime, end_time: end,
             is_billable: s.isBillable,
-            task: s.title ? { name: s.title } as any : undefined,
+            task: taskShape,
         } as CalendarEntry);
     }, [addOrReplace]);
 
@@ -104,26 +115,36 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { applyRecordingRef.current = applyRecording; }, [applyRecording]);
 
-    const createDb = useCallback(async (s: RecordingState) => {
-        try {
-            const c = await calendarService.createEntry({
-                start_time: s.startTime, end_time: s.startTime,
-                is_billable: s.isBillable, task_id: undefined,
-            });
-            const oldId = s.entryId;
-            s.dbId = c.id; s.entryId = c.id; s.lastSave = Date.now();
-            addOrReplace({ ...c, id: oldId });
-            setTimeout(() => addOrReplace(c), 0);
-            if (activeRecordingIdRef.current) {
-                recordingService.setCalendarEntryId(activeRecordingIdRef.current, c.id)
-                    .catch(err => console.error("Failed to update calendar_entry_id:", err));
-            }
-        } catch (err) { console.error("createDb failed:", err); }
-    }, [addOrReplace]);
+    const createDb = useCallback((s: RecordingState) => {
+        const p = (async () => {
+            try {
+                const c = await calendarService.createEntry({
+                    start_time: s.startTime, end_time: s.startTime,
+                    is_billable: s.isBillable, task_id: undefined,
+                });
+                const oldId = s.entryId;
+                s.dbId = c.id; s.entryId = c.id; s.lastSave = Date.now();
+                removeLocal(oldId);
+                addOrReplace(c);
+                if (activeRecordingIdRef.current) {
+                    recordingService.setCalendarEntryId(activeRecordingIdRef.current, c.id)
+                        .catch(err => console.error("Failed to update calendar_entry_id:", err));
+                }
+            } catch (err) { console.error("createDb failed:", err); }
+        })();
+        createDbPromiseRef.current = p;
+        p.finally(() => {
+            if (createDbPromiseRef.current === p) createDbPromiseRef.current = null;
+        });
+    }, [addOrReplace, removeLocal]);
 
     const start = useCallback(() => {
         if (stateRef.current) return;
         const now = dayjs().toISOString();
+        // Sync refs so updateLocal (and any tick that races) sees the latest values.
+        titleRef.current = title;
+        billableRef.current = billable;
+        projectRef.current = project;
         const s: RecordingState = {
             entryId: `recording-${Date.now()}`, dbId: null, startTime: now, lastSave: 0,
             title, isBillable: billable,
@@ -139,7 +160,28 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         }).then(rec => { activeRecordingIdRef.current = rec.id; })
             .catch(err => console.error("Failed to persist recording start:", err));
         createDb(s);
-    }, [updateLocal, beginTick, createDb, title, billable]);
+    }, [updateLocal, beginTick, createDb, title, billable, project]);
+
+    const resolveTaskId = useCallback(async (
+        taskName: string | undefined,
+        projectId: string | undefined,
+    ): Promise<string | undefined> => {
+        if (!taskName?.trim()) return undefined;
+        let task = await taskService.getTaskByName(taskName.trim(), projectId);
+        if (!task) {
+            let color: number | undefined;
+            if (projectId) {
+                try { color = (await projectService.getProject(projectId)).color; }
+                catch (err) { console.error("Failed to fetch project color:", err); }
+            }
+            task = await taskService.createTask({
+                name: taskName.trim(),
+                project_id: projectId ?? null,
+                color,
+            });
+        }
+        return task.id;
+    }, []);
 
     const stop = useCallback(async () => {
         clearTick(); setRecording(false);
@@ -147,19 +189,40 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         activeRecordingIdRef.current = null;
         recordingService.stopRecording().catch(err => console.error("Failed to clear active recording:", err));
         if (!s) return;
+
+        // If createDb is still running, wait for it so s.dbId is populated and we
+        // take the update path below (otherwise stop would create a duplicate row).
+        if (createDbPromiseRef.current) {
+            await createDbPromiseRef.current;
+        }
+
         const end = dayjs().toISOString();
         const t = titleRef.current, b = billableRef.current;
+        const proj = projectRef.current;
+        let taskId: string | undefined;
+        try {
+            taskId = await resolveTaskId(t, proj?.id ?? undefined);
+        } catch (err) { console.error("Failed to resolve task:", err); }
+
         try {
             if (s.dbId) {
-                const u = await calendarService.updateEntry(s.dbId, { end_time: end, is_billable: b });
-                addOrReplace({ ...u, task: t ? { name: t } as any : u.task });
+                const u = await calendarService.updateEntry(s.dbId, {
+                    end_time: end, is_billable: b, task_id: taskId ?? null,
+                });
+                addOrReplace(u);
             } else {
-                const c = await calendarService.createEntry({ start_time: s.startTime, end_time: end, is_billable: b, task_id: undefined });
-                addOrReplace({ ...c, task: t ? { name: t } as any : c.task });
+                const c = await calendarService.createEntry({
+                    start_time: s.startTime, end_time: end, is_billable: b, task_id: taskId,
+                });
+                addOrReplace(c);
             }
         } catch (err) { console.error("stop failed:", err); }
+        // Belt-and-braces: if createDb errored and left the placeholder behind, drop it.
+        // Then refetch so local state matches the DB regardless of any race we missed.
+        if (s.entryId && s.entryId !== s.dbId) removeLocal(s.entryId);
+        refetch();
         setTitle(""); setProject(null); setBillable(false); setElapsed(0);
-    }, [addOrReplace, clearTick]);
+    }, [addOrReplace, removeLocal, refetch, clearTick, resolveTaskId]);
 
     // Restore active recording from DB on mount - survives page reload and other devices
     useEffect(() => {
@@ -193,10 +256,11 @@ export default function Recorder({ addOrReplace, onRecordingStart }: Props) {
         });
     }, [clearTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    useEffect(() => { onRecordingStart?.(start); }, [onRecordingStart, start]);
-    useEffect(() => clearTick, [clearTick]);
-
     const toggle = useCallback(() => { recording ? stop() : start(); }, [recording, start, stop]);
+
+    useEffect(() => { onRecordingStart?.(toggle); }, [onRecordingStart, toggle]);
+    useEffect(() => { onRecordingChange?.(recording); }, [onRecordingChange, recording]);
+    useEffect(() => clearTick, [clearTick]);
 
     // seconds -> "H:MM:SS"
     const display = `${Math.floor(elapsed / 3600)}:${String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;

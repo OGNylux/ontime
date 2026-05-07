@@ -179,7 +179,7 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
                         <Divider />
                         <Typography variant="body2" fontWeight={600} color="text.secondary">Invoice Details</Typography>
 
-                        <Box display="flex" gap={2}>
+                        {/* <Box display="flex" gap={2}>
                             <Box flex={1}>
                                 <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Email</Typography>
                                 <TextField
@@ -199,7 +199,7 @@ export default function ClientDialog({ open, onClose, onSave, client }: ClientDi
                                     fullWidth
                                 />
                             </Box>
-                        </Box>
+                        </Box> */}
 
                         <Box>
                             <Typography variant="body2" marginBottom={0.5} fontWeight={500}>VAT Number</Typography>

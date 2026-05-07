@@ -32,6 +32,7 @@ interface Props {
     persistentPreview: PersistentPreview | null;
     onPreviewSet?: (p: PersistentPreview | null) => void;
     onStartRecording?: () => void;
+    isRecording?: boolean;
 }
 
 function calcTotalSeconds(entries: CalendarEntry[], dateStr: string, tz: string): number {
@@ -47,7 +48,7 @@ function calcTotalSeconds(entries: CalendarEntry[], dateStr: string, tz: string)
 
 export default function DayColumn({
     dateStr, dayOfMonth, dayOfWeek, entries, zoom, scale, totalDays,
-    isCompact, persistentPreview, onPreviewSet, onStartRecording,
+    isCompact, persistentPreview, onPreviewSet, onStartRecording, isRecording,
 }: Props) {
     const { timezone } = useUserTimezone();
     const { openCreate, openEdit, openMenu, moveState, beginMove, resizeState, beginResize } = useCalendar();
@@ -143,7 +144,7 @@ export default function DayColumn({
                         sx={{ opacity: 0.3, pointerEvents: "none", zIndex: 50 }} />
                 )}
 
-                {isToday && <CurrentTimeLine pxPerMin={scale.pxPerMin} onStartRecording={onStartRecording} />}
+                {isToday && <CurrentTimeLine pxPerMin={scale.pxPerMin} onStartRecording={onStartRecording} isRecording={isRecording} />}
             </Box>
         </Box>
     );

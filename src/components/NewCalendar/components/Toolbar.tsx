@@ -10,7 +10,10 @@ import ViewSelector from "./ViewSelector";
 
 interface Props {
     onRecordingStart: (fn: () => void) => void;
+    onRecordingChange?: (isRecording: boolean) => void;
     addOrReplace: (e: CalendarEntry) => void;
+    removeLocal: (id: string) => void;
+    refetch: () => void;
     onPrev: () => void;
     onNext: () => void;
     onToday: () => void;
@@ -20,12 +23,12 @@ interface Props {
 }
 
 export default function Toolbar({
-    onRecordingStart, addOrReplace, onPrev, onNext, onToday, totalTime, viewMode, onViewModeChange,
+    onRecordingStart, onRecordingChange, addOrReplace, removeLocal, refetch, onPrev, onNext, onToday, totalTime, viewMode, onViewModeChange,
 }: Props) {
     return (
         <>
             <Box sx={{ display: "flex", px: 1, pt: 1 }}>
-                <Recorder addOrReplace={addOrReplace} onRecordingStart={onRecordingStart} />
+                <Recorder addOrReplace={addOrReplace} removeLocal={removeLocal} refetch={refetch} onRecordingStart={onRecordingStart} onRecordingChange={onRecordingChange} />
             </Box>
             <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2} pb={1} px={1}
                 flexWrap={{ xs: "wrap", lg: "nowrap" }} mx={1} borderBottom={t => `1px solid ${t.palette.divider}`}>

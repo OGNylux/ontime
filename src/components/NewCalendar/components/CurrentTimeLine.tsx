@@ -3,17 +3,18 @@
  * Includes a small play button to start the recorder.
  */
 import { Box, IconButton, Tooltip } from "@mui/material";
-import { PlayArrow } from "@mui/icons-material";
-import { useEffect, useState } from "react";
+import { PlayArrow, Stop } from "@mui/icons-material";
+import { MouseEvent, useEffect, useState } from "react";
 import { dayjs } from "../../../lib/timezone";
 import { useUserTimezone } from "../../../hooks/useUserTimezone";
 
 interface Props {
     pxPerMin: number;
     onStartRecording?: () => void;
+    isRecording?: boolean;
 }
 
-export default function CurrentTimeLine({ pxPerMin, onStartRecording }: Props) {
+export default function CurrentTimeLine({ pxPerMin, onStartRecording, isRecording }: Props) {
     const { timezone, loading } = useUserTimezone();
     const [minute, setMinute] = useState<number | null>(null);
 
@@ -37,14 +38,20 @@ export default function CurrentTimeLine({ pxPerMin, onStartRecording }: Props) {
         <Box position="absolute" top={top - h / 2} left={0} right={0} height={h} zIndex={20}
             display="flex" alignItems="center" sx={{ pointerEvents: "none" }}>
             {onStartRecording && (
-                <Tooltip title="Start recording from now">
-                    <IconButton onClick={onStartRecording} size="small" sx={{
-                        pointerEvents: "auto", bgcolor: "secondary.main", color: "white",
-                        width: 24, height: 24, boxShadow: 1, flex: "0 0 auto",
-                        transition: "transform 0.12s ease, background-color 0.12s ease",
-                        "&:hover": { transform: "scale(1.2)", bgcolor: "secondary.dark" },
-                    }}>
-                        <PlayArrow sx={{ fontSize: 16 }} />
+                <Tooltip title={isRecording ? "Stop recording" : "Start recording from now"}>
+                    <IconButton
+                        onMouseDown={(e: MouseEvent) => e.stopPropagation()}
+                        onMouseUp={(e: MouseEvent) => e.stopPropagation()}
+                        onClick={(e: MouseEvent) => { e.stopPropagation(); onStartRecording(); }}
+                        size="small"
+                        sx={{
+                            pointerEvents: "auto", bgcolor: "secondary.main", color: "white",
+                            width: 24, height: 24, boxShadow: 1, flex: "0 0 auto",
+                            transition: "transform 0.12s ease, background-color 0.12s ease",
+                            "&:hover": { transform: "scale(1.2)", bgcolor: "secondary.dark" },
+                        }}
+                    >
+                        {isRecording ? <Stop sx={{ fontSize: 16 }} /> : <PlayArrow sx={{ fontSize: 16 }} />}
                     </IconButton>
                 </Tooltip>
             )}

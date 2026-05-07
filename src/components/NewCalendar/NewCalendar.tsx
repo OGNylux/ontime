@@ -74,6 +74,7 @@ export default function NewCalendar() {
 
     const startRecRef = useRef<(() => void) | null>(null);
     const handleRecordingStart = useCallback((fn: () => void) => { startRecRef.current = fn; }, []);
+    const [isRecording, setIsRecording] = useState(false);
 
     const theme = useTheme();
     const isSmall = useMediaQuery(theme.breakpoints.down("md"));
@@ -108,7 +109,10 @@ export default function NewCalendar() {
             <Box display="flex" flexDirection="column" height="100%" bgcolor="background.default">
                 <Toolbar
                     onRecordingStart={handleRecordingStart}
+                    onRecordingChange={setIsRecording}
                     addOrReplace={addOrReplace}
+                    removeLocal={removeLocal}
+                    refetch={refetch}
                     onPrev={nav.goPrev}
                     onNext={nav.goNext}
                     onToday={nav.goToday}
@@ -145,6 +149,7 @@ export default function NewCalendar() {
                                 persistentPreview={persistPreview}
                                 onPreviewSet={setPersistPreview}
                                 onStartRecording={() => startRecRef.current?.()}
+                                isRecording={isRecording}
                             />
                         ))}
                     </Box>
