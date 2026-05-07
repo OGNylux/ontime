@@ -48,10 +48,8 @@ export const authService = {
             .from("ontime_user")
             .select("*")
             .eq("id", authData.user.id)
-            .single();
-        if (profileError) {
-            console.warn("Could not fetch ontime_user:", profileError.message);
-        }
+            .maybeSingle();
+        if (profileError) throw profileError;
 
         return { user: authData.user, profile };
     },

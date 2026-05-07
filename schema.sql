@@ -958,7 +958,7 @@ create index if not exists idx_calendar_invoice_id
 
 -- =========================
 -- INVOICE NUMBER GENERATOR (v10)
--- Returns the next sequential number for a workspace in INV-YYYY-NNN format.
+-- Returns the next sequential number for a workspace in YYYY-NNN format.
 -- Uses a FOR UPDATE lock on the invoice table to be safe under concurrency.
 -- =========================
 create or replace function public.generate_invoice_number(p_workspace_id uuid)
@@ -981,7 +981,7 @@ begin
     where workspace_id = p_workspace_id
       and to_char(created_at, 'YYYY') = v_year;
 
-    return 'INV-' || v_year || '-' || lpad(v_count::text, 3, '0');
+    return v_year || '-' || lpad(v_count::text, 3, '0');
 end;
 $$;
 
@@ -999,3 +999,211 @@ create index if not exists idx_invoice_status
 
 create index if not exists idx_invoice_line_item_invoice_id
     on public.ontime_invoice_line_item (invoice_id);
+
+-- =========================
+-- NOTIFICATIONS (v11)
+-- Per-user notification feed. Rows are inserted via security-definer triggers;
+-- users can only read/update/delete their own rows.
+-- =========================
+create table if not exists public.ontime_notification (
+    id           uuid primary key default gen_random_uuid(),
+    user_id      uuid not null references public.ontime_user(id) on delete cascade,
+    workspace_id uuid references public.ontime_workspace(id) on delete cascade,
+    type         text not null,
+    title        text not null,
+    body         text not null,
+    read         boolean not null default false,
+    ref_id       uuid,
+    metadata     jsonb,
+    created_at   timestamptz not null default now(),
+    constraint valid_notification_type check (
+        type in ('workspace_invite', 'workspace_removed', 'entry_updated', 'entry_deleted')
+    )
+);
+
+alter table public.ontime_notification enable row level security;
+
+create policy "notification_select_own"
+on public.ontime_notification for select
+using (auth.uid() = user_id);
+
+create policy "notification_update_own"
+on public.ontime_notification for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "notification_delete_own"
+on public.ontime_notification for delete
+using (auth.uid() = user_id);
+
+create index if not exists idx_notification_user_created
+    on public.ontime_notification (user_id, created_at desc);
+
+-- Trigger: workspace invite created → notify the invited user (if they have an account)
+create or replace function public.handle_workspace_invite_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_user_id        uuid;
+    v_workspace_name text;
+    v_inviter_name   text;
+begin
+    select id into v_user_id from auth.users where lower(email) = new.email limit 1;
+    if v_user_id is null then return new; end if;
+
+    if exists (
+        select 1 from public.ontime_workspace_member
+        where workspace_id = new.workspace_id and user_id = v_user_id
+    ) then return new; end if;
+
+    select name into v_workspace_name from public.ontime_workspace where id = new.workspace_id;
+    select name into v_inviter_name   from public.ontime_user         where id = new.invited_by;
+
+    insert into public.ontime_notification (user_id, workspace_id, type, title, body, ref_id, metadata)
+    values (
+        v_user_id,
+        new.workspace_id,
+        'workspace_invite',
+        'Workspace invitation',
+        coalesce(v_inviter_name, 'Someone') || ' invited you to join "' || coalesce(v_workspace_name, 'a workspace') || '"',
+        new.id,
+        jsonb_build_object(
+            'token',           new.token,
+            'workspace_name',  coalesce(v_workspace_name, ''),
+            'invited_by_name', coalesce(v_inviter_name, ''),
+            'role',            new.role
+        )
+    );
+    return new;
+end;
+$$;
+
+create or replace trigger trg_workspace_invite_notification
+    after insert on public.ontime_workspace_invite
+    for each row execute function public.handle_workspace_invite_notification();
+
+-- Trigger: workspace member deleted → notify the removed user (not when they leave voluntarily)
+create or replace function public.handle_workspace_member_removal_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_workspace_name text;
+begin
+    if old.user_id = auth.uid() then return old; end if;
+
+    select name into v_workspace_name from public.ontime_workspace where id = old.workspace_id;
+
+    insert into public.ontime_notification (user_id, workspace_id, type, title, body, ref_id, metadata)
+    values (
+        old.user_id,
+        old.workspace_id,
+        'workspace_removed',
+        'Removed from workspace',
+        'You have been removed from "' || coalesce(v_workspace_name, 'a workspace') || '"',
+        old.workspace_id,
+        jsonb_build_object('workspace_name', coalesce(v_workspace_name, ''))
+    );
+    return old;
+end;
+$$;
+
+create or replace trigger trg_workspace_member_removal_notification
+    after delete on public.ontime_workspace_member
+    for each row execute function public.handle_workspace_member_removal_notification();
+
+-- Trigger: calendar entry updated/deleted by a different user → notify the entry owner
+create or replace function public.handle_calendar_entry_change_notification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+    v_modifier_id   uuid;
+    v_modifier_name text;
+    v_task_name     text;
+    v_entry_date    text;
+    v_owner_id      uuid;
+    v_workspace_id  uuid;
+    v_entry_id      uuid;
+begin
+    v_modifier_id := auth.uid();
+
+    if TG_OP = 'DELETE' then
+        if old.created_by = v_modifier_id or v_modifier_id is null then return old; end if;
+        v_owner_id     := old.created_by;
+        v_workspace_id := old.workspace_id;
+        v_entry_id     := old.id;
+        v_entry_date   := to_char(old.start_time at time zone 'UTC', 'Mon DD, YYYY');
+        select name into v_modifier_name from public.ontime_user where id = v_modifier_id;
+        if old.task_id is not null then
+            select name into v_task_name from public.ontime_task where id = old.task_id;
+        end if;
+
+        insert into public.ontime_notification (user_id, workspace_id, type, title, body, ref_id, metadata)
+        values (
+            v_owner_id, v_workspace_id, 'entry_deleted', 'Time entry deleted',
+            coalesce(v_modifier_name, 'A team member') || ' deleted your entry'
+                || case when v_task_name is not null then ' "' || v_task_name || '"' else '' end
+                || ' on ' || v_entry_date,
+            v_entry_id,
+            jsonb_build_object('modifier_name', coalesce(v_modifier_name,''), 'task_name', coalesce(v_task_name,''), 'entry_date', v_entry_date)
+        );
+        return old;
+    end if;
+
+    -- UPDATE
+    if new.created_by = v_modifier_id or v_modifier_id is null then return new; end if;
+    v_owner_id     := new.created_by;
+    v_workspace_id := new.workspace_id;
+    v_entry_id     := new.id;
+    v_entry_date   := to_char(new.start_time at time zone 'UTC', 'Mon DD, YYYY');
+    select name into v_modifier_name from public.ontime_user where id = v_modifier_id;
+    if new.task_id is not null then
+        select name into v_task_name from public.ontime_task where id = new.task_id;
+    end if;
+
+    insert into public.ontime_notification (user_id, workspace_id, type, title, body, ref_id, metadata)
+    values (
+        v_owner_id, v_workspace_id, 'entry_updated', 'Time entry modified',
+        coalesce(v_modifier_name, 'A team member') || ' modified your entry'
+            || case when v_task_name is not null then ' "' || v_task_name || '"' else '' end
+            || ' on ' || v_entry_date,
+        v_entry_id,
+        jsonb_build_object('modifier_name', coalesce(v_modifier_name,''), 'task_name', coalesce(v_task_name,''), 'entry_date', v_entry_date)
+    );
+    return new;
+end;
+$$;
+
+create or replace trigger trg_calendar_entry_change_notification
+    after update or delete on public.ontime_calendar_entry
+    for each row execute function public.handle_calendar_entry_change_notification();
+
+-- =========================
+-- REALTIME PUBLICATION
+-- Both tables must be in supabase_realtime for postgres_changes to deliver events.
+-- supabase_realtime is created by Supabase automatically; we just add our tables.
+-- =========================
+do $$
+begin
+    if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime' and tablename = 'ontime_calendar_entry'
+    ) then
+        alter publication supabase_realtime add table public.ontime_calendar_entry;
+    end if;
+
+    if not exists (
+        select 1 from pg_publication_tables
+        where pubname = 'supabase_realtime' and tablename = 'ontime_notification'
+    ) then
+        alter publication supabase_realtime add table public.ontime_notification;
+    end if;
+end $$;

@@ -46,7 +46,10 @@ async function resolveTaskId(
         if (projectId) {
             try {
                 color = (await projectService.getProject(projectId)).color;
-            } catch { }
+            } catch (err) {
+                // Color lookup is best-effort; fall back to undefined.
+                console.error('Failed to fetch project color:', err);
+            }
         }
         task = await taskService.createTask({
             name: taskName.trim(),
@@ -68,7 +71,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         return undefined;
     }, [byDate]);
 
-    //  Update start/end times only (move / resize) 
+    //  Update start/end times only (move / resize)
     const updateTimes = useCallback(async (
         dateStr: string, entryId: string, startMin: number, endMin: number,
     ) => {
@@ -85,10 +88,11 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         } catch (err) {
             console.error("updateTimes failed:", err);
             refetch();
+            throw err;
         }
     }, [find, addOrReplace, refetch, timezone]);
 
-    //  Create 
+    //  Create
     const create = useCallback(async (data: EntryFormData) => {
         const start_time = parseAsUserTimezone(`${data.dateStr}T${data.startTime}:00`, timezone);
         const end_time = parseAsUserTimezone(`${data.dateStr}T${data.endTime}:00`, timezone);
@@ -110,7 +114,9 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
             if (tempId !== created.id) removeLocal(tempId);
         } catch (err) {
             console.error("create failed:", err);
+            removeLocal(tempId);
             refetch();
+            throw err;
         }
     }, [addOrReplace, removeLocal, refetch, timezone]);
 
@@ -136,6 +142,7 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
         } catch (err) {
             console.error("update failed:", err);
             refetch();
+            throw err;
         }
     }, [find, addOrReplace, refetch, timezone]);
 
@@ -149,17 +156,21 @@ export function useEntryActions({ byDate, addOrReplace, removeLocal, refetch }: 
             refetch();
         } catch (err) {
             console.error("duplicate failed:", err);
+            throw err;
         }
     }, [refetch]);
 
     const remove = useCallback(async (entryId: string) => {
+        const existing = find(entryId);
+        removeLocal(entryId);
         try {
             await calendarService.deleteEntry(entryId);
-            refetch();
         } catch (err) {
             console.error("delete failed:", err);
+            if (existing) addOrReplace(existing);
+            throw err;
         }
-    }, [refetch]);
+    }, [find, removeLocal, addOrReplace]);
 
     return { updateTimes, create, update, duplicate, remove };
 }

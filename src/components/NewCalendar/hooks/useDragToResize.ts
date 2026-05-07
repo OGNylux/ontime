@@ -4,7 +4,7 @@
  * Minimum 15 min duration is enforced. On pointer-up the new bounds
  * are committed via onCommit.
  */
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry } from "../../../services/calendarService";
 import type { ResizeState, ResizeEdge } from "../types";
@@ -33,6 +33,8 @@ export function useDragToResize(
     onCommit: (dateStr: string, entryId: string, startMin: number, endMin: number) => Promise<void>,
 ) {
     const [resizeState, setResizeState] = useState<ResizeState | null>(null);
+    const endedRef = useRef(false);
+    const resizeStateRef = useRef<ResizeState | null>(null);
 
     const calcPos = useCallback((x: number, y: number, resizeState: ResizeState) => {
         const element = findDayElement(x, y);
@@ -64,7 +66,7 @@ export function useDragToResize(
         await onCommit(resizeState.dateStr, resizeState.entry.id, resizeState.newStart, resizeState.newEnd);
     }, [onCommit]);
 
-    //  Begin 
+    //  Begin
     const beginResize = useCallback((p: ResizeStartPayload) => {
         setResizeState(prev => {
             if (prev) return prev;
@@ -75,16 +77,19 @@ export function useDragToResize(
             const start = dayjs(entry.start_time).diff(dayStart, "minute");
             const end = dayjs(entry.end_time).diff(dayStart, "minute");
 
-            return {
+            const next = {
                 entry, edge: p.edge, dateStr: p.dateStr,
                 originalStart: start, originalEnd: end, newStart: start, newEnd: end,
             };
+            resizeStateRef.current = next;
+            return next;
         });
     }, [byDate]);
 
-    //  Global listeners while resizing 
+    //  Global listeners while resizing
     useEffect(() => {
         if (!resizeState) return;
+        endedRef.current = false;
         const saved = lockBodyScroll();
 
         const handleMove = (ev: MouseEvent | TouchEvent | PointerEvent) => {
@@ -93,20 +98,24 @@ export function useDragToResize(
                 const { clientX: cx, clientY: cy } = clientCoords(ev);
                 const pos = calcPos(cx, cy, prev);
                 if (!pos || (pos.newStart === prev.newStart && pos.newEnd === prev.newEnd)) return prev;
-                return { ...prev, newStart: pos.newStart, newEnd: pos.newEnd };
+                const next = { ...prev, newStart: pos.newStart, newEnd: pos.newEnd };
+                resizeStateRef.current = next;
+                return next;
             });
         };
 
         const handleEnd = (ev: MouseEvent | TouchEvent | PointerEvent) => {
-            setResizeState(prev => {
-                if (!prev) return prev;
+            if (endedRef.current) return;
+            endedRef.current = true;
+            const current = resizeStateRef.current;
+            if (current) {
                 const { clientX: cx, clientY: cy } = clientCoords(ev, false);
-                const pos = calcPos(cx, cy, prev);
-                const newStart = pos ? pos.newStart : prev.newStart;
-                const newEnd = pos ? pos.newEnd   : prev.newEnd;
-                commit({ ...prev, newStart, newEnd });
-                return null;
-            });
+                const pos = calcPos(cx, cy, current);
+                const finalState = pos ? { ...current, newStart: pos.newStart, newEnd: pos.newEnd } : current;
+                void commit(finalState);
+            }
+            resizeStateRef.current = null;
+            setResizeState(null);
         };
 
         window.addEventListener("pointermove", handleMove);
@@ -127,7 +136,7 @@ export function useDragToResize(
             window.removeEventListener("mouseup", handleEnd);
             unlockBodyScroll(saved);
         };
-    }, [resizeState, calcPos, commit]);
+    }, [resizeState?.entry.id, calcPos, commit]);
 
     return { resizeState, beginResize };
 }

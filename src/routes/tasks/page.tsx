@@ -10,6 +10,7 @@ import {
     Divider,
     Chip,
 } from '@mui/material';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import {
     MoreVert,
     Edit,
@@ -35,7 +36,11 @@ const formatTotalTime = (minutes?: number) => {
     return `${hours}.${String(Math.round((mins / 60) * 100)).padStart(2, '0')}h`;
 };
 
+const errorMessage = (err: unknown, fallback: string): string =>
+    err instanceof Error ? err.message : fallback;
+
 export default function TasksPage() {
+    const { showError } = useSnackbar();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
@@ -68,8 +73,9 @@ export default function TasksPage() {
             ]);
             setTasks(tasksData);
             setProjects(projectsData);
-        } catch (error) {
-            console.error('Failed to load data:', error);
+        } catch (err) {
+            console.error('Failed to load tasks:', err);
+            showError('Failed to load tasks', err instanceof Error ? err.message : undefined);
         } finally {
             setLoading(false);
         }
@@ -88,8 +94,8 @@ export default function TasksPage() {
             .filter((task) => {
                 const query = searchQuery.toLowerCase();
                 const matchesTaskName = task.name.toLowerCase().includes(query);
-                const project = projectsById.get(task.project_id);
-                const matchesProjectName = project?.name?.toLowerCase().includes(query);
+                const project = task.project_id ? projectsById.get(task.project_id) : undefined;
+                const matchesProjectName = project?.name?.toLowerCase().includes(query) ?? false;
                 const matchesSearch = matchesTaskName || matchesProjectName;
                 const matchesProject = !projectFilter || task.project_id === projectFilter;
                 return matchesSearch && matchesProject;
@@ -111,7 +117,7 @@ export default function TasksPage() {
             field: 'project',
             label: 'Project',
             render: (row) => {
-                const project = projectsById.get(row.project_id);
+                const project = row.project_id ? projectsById.get(row.project_id) : undefined;
                 return project?.name || '-';
             },
         },
@@ -159,24 +165,26 @@ export default function TasksPage() {
     };
 
     const handleTogglePin = async () => {
-        if (menuTask && menuTask.id) {
+        if (menuTask?.id) {
             try {
                 const updated = await taskService.togglePin(menuTask.id, !menuTask.pinned);
                 replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
-            } catch (error) {
-                console.error('Failed to toggle pin:', error);
+            } catch (err) {
+                console.error('Failed to toggle pin:', err);
+                showError('Failed to toggle pin', err instanceof Error ? err.message : undefined);
             }
         }
         handleMenuClose();
     };
 
     const handleConfirmDelete = async () => {
-        if (taskToDelete && taskToDelete.id) {
+        if (taskToDelete?.id) {
             try {
                 await taskService.deleteTask(taskToDelete.id);
                 removeOne(taskToDelete.id);
-            } catch (error) {
-                console.error('Failed to delete task:', error);
+            } catch (err) {
+                console.error('Failed to delete task:', err);
+                showError('Failed to delete task', err instanceof Error ? err.message : undefined);
             }
         }
         setDeleteDialogOpen(false);
@@ -188,8 +196,9 @@ export default function TasksPage() {
             await taskService.bulkDeleteTasks(selectedIds);
             removeMany(selectedIds);
             setSelectedIds([]);
-        } catch (error) {
-            console.error('Failed to delete tasks:', error);
+        } catch (err) {
+            console.error('Failed to delete tasks:', err);
+            showError('Failed to delete tasks', err instanceof Error ? err.message : undefined);
         }
     };
 
@@ -199,20 +208,27 @@ export default function TasksPage() {
             const idSet = new Set(selectedIds);
             setTasks((prev) => prev.map((t) => t.id && idSet.has(t.id) ? { ...t, pinned } : t));
             setSelectedIds([]);
-        } catch (error) {
-            console.error('Failed to pin tasks:', error);
+        } catch (err) {
+            console.error('Failed to pin tasks:', err);
+            showError('Failed to pin tasks', err instanceof Error ? err.message : undefined);
         }
     };
 
     const handleSaveTask = async (taskData: Task) => {
-        if (editingTask && editingTask.id) {
-            const updated = await taskService.updateTask(editingTask.id, taskData);
-            replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
-        } else {
-            const created = await taskService.createTask(taskData);
-            prependOne({ ...created, total_time: 0 });
+        try {
+            if (editingTask?.id) {
+                const updated = await taskService.updateTask(editingTask.id, taskData);
+                replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
+            } else {
+                const created = await taskService.createTask(taskData);
+                prependOne({ ...created, total_time: 0 });
+            }
+            setEditingTask(null);
+        } catch (err) {
+            console.error('Failed to save task:', err);
+            showError('Failed to save task', err instanceof Error ? err.message : undefined);
+            throw err;
         }
-        setEditingTask(null);
     };
 
     const handleOpenNewTask = () => {

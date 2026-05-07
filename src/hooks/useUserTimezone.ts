@@ -10,7 +10,7 @@ export function notifyTimezoneChange(newTimezone: string) {
 
 /**
  * Hook to get the current user's timezone setting.
- * Falls back to browser timezone if not set.
+ * Falls back to browser timezone if not set or if loading fails.
  * Automatically updates when timezone is changed via settings.
  */
 export function useUserTimezone() {
@@ -18,25 +18,26 @@ export function useUserTimezone() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const user = await userService.getCurrentUser();
-        if (user?.timezone) {
-          setTimezone(user.timezone);
-        }
-      } catch {
-              } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    let mounted = true;
 
-        const listener = (newTimezone: string) => {
-      setTimezone(newTimezone);
-    };
+    userService.getCurrentUser()
+      .then(user => {
+        if (!mounted) return;
+        if (user?.timezone) setTimezone(user.timezone);
+      })
+      .catch(err => {
+        // Falls back to the browser timezone already in state.
+        console.error('Failed to load user timezone:', err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    const listener = (newTimezone: string) => setTimezone(newTimezone);
     timezoneListeners.add(listener);
 
     return () => {
+      mounted = false;
       timezoneListeners.delete(listener);
     };
   }, []);

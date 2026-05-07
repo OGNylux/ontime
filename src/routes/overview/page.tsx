@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -10,6 +10,7 @@ import {
     Checkbox,
     ListItemText,
 } from '@mui/material';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import {
     ChevronLeft,
     ChevronRight,
@@ -34,6 +35,7 @@ import { formatDuration } from '../../components/NewCalendar/layout/timeUtils';
 dayjs.extend(quarterOfYear);
 
 export default function OverviewPage() {
+    const { showError } = useSnackbar();
     const [startDate, setStartDate] = useState<Dayjs>(dayjs().startOf('week'));
     const [endDate, setEndDate] = useState<Dayjs>(dayjs().endOf('week'));
     const [dateLabel, setDateLabel] = useState('This Week');
@@ -44,6 +46,7 @@ export default function OverviewPage() {
 
     const {
         loading,
+        error,
         clients,
         projects,
         stats,
@@ -72,13 +75,17 @@ export default function OverviewPage() {
         setDateLabel(label);
     };
 
+    useEffect(() => {
+        if (error) showError('Failed to load overview', error);
+    }, [error, showError]);
+
     return (
         <Box display="flex" flexDirection="column" gap={2} pb={0.25} flex={1} minHeight={0}>
             {loading ? (
                 <Box flex={1} minHeight={0} display="flex" borderRadius={2} boxShadow={4}>
                     <LoadingBanner message="Loading overview..." />
                 </Box>
-            ) : (
+            ) : !error && (
                 <>
                                         <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default">
                         <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>

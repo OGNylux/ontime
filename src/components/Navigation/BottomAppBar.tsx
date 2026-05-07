@@ -9,6 +9,7 @@ import {
     IconButton,
     Stack,
     Typography,
+    Badge,
 } from '@mui/material';
 import {
     Home,
@@ -22,11 +23,13 @@ import {
     Task,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useNotificationsContext } from '../../hooks/useNotifications';
 
 export default function BottomAppBar() {
     const navigate = useNavigate();
     const location = useLocation();
     const [fabOpen, setFabOpen] = useState(false);
+    const { unreadCount } = useNotificationsContext();
 
     const getNavValue = () => {
         if (location.pathname === '/' || location.pathname === '/overview') return 0;
@@ -156,7 +159,14 @@ export default function BottomAppBar() {
                     <BottomNavigationAction label="Home" icon={<Home />} />
                     <BottomNavigationAction label="Timer" icon={<CalendarMonth />} />
                     <Box sx={{ width: 72 }} />
-                    <BottomNavigationAction label="Notifications" icon={<Notifications />} />
+                    <BottomNavigationAction
+                        label="Notifications"
+                        icon={
+                            <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error" max={99}>
+                                <Notifications />
+                            </Badge>
+                        }
+                    />
                     <BottomNavigationAction label="Settings" icon={<Settings />} />
                 </BottomNavigation>
 

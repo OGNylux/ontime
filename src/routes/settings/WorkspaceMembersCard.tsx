@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  Box, Typography, Divider, Alert, Button, TextField,
+  Box, Typography, Divider, Button, TextField,
   Select, MenuItem, FormControl, InputLabel, IconButton,
   List, ListItem, ListItemText, Chip, CircularProgress, Tooltip,
 } from "@mui/material";
+import { useSnackbar } from "../../hooks/useSnackbar";
 import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
 import SendIcon from "@mui/icons-material/Send";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -17,12 +18,11 @@ interface Props {
 }
 
 export default function WorkspaceMembersCard({ workspaceId }: Props) {
+  const { showError, showSuccess } = useSnackbar();
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invites, setInvites] = useState<WorkspaceInvite[]>([]);
   const [currentUserId, setCurrentUserId] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<InviteRole>("member");
@@ -39,8 +39,8 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
         setCurrentUserId(uid);
         setMembers(memberList);
         setInvites(inviteList);
-      } catch (e: any) {
-        setError(e.message || "Failed to load members");
+      } catch (e) {
+        showError("Failed to load members", e instanceof Error ? e.message : undefined);
       } finally {
         setLoading(false);
       }
@@ -54,48 +54,43 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
     setInviting(true);
-    setError(null);
-    setSuccess(null);
     try {
       await inviteService.create({ workspaceId, email: inviteEmail.trim(), role: inviteRole });
       const updated = await inviteService.listForWorkspace(workspaceId);
       setInvites(updated);
       setInviteEmail("");
-      setSuccess(`Invite sent to ${inviteEmail.trim()}`);
-    } catch (e: any) {
-      setError(e.message || "Failed to send invite");
+      showSuccess(`Invite sent to ${inviteEmail.trim()}`);
+    } catch (e) {
+      showError("Failed to send invite", e instanceof Error ? e.message : undefined);
     } finally {
       setInviting(false);
     }
   };
 
   const handleRevoke = async (id: string) => {
-    setError(null);
     try {
       await inviteService.revoke(id);
       setInvites((prev) => prev.filter((i) => i.id !== id));
-    } catch (e: any) {
-      setError(e.message || "Failed to revoke invite");
+    } catch (e) {
+      showError("Failed to revoke invite", e instanceof Error ? e.message : undefined);
     }
   };
 
   const handleRoleChange = async (userId: string, role: WorkspaceRole) => {
-    setError(null);
     try {
       await workspaceService.updateMemberRole(workspaceId, userId, role);
       setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role } : m)));
-    } catch (e: any) {
-      setError(e.message || "Failed to update role");
+    } catch (e) {
+      showError("Failed to update role", e instanceof Error ? e.message : undefined);
     }
   };
 
   const handleRemove = async (userId: string) => {
-    setError(null);
     try {
       await workspaceService.removeMember(workspaceId, userId);
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
-    } catch (e: any) {
-      setError(e.message || "Failed to remove member");
+    } catch (e) {
+      showError("Failed to remove member", e instanceof Error ? e.message : undefined);
     }
   };
 
@@ -112,9 +107,6 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
         Workspace Members
       </Typography>
       <Divider sx={{ mb: 2 }} />
-
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       {loading ? (
         <Box display="flex" justifyContent="center" py={2}>

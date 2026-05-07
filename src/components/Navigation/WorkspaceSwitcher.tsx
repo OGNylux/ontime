@@ -11,10 +11,17 @@ export default function WorkspaceSwitcher() {
   const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
-    Promise.all([workspaceService.listMine(), getActiveWorkspaceId()]).then(([ws, id]) => {
-      setWorkspaces(ws);
-      setActiveId(id);
-    });
+    let cancelled = false;
+    Promise.all([workspaceService.listMine(), getActiveWorkspaceId()])
+      .then(([ws, id]) => {
+        if (cancelled) return;
+        setWorkspaces(ws);
+        setActiveId(id);
+      })
+      .catch((err) => {
+        console.error('Failed to load workspaces:', err);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeId);
@@ -25,8 +32,14 @@ export default function WorkspaceSwitcher() {
   const handleSwitch = async (id: string) => {
     if (id === activeId) { handleClose(); return; }
     setSwitching(true);
-    await workspaceService.setActive(id);
-    window.location.reload();
+    try {
+      await workspaceService.setActive(id);
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to switch workspace:', err);
+      setSwitching(false);
+      handleClose();
+    }
   };
 
   return (

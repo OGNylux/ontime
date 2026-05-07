@@ -2,7 +2,6 @@ import { supabase } from "../lib/supabase";
 import dayjs from "dayjs";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { Task } from "./taskService";
-import { Project } from "./projectService";
 
 export interface CalendarEntry {
     id: string;
@@ -96,15 +95,23 @@ export const calendarService = {
         if (error) throw error;
     },
 
-    subscribeToChanges(callbacks: {
-        onInsertOrUpdate: (id: string, startTime: string, eventType: "INSERT" | "UPDATE") => void;
-        onDelete: (id: string) => void;
-    }): () => void {
+    subscribeToChanges(
+        workspaceId: string,
+        callbacks: {
+            onInsertOrUpdate: (id: string, startTime: string, eventType: "INSERT" | "UPDATE") => void;
+            onDelete: (id: string) => void;
+        },
+    ): () => void {
         const channel = supabase
-            .channel("ontime-calendar-entries")
+            .channel(`ontime-calendar-${workspaceId}`)
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "ontime_calendar_entry" },
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "ontime_calendar_entry",
+                    filter: `workspace_id=eq.${workspaceId}`,
+                },
                 (payload) => {
                     if (payload.eventType === "DELETE") {
                         callbacks.onDelete((payload.old as { id: string }).id);

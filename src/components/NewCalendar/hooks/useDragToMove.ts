@@ -38,6 +38,7 @@ export function useDragToMove(
     const [moveState, setMoveState] = useState<MoveState | null>(null);
     const rafRef = useRef<number | null>(null);
     const savedRef = useRef<SavedBodyStyles | null>(null);
+    const endedRef = useRef(false);
 
     // Compute new position from pointer coords
     const calcPos = useCallback((x: number, y: number, moveState: MoveState) => {
@@ -64,16 +65,20 @@ export function useDragToMove(
         await onCommit(currentDateStr, moveState.entry.id, startMinute, endMinute);
     }, [onCommit]);
 
+    const moveStateRef = useRef<MoveState | null>(null);
+
     const updatePos = useCallback((x: number, y: number) => {
         setMoveState(prev => {
             if (!prev) return prev;
             const pos = calcPos(x, y, prev);
             if (!pos || (pos.dateStr === prev.currentDateStr && pos.startMinute === prev.startMinute)) return prev;
-            return { ...prev, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute };
+            const next = { ...prev, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute };
+            moveStateRef.current = next;
+            return next;
         });
     }, [calcPos]);
 
-    //  Begin a move 
+    //  Begin a move
     const beginMove = useCallback((data: MoveStartPayload) => {
         const entry = findEntry(byDate, data.dateStr, data.entryId);
         if (!entry) return;
@@ -88,12 +93,15 @@ export function useDragToMove(
             durationMinutes: duration, currentDateStr: data.dateStr, startMinute, endMinute: startMinute + duration,
         };
         const pos = calcPos(data.clientX, data.clientY, base);
-        setMoveState(pos ? { ...base, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute } : base);
+        const nextState = pos ? { ...base, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute } : base;
+        moveStateRef.current = nextState;
+        setMoveState(nextState);
     }, [byDate, calcPos]);
 
     //  Global listeners while moving 
     useEffect(() => {
         if (!moveState) return;
+        endedRef.current = false;
         savedRef.current = lockBodyScroll();
 
         const handleMove = (x: number, y: number, ev?: Event) => {
@@ -103,9 +111,19 @@ export function useDragToMove(
         };
 
         const handleEnd = (x: number, y: number) => {
+            if (endedRef.current) return;
+            endedRef.current = true;
             if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-            updatePos(x, y);
-            setMoveState(prev => { if (prev) commit(prev); return null; });
+            const current = moveStateRef.current;
+            if (current) {
+                const pos = calcPos(x, y, current);
+                const finalState = pos
+                    ? { ...current, currentDateStr: pos.dateStr, startMinute: pos.startMinute, endMinute: pos.endMinute }
+                    : current;
+                void commit(finalState);
+            }
+            moveStateRef.current = null;
+            setMoveState(null);
         };
 
         const move = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
@@ -136,7 +154,7 @@ export function useDragToMove(
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             if (savedRef.current) unlockBodyScroll(savedRef.current);
         };
-    }, [moveState?.entry.id, updatePos, commit]);
+    }, [moveState?.entry.id, updatePos, commit, calcPos]);
 
     return { moveState, beginMove };
 }

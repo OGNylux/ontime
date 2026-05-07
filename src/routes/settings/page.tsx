@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   Box, Container, TextField, Typography, Button, Divider,
-  Grid, Alert, ToggleButtonGroup, ToggleButton, Autocomplete,
+  Grid, ToggleButtonGroup, ToggleButton, Autocomplete,
   Switch, FormControlLabel,
 } from "@mui/material";
+import { useSnackbar } from "../../hooks/useSnackbar";
 import PageHeader from "../../components/PageHeader";
 import LoadingBanner from "../../components/Loading/LoadingBanner";
 import { userService, OntimeUser } from "../../services/userService";
@@ -18,26 +19,18 @@ import { getActiveWorkspaceId } from "../../services/workspaceContext";
 import WorkspaceMembersCard from "./WorkspaceMembersCard";
 
 export default function SettingsPage() {
+  const { showError, showSuccess } = useSnackbar();
   const [, setUser] = useState<OntimeUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  // Workspace / invoice
-  const [invoiceError, setInvoiceError] = useState<string | null>(null);
-  const [invoiceSuccess, setInvoiceSuccess] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("");
   const [currency, setCurrency] = useState(() => localStorage.getItem("ontime_currency") ?? "EUR");
   const [billing, setBilling] = useState<WorkspaceBilling>({});
 
-  // User profile
-  const [profileError, setProfileError] = useState<string | null>(null);
-  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
-  // Password
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -62,8 +55,8 @@ export default function SettingsPage() {
         setWorkspaceId(wid);
         const billingData = await workspaceService.getBilling(wid);
         if (billingData) setBilling(billingData);
-      } catch (e: any) {
-        setProfileError(e.message || "Failed to load settings");
+      } catch (e) {
+        showError("Failed to load settings", e instanceof Error ? e.message : undefined);
       } finally {
         setLoading(false);
       }
@@ -72,8 +65,6 @@ export default function SettingsPage() {
   }, []);
 
   const handleInvoiceSave = async () => {
-    setInvoiceError(null);
-    setInvoiceSuccess(null);
     try {
       const wid = workspaceId ?? (await getActiveWorkspaceId());
       const [updated] = await Promise.all([
@@ -82,33 +73,29 @@ export default function SettingsPage() {
       ]);
       if (updated.timezone) notifyTimezoneChange(updated.timezone);
       localStorage.setItem("ontime_currency", currency);
-      setInvoiceSuccess("Workspace settings saved");
-    } catch (e: any) {
-      setInvoiceError(e.message || "Failed to save workspace settings");
+      showSuccess("Workspace settings saved");
+    } catch (e) {
+      showError("Failed to save workspace settings", e instanceof Error ? e.message : undefined);
     }
   };
 
   const handleProfileSave = async () => {
-    setProfileError(null);
-    setProfileSuccess(null);
     try {
       const updated = await userService.updateProfile({ name, email });
       setUser(updated);
-      setProfileSuccess("Profile updated");
-    } catch (e: any) {
-      setProfileError(e.message || "Failed to update profile");
+      showSuccess("Profile updated");
+    } catch (e) {
+      showError("Failed to update profile", e instanceof Error ? e.message : undefined);
     }
   };
 
   const handlePasswordSave = async () => {
-    setPasswordError(null);
-    setPasswordSuccess(null);
     if (!currentPassword) {
-      setPasswordError("Please enter your current password");
+      showError("Please enter your current password");
       return;
     }
     if (!newPassword || newPassword !== confirmPassword) {
-      setPasswordError("New passwords do not match");
+      showError("New passwords do not match");
       return;
     }
     try {
@@ -116,9 +103,9 @@ export default function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordSuccess("Password updated");
-    } catch (e: any) {
-      setPasswordError(e.message || "Failed to update password");
+      showSuccess("Password updated");
+    } catch (e) {
+      showError("Failed to update password", e instanceof Error ? e.message : undefined);
     }
   };
 
@@ -191,9 +178,6 @@ export default function SettingsPage() {
           <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default" mb={3}>
             <Typography variant="h6" gutterBottom>Workspace Settings</Typography>
             <Divider sx={{ mb: 2 }} />
-
-            {invoiceError && <Alert severity="error" sx={{ mb: 2 }}>{invoiceError}</Alert>}
-            {invoiceSuccess && <Alert severity="success" sx={{ mb: 2 }}>{invoiceSuccess}</Alert>}
 
             <Grid container spacing={2}>
               {/* Timezone & Currency */}
@@ -379,9 +363,6 @@ export default function SettingsPage() {
             <Typography variant="h6" gutterBottom>User Settings</Typography>
             <Divider sx={{ mb: 2 }} />
 
-            {profileError && <Alert severity="error" sx={{ mb: 2 }}>{profileError}</Alert>}
-            {profileSuccess && <Alert severity="success" sx={{ mb: 2 }}>{profileSuccess}</Alert>}
-
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
@@ -413,9 +394,6 @@ export default function SettingsPage() {
           <Box p={2} borderRadius={2} boxShadow={4} bgcolor="background.default" mb={3}>
             <Typography variant="h6" gutterBottom>Change Password</Typography>
             <Divider sx={{ mb: 2 }} />
-
-            {passwordError && <Alert severity="error" sx={{ mb: 2 }}>{passwordError}</Alert>}
-            {passwordSuccess && <Alert severity="success" sx={{ mb: 2 }}>{passwordSuccess}</Alert>}
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -496,8 +474,8 @@ export default function SettingsPage() {
                 try {
                   await authService.logout();
                   navigate("/login");
-                } catch (e: any) {
-                  setProfileError(e.message || "Failed to logout");
+                } catch (e) {
+                  showError("Failed to logout", e instanceof Error ? e.message : undefined);
                 }
               }}
             >

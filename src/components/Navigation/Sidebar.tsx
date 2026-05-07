@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Drawer, Box, IconButton, Divider, Theme } from '@mui/material';
+import { Drawer, Box, IconButton, Divider, Theme, Badge } from '@mui/material';
 import {
   Timer,
   Add,
@@ -7,10 +7,12 @@ import {
   ChevronRight,
   Home,
   Settings,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SidebarContent, { NavItem, NavSection } from './SidebarContent';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
+import { useNotificationsContext } from '../../hooks/useNotifications';
 
 interface SidebarProps {
   isDrawer?: boolean;
@@ -20,17 +22,10 @@ interface SidebarProps {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', path: '/overview', icon: <Home /> },
+  { label: 'Calendar', path: '/timer', icon: <Timer /> },
 ];
 
 const NAV_SECTIONS: NavSection[] = [
-  {
-    label: 'Timer',
-    icon: <Timer />,
-    paths: ['/timer'],
-    subItems: [
-      { label: 'Calendar', path: '/timer', pathMatch: 'exact' }
-    ],
-  },
   {
     label: 'Create',
     icon: <Add />,
@@ -60,6 +55,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
+  const { unreadCount } = useNotificationsContext();
 
   useEffect(() => {
     const newStates: Record<string, boolean> = {};
@@ -89,6 +85,19 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
     setCollapsed(!collapsed);
     if (!collapsed) setSectionStates({});
   };
+
+  const bottomNavItems: NavItem[] = [
+    {
+      label: 'Notifications',
+      path: '/notifications',
+      icon: (
+        <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error" max={99}>
+          <NotificationsIcon />
+        </Badge>
+      ),
+    },
+    { label: 'Settings', path: '/settings', icon: <Settings /> },
+  ];
 
   const sidebarContent = useMemo(
     () => (
@@ -134,7 +143,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
           <Divider />
           <Box px={0} py={1}>
             <SidebarContent
-              navItems={[{ label: 'Settings', path: '/settings', icon: <Settings /> }]}
+              navItems={bottomNavItems}
               navSections={[]}
               currentPath={location.pathname}
               sectionStates={{}}
@@ -179,7 +188,7 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         <Divider />
         <Box py={1}>
           <SidebarContent
-            navItems={[{ label: 'Settings', path: '/settings', icon: <Settings /> }]}
+            navItems={bottomNavItems}
             navSections={[]}
             currentPath={location.pathname}
             collapsed={collapsed}

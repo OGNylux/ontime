@@ -85,22 +85,21 @@ function durationHours(entry: CalendarEntry): number {
     return (new Date(entry.end_time).getTime() - new Date(entry.start_time).getTime()) / 3_600_000;
 }
 
-// ─── Create Invoice Dialog ───────────────────────────────────────────────────
-
 interface CreateDialogProps {
     open: boolean;
     clients: Client[];
+    invoices: Invoice[];
     onClose: () => void;
     onCreate: (invoice: Invoice) => void;
 }
 
-function CreateInvoiceDialog({ open, clients, onClose, onCreate }: CreateDialogProps) {
+function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: CreateDialogProps) {
     const [clientId, setClientId] = useState('');
     const [dateFrom, setDateFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'));
     const [dateTo, setDateTo] = useState(dayjs().format('YYYY-MM-DD'));
     const [currency, setCurrency] = useState('EUR');
     const [taxRate, setTaxRate] = useState(0);
-    const [dueDate, setDueDate] = useState('');
+    const [dueDate, setDueDate] = useState(dayjs().add(30, 'day').format('YYYY-MM-DD'));
     const [notes, setNotes] = useState('');
 
     const [entries, setEntries] = useState<CalendarEntry[]>([]);
@@ -117,21 +116,39 @@ function CreateInvoiceDialog({ open, clients, onClose, onCreate }: CreateDialogP
         setDateTo(dayjs().format('YYYY-MM-DD'));
         setCurrency('EUR');
         setTaxRate(0);
-        setDueDate('');
+        setDueDate(dayjs().add(30, 'day').format('YYYY-MM-DD'));
         setNotes('');
         setEntries([]);
         setError('');
     }, [open]);
 
     useEffect(() => {
+        if (!clientId) return;
+        const lastInvoice = invoices
+            .filter((inv) => inv.client_id === clientId && inv.line_items && inv.line_items.length > 0)
+            .sort((a, b) => dayjs(b.issue_date).diff(dayjs(a.issue_date)))[0];
+        if (!lastInvoice) return;
+        const dates = (lastInvoice.line_items ?? []).map((li) => li.date).filter(Boolean).sort();
+        if (dates.length > 0) {
+            setDateFrom(dayjs(dates[dates.length - 1]).add(1, 'day').format('YYYY-MM-DD'));
+        }
+    }, [clientId, invoices]);
+
+    useEffect(() => {
         if (!canLoad) { setEntries([]); return; }
         let cancelled = false;
         setLoadingEntries(true);
-        invoiceService.getBillableEntries(clientId, dateFrom, dateTo).then((data) => {
-            if (!cancelled) { setEntries(data); setLoadingEntries(false); }
-        }).catch(() => {
-            if (!cancelled) setLoadingEntries(false);
-        });
+        setError('');
+        invoiceService.getBillableEntries(clientId, dateFrom, dateTo)
+            .then((data) => {
+                if (!cancelled) { setEntries(data); setLoadingEntries(false); }
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('Failed to load billable entries:', err);
+                setError(err instanceof Error ? err.message : 'Failed to load billable entries.');
+                setLoadingEntries(false);
+            });
         return () => { cancelled = true; };
     }, [clientId, dateFrom, dateTo, canLoad]);
 
@@ -164,7 +181,8 @@ function CreateInvoiceDialog({ open, clients, onClose, onCreate }: CreateDialogP
             );
             onCreate(inv);
         } catch (e) {
-            setError((e as Error).message ?? 'Failed to create invoice.');
+            console.error('Failed to create invoice:', e);
+            setError(e instanceof Error ? e.message : 'Failed to create invoice.');
         } finally {
             setSaving(false);
         }
@@ -261,10 +279,14 @@ function CreateInvoiceDialog({ open, clients, onClose, onCreate }: CreateDialogP
 
 // ─── Invoice List Page ───────────────────────────────────────────────────────
 
+const errorMessage = (err: unknown, fallback: string): string =>
+    err instanceof Error ? err.message : fallback;
+
 export default function InvoicesPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
     const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
     const [menuInvoice, setMenuInvoice] = useState<Invoice | null>(null);
@@ -273,11 +295,20 @@ export default function InvoicesPage() {
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
     useEffect(() => {
-        Promise.all([invoiceService.list(), clientService.getClientsLight()]).then(([invs, cls]) => {
-            setInvoices(invs);
-            setClients(cls);
-            setLoading(false);
-        });
+        let cancelled = false;
+        Promise.all([invoiceService.list(), clientService.getClientsLight()])
+            .then(([invs, cls]) => {
+                if (cancelled) return;
+                setInvoices(invs);
+                setClients(cls);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('Failed to load invoices:', err);
+                setError(errorMessage(err, 'Failed to load invoices'));
+            })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
     }, []);
 
     const handleMenuOpen = (e: React.MouseEvent<HTMLElement>, inv: Invoice) => {
@@ -292,9 +323,15 @@ export default function InvoicesPage() {
 
     const handleStatusChange = async (status: InvoiceStatus) => {
         if (!menuInvoice) return;
+        const target = menuInvoice;
         handleMenuClose();
-        await invoiceService.updateStatus(menuInvoice.id, status);
-        setInvoices((prev) => prev.map((inv) => inv.id === menuInvoice.id ? { ...inv, status } : inv));
+        try {
+            await invoiceService.updateStatus(target.id, status);
+            setInvoices((prev) => prev.map((inv) => inv.id === target.id ? { ...inv, status } : inv));
+        } catch (err) {
+            console.error('Failed to update invoice status:', err);
+            setError(errorMessage(err, 'Failed to update invoice status'));
+        }
     };
 
     const handleDeleteClick = () => {
@@ -306,10 +343,16 @@ export default function InvoicesPage() {
 
     const handleConfirmDelete = async () => {
         if (!invoiceToDelete) return;
-        await invoiceService.delete(invoiceToDelete.id);
-        setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceToDelete.id));
+        const target = invoiceToDelete;
         setDeleteDialogOpen(false);
         setInvoiceToDelete(null);
+        try {
+            await invoiceService.delete(target.id);
+            setInvoices((prev) => prev.filter((inv) => inv.id !== target.id));
+        } catch (err) {
+            console.error('Failed to delete invoice:', err);
+            setError(errorMessage(err, 'Failed to delete invoice'));
+        }
     };
 
     const handleDownloadPdf = async () => {
@@ -326,6 +369,9 @@ export default function InvoicesPage() {
             a.download = `${data.invoice.invoice_number}.pdf`;
             a.click();
             URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to download invoice PDF:', err);
+            setError(errorMessage(err, 'Failed to download invoice PDF'));
         } finally {
             setDownloadingId(null);
         }
@@ -399,6 +445,8 @@ export default function InvoicesPage() {
 
             <Divider sx={{ mb: 3 }} />
 
+            {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+
             <DataTable
                 data={invoices}
                 columns={columns}
@@ -432,6 +480,7 @@ export default function InvoicesPage() {
             <CreateInvoiceDialog
                 open={createOpen}
                 clients={clients}
+                invoices={invoices}
                 onClose={() => setCreateOpen(false)}
                 onCreate={handleCreated}
             />

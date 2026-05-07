@@ -154,9 +154,9 @@ export default function EntryBlock({
                     {title}
                 </Typography>
             )}
-            {showTitle && entry.project?.name && entry.project?.client?.name && (
+            {showTitle && entry.task?.project?.name && (
                 <Typography variant="caption" color="background.default" display="block" noWrap fontSize={height < 40 ? "0.6rem" : "0.7rem"} sx={{ opacity: 0.9 }}>
-                    {`${entry.project.name}  • ${entry.project.client.name}`}
+                    {entry.task.project.client?.name ? `${entry.task.project.name}  • ${entry.task.project.client.name}` : entry.task.project.name}
                 </Typography>
             )}
             {showDuration && (

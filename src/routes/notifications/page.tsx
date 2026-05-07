@@ -3,16 +3,8 @@ import { NotificationsList } from '../../components/Navigation/NotificationsDial
 
 export default function NotificationsPage() {
     return (
-        <Box
-            height="100%"
-            display="flex"
-            flexDirection="column"
-            >
-            <Box
-                borderRadius={2}
-                boxShadow={4}
-                bgcolor="background.default"
-            >
+        <Box height="100%" display="flex" flexDirection="column">
+            <Box borderRadius={2} boxShadow={4} bgcolor="background.default">
                 <Box pl={3} py={2}>
                     <Typography variant="h4" fontWeight="bold">
                         Notifications
@@ -24,6 +16,5 @@ export default function NotificationsPage() {
                 <NotificationsList />
             </Box>
         </Box>
-
     );
 }

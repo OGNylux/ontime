@@ -10,7 +10,7 @@
 import {
     Button, TextField, Stack, Popover, useMediaQuery, useTheme,
     SwipeableDrawer, Box, Typography, Autocomplete,
-    IconButton, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText,
+    IconButton, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Alert,
 } from "@mui/material";
 import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material";
 import { useState, useEffect, MouseEvent } from "react";
@@ -53,6 +53,7 @@ export default function EntryDialog({
     const [loading, setLoading] = useState(false);
     const [taskId, setTaskId] = useState<string | undefined>();
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Reset on open
     useEffect(() => {
@@ -61,6 +62,7 @@ export default function EntryDialog({
             setTitle(initialTitle || ""); setBillable(initialIsBillable ?? true);
             setOptions([]); setTaskId(undefined);
             setProject(initialProjectId ? { id: initialProjectId } as Project : null);
+            setError(null);
         }
     }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable, initialProjectId]);
 
@@ -70,47 +72,72 @@ export default function EntryDialog({
             if (title.length < 3) { if (active) setOptions([]); return; }
             setLoading(true);
             try {
-                if (active) setOptions(await taskService.searchTasks(title));
+                const results = await taskService.searchTasks(title);
+                if (active) setOptions(results);
+            } catch (err) {
+                // Autocomplete failure is non-blocking — user can still type a new task name.
+                console.error('Task search failed:', err);
+                if (active) setOptions([]);
+            } finally {
+                if (active) setLoading(false);
             }
-            catch { }
-            finally { if (active) setLoading(false); }
         }, 300);
         return () => { active = false; clearTimeout(t); };
     }, [title]);
 
-    //  Menu (edit mode actions) 
+    //  Menu (edit mode actions)
     const [menuEl, setMenuEl] = useState<null | HTMLElement>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
+    const errorMsg = (err: unknown, fallback: string) =>
+        err instanceof Error ? err.message : fallback;
+
     const handleDuplicate = async () => {
+        setError(null);
+        setSaving(true);
         try {
-            setSaving(true);
             await actions.create({ dateStr: dateStr ?? "", startTime, endTime, taskName: title, isBillable: billable, projectId: project?.id, taskId });
             onClose();
-        } catch { /* */ } finally { setSaving(false); }
+        } catch (err) {
+            console.error('Duplicate failed:', err);
+            setError(errorMsg(err, 'Failed to duplicate entry'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = () => { setMenuEl(null); setConfirmOpen(true); };
     const confirmDelete = async () => {
         if (!editingEntryId) return;
+        setError(null);
+        setSaving(true);
         try {
-            setSaving(true);
-            await actions.remove(editingEntryId); onClose();
-        } catch { }
-        finally {
-            setSaving(false); setConfirmOpen(false);
+            await actions.remove(editingEntryId);
+            setConfirmOpen(false);
+            onClose();
+        } catch (err) {
+            console.error('Delete failed:', err);
+            setError(errorMsg(err, 'Failed to delete entry'));
+            setConfirmOpen(false);
+        } finally {
+            setSaving(false);
         }
     };
 
     const handleSave = async () => {
+        setError(null);
+        setSaving(true);
         try {
-            setSaving(true);
             const data = { dateStr: dateStr ?? "", startTime, endTime, taskName: title, isBillable: billable, projectId: project?.id, taskId };
             if (isEdit && editingEntryId) await actions.update(editingEntryId, data);
             else await actions.create(data);
             onClose();
-        } catch { }
-        finally { setSaving(false); }
+        } catch (err) {
+            console.error('Save entry failed:', err);
+            setError(errorMsg(err, 'Failed to save entry'));
+        } finally {
+            setSaving(false);
+        }
     };
 
     //  Content 
@@ -155,6 +182,8 @@ export default function EntryDialog({
                 <TextField label="End" type="time" fullWidth value={endTime} onChange={e => setEndTime(e.target.value)} size="small"
                     slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
             </Stack>
+
+            {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 
             <Stack direction="row" justifyContent="flex-end" spacing={1}>
                 <Button onClick={onClose} size="small">Cancel</Button>

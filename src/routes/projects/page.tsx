@@ -10,6 +10,7 @@ import {
     Chip,
     Divider,
 } from '@mui/material';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import {
     MoreVert,
     Edit,
@@ -36,24 +37,25 @@ const formatDate = (dateStr?: string | null) => {
 };
 
 export default function ProjectsPage() {
+    const { showError } = useSnackbar();
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    
-        const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
+
+    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
     const [menuProject, setMenuProject] = useState<Project | null>(null);
-    
-        const [dialogOpen, setDialogOpen] = useState(false);
+
+    const [dialogOpen, setDialogOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
-    
-        const [clientFilter, setClientFilter] = useState('');
+
+    const [clientFilter, setClientFilter] = useState('');
     const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
 
-        const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setProjects);
+    const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setProjects);
 
     useEffect(() => {
         loadData();
@@ -68,24 +70,26 @@ export default function ProjectsPage() {
             ]);
             setProjects(projectsData);
             setClients(clientsData);
-        } catch (error) {
-            console.error('Failed to load data:', error);
+        } catch (err) {
+            console.error('Failed to load projects:', err);
+            showError('Failed to load projects', err instanceof Error ? err.message : undefined);
         } finally {
             setLoading(false);
         }
     };
 
-        const filteredProjects = useMemo(() => {
+    const filteredProjects = useMemo(() => {
+        const query = searchQuery.toLowerCase();
         return projects
             .filter((project) => {
                 const matchesSearch =
-                    project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    project.client?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+                    project.name.toLowerCase().includes(query) ||
+                    (project.client?.name?.toLowerCase().includes(query) ?? false);
                 const matchesClient = !clientFilter || project.client_id === clientFilter;
                 return matchesSearch && matchesClient;
             })
             .sort((a, b) => {
-                                if (a.pinned && !b.pinned) return -1;
+                if (a.pinned && !b.pinned) return -1;
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
@@ -151,24 +155,26 @@ export default function ProjectsPage() {
     };
 
     const handleTogglePin = async () => {
-        if (menuProject) {
+        if (menuProject?.id) {
             try {
-                const updated = await projectService.togglePin(menuProject.id!, !menuProject.pinned);
+                const updated = await projectService.togglePin(menuProject.id, !menuProject.pinned);
                 replaceOne(updated, (current, next) => ({ ...next, total_time: current.total_time }));
-            } catch (error) {
-                console.error('Failed to toggle pin:', error);
+            } catch (err) {
+                console.error('Failed to toggle pin:', err);
+                showError('Failed to toggle pin', err instanceof Error ? err.message : undefined);
             }
         }
         handleMenuClose();
     };
 
     const handleConfirmDelete = async () => {
-        if (projectToDelete) {
+        if (projectToDelete?.id) {
             try {
-                await projectService.deleteProject(projectToDelete.id!);
-                removeOne(projectToDelete.id!);
-            } catch (error) {
-                console.error('Failed to delete project:', error);
+                await projectService.deleteProject(projectToDelete.id);
+                removeOne(projectToDelete.id);
+            } catch (err) {
+                console.error('Failed to delete project:', err);
+                showError('Failed to delete project', err instanceof Error ? err.message : undefined);
             }
         }
         setDeleteDialogOpen(false);
@@ -180,8 +186,9 @@ export default function ProjectsPage() {
             await projectService.bulkDeleteProjects(selectedIds);
             removeMany(selectedIds);
             setSelectedIds([]);
-        } catch (error) {
-            console.error('Failed to delete projects:', error);
+        } catch (err) {
+            console.error('Failed to delete projects:', err);
+            showError('Failed to delete projects', err instanceof Error ? err.message : undefined);
         }
     };
 
@@ -191,20 +198,27 @@ export default function ProjectsPage() {
             const idSet = new Set(selectedIds);
             setProjects((prev) => prev.map((p) => p.id && idSet.has(p.id) ? { ...p, pinned } : p));
             setSelectedIds([]);
-        } catch (error) {
-            console.error('Failed to pin projects:', error);
+        } catch (err) {
+            console.error('Failed to pin projects:', err);
+            showError('Failed to pin projects', err instanceof Error ? err.message : undefined);
         }
     };
 
     const handleSaveProject = async (projectData: Project) => {
-        if (editingProject) {
-            const updated = await projectService.updateProject(editingProject.id!, projectData);
-            replaceOne(updated, (current, next) => ({ ...next, total_time: current.total_time }));
-        } else {
-            const created = await projectService.createProject(projectData as Project);
-            prependOne({ ...created, total_time: 0 });
+        try {
+            if (editingProject?.id) {
+                const updated = await projectService.updateProject(editingProject.id, projectData);
+                replaceOne(updated, (current, next) => ({ ...next, total_time: current.total_time }));
+            } else {
+                const created = await projectService.createProject(projectData);
+                prependOne({ ...created, total_time: 0 });
+            }
+            setEditingProject(null);
+        } catch (err) {
+            console.error('Failed to save project:', err);
+            showError('Failed to save project', err instanceof Error ? err.message : undefined);
+            throw err;
         }
-        setEditingProject(null);
     };
 
     const handleOpenNewProject = () => {
@@ -223,7 +237,8 @@ export default function ProjectsPage() {
             <PageHeader title="Projects" actionLabel="New Project" onAction={handleOpenNewProject} />
 
             <Divider sx={{ mb: 2 }} />
-                        <Box display="flex" gap={2} marginBottom={2} alignItems="center">
+
+            <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
                     value={searchQuery}
                     onChange={setSearchQuery}

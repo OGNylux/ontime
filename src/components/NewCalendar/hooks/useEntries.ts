@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
+import { getActiveWorkspaceId } from "../../../services/workspaceContext";
 import type { DayInfo } from "../types";
 
 export function useEntries(days: DayInfo[]) {
@@ -74,30 +75,40 @@ export function useEntries(days: DayInfo[]) {
     // Single long-lived Realtime channel – receives INSERT / UPDATE / DELETE
     // events for ontime_calendar_entry and mirrors them into local state.
     useEffect(() => {
-        return calendarService.subscribeToChanges({
-            onInsertOrUpdate: async (id, startTime, eventType) => {
-                cache.current.clear();
-                const entryDate   = dayjs(startTime).format('YYYY-MM-DD');
-                const currentDays = daysRef.current;
-                const inRange     = currentDays.length > 0
-                    && entryDate >= currentDays[0].dateStr
-                    && entryDate <= currentDays[currentDays.length - 1].dateStr;
+        let cancelled = false;
+        let unsubscribe: (() => void) | undefined;
 
-                if (inRange) {
-                    try {
-                        addOrReplaceRef.current(await calendarService.getEntryById(id));
-                    } catch {
+        getActiveWorkspaceId().then(workspaceId => {
+            if (cancelled) return;
+            unsubscribe = calendarService.subscribeToChanges(workspaceId, {
+                onInsertOrUpdate: async (id, startTime, eventType) => {
+                    cache.current.clear();
+                    const entryDate   = dayjs(startTime).format('YYYY-MM-DD');
+                    const currentDays = daysRef.current;
+                    const inRange     = currentDays.length > 0
+                        && entryDate >= currentDays[0].dateStr
+                        && entryDate <= currentDays[currentDays.length - 1].dateStr;
+
+                    if (inRange) {
+                        try {
+                            addOrReplaceRef.current(await calendarService.getEntryById(id));
+                        } catch {
+                            removeLocalRef.current(id);
+                        }
+                    } else if (eventType === 'UPDATE') {
                         removeLocalRef.current(id);
                     }
-                } else if (eventType === 'UPDATE') {
+                },
+                onDelete: (id) => {
+                    cache.current.clear();
                     removeLocalRef.current(id);
-                }
-            },
-            onDelete: (id) => {
-                cache.current.clear();
-                removeLocalRef.current(id);
-            },
+                },
+            });
+        }).catch(err => {
+            console.error('Failed to set up calendar realtime subscription:', err);
         });
+
+        return () => { cancelled = true; unsubscribe?.(); };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const byDate = entries.reduce<Record<string, CalendarEntry[]>>((acc, entry) => {

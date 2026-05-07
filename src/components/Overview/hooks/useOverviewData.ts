@@ -47,6 +47,7 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
     const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
@@ -55,6 +56,7 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
+        setError(null);
         Promise.all([
             analyticsService.overviewAggregates(
                 startDate.startOf('day').toISOString(),
@@ -69,7 +71,11 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
                 setProjects(p);
                 setClients(c);
             })
-            .catch((err) => console.error('Failed to load data:', err))
+            .catch((err) => {
+                if (cancelled) return;
+                console.error('Failed to load overview data:', err);
+                setError(err instanceof Error ? err.message : 'Failed to load overview data');
+            })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
     }, [startDate, endDate]);
@@ -227,6 +233,7 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
 
     return {
         loading,
+        error,
         clients,
         projects,
         stats,

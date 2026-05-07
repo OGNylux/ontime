@@ -16,11 +16,12 @@ function buildSegments(entries: CalendarEntry[]): Segment[] {
     const projectMap = new Map<string, { name: string; color: string; mins: number }>();
 
     entries.forEach(e => {
-        const projectId = e.project_id || "none";
+        const project = e.task?.project;
+        const projectId = project?.id || "none";
         const mins = dayjs(e.end_time).diff(dayjs(e.start_time), "minute");
         const current = projectMap.get(projectId);
         if (current) { current.mins += mins; }
-        else { projectMap.set(projectId, { name: e.project?.name || "No Project", color: TAILWIND_COLORS[e.project?.color || 0].value, mins }); }
+        else { projectMap.set(projectId, { name: project?.name || "No Project", color: TAILWIND_COLORS[project?.color ?? 0].value, mins }); }
     });
 
     const total = [...projectMap.values()].reduce((s, v) => s + v.mins, 0);

@@ -9,11 +9,10 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import Link from '@mui/material/Link';
 import AuthForm from "../../components/Forms/AuthForm";
 import { authService, User } from "../../services/authService";
-import { Alert } from "@mui/material";
+import { useSnackbar } from "../../hooks/useSnackbar";
 
 export default function RegisterPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [_, setSuccess] = useState<string | null>(null);
+  const { showError } = useSnackbar();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -31,6 +30,7 @@ export default function RegisterPage() {
       setEmailError(emailExists ? "Email already registered" : null);
     } catch (err) {
       console.error("Failed to check availability", err);
+      setEmailError("Could not verify email availability");
     }
   };
 
@@ -39,24 +39,17 @@ export default function RegisterPage() {
 
     if (emailError) return;
 
-    if (password == passwordRepeat) {
-      try {
-        const request: User = {
-          name,
-          email,
-          password
-        };
-        await authService.register(request);
-        setSuccess("Registration successful! Please check your email.");
-        setError(null);
-        navigate("/login", { replace: true });
-      } catch (error: any) {
-        setError(error.message || "Registration denied with provided credentials");
-        setSuccess(null);
-      }
-    } else {
-      setError("Passwords don't match");
-      setSuccess(null);
+    if (password !== passwordRepeat) {
+      showError("Passwords don't match");
+      return;
+    }
+
+    try {
+      const request: User = { name, email, password };
+      await authService.register(request);
+      navigate("/login", { replace: true });
+    } catch (err) {
+      showError("Registration failed", err instanceof Error ? err.message : undefined);
     }
   };
 
@@ -69,8 +62,6 @@ export default function RegisterPage() {
         alignItems="center"
         width="100%"
       >
-        {error && <Alert severity="error" sx={{ marginBottom: 2, width: "100%", maxWidth: 384, zIndex: 100, bgcolor: 'background.default' }}>{error}</Alert>}
-
         <AuthForm
           title="Register"
           fields={[

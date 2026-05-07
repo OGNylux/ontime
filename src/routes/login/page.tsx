@@ -1,30 +1,26 @@
 import { useState } from "react";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
-import { Container, Box, Typography, Grid, Alert } from "@mui/material";
+import { Container, Box, Typography, Grid } from "@mui/material";
 import Link from '@mui/material/Link';
 import AuthForm from "../../components/Forms/AuthForm";
 import { authService, User } from "../../services/authService";
+import { useSnackbar } from "../../hooks/useSnackbar";
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const { showError } = useSnackbar();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
 
         try {
-            const request: User = {
-                email,
-                password
-            };
+            const request: User = { email, password };
             await authService.login(request);
-
             navigate("/");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            showError("Login failed", err instanceof Error ? err.message : undefined);
         }
     };
 
@@ -37,8 +33,6 @@ export default function LoginPage() {
                 alignItems="center"
                 width="100%"
             >
-                {error && <Alert severity="error" sx={{ marginBottom: 2, width: "100%", maxWidth: 384, zIndex: 100, bgcolor: 'background.default' }}>{error}</Alert>}
-
                 <AuthForm
                     title="Welcome Back!"
                     fields={[

@@ -79,6 +79,7 @@ export default function SidebarContent({
                                 borderBottom: 3,
                                 borderColor: isActive ? 'primary.main' : 'text.secondary',
                                 mx: 1,
+                                mt: 1,
                                 '&:hover': {
                                     bgcolor: 'action.hover',
                                 },
@@ -186,6 +187,7 @@ export default function SidebarContent({
                                                     <ListItemText
                                                         primary={subItem.label}
                                                         sx={{
+                                                            color: subItemActive ? 'primary.contrastText' : 'text.primary',
                                                             '&:hover': {
                                                                 color: subItemActive ? 'primary.contrastText' : 'inherit'
                                                             }

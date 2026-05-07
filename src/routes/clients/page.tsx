@@ -10,6 +10,7 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
+import { useSnackbar } from '../../hooks/useSnackbar';
 import {
     KeyboardArrowDown,
     KeyboardArrowRight,
@@ -42,6 +43,7 @@ interface TableRow {
 }
 
 export default function ClientsPage() {
+    const { showError } = useSnackbar();
     const [clients, setClients] = useState<ClientWithExpansion[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -66,8 +68,9 @@ export default function ClientsPage() {
         try {
             const clientsData = await clientService.getClientsWithProjects();
             setClients(clientsData.map(c => ({ ...c, _expanded: false })));
-        } catch (error) {
-            console.error('Failed to load clients:', error);
+        } catch (err) {
+            console.error('Failed to load clients:', err);
+            showError('Failed to load clients', err instanceof Error ? err.message : undefined);
         } finally {
             setLoading(false);
         }
@@ -102,12 +105,13 @@ export default function ClientsPage() {
         const rows: TableRow[] = [];
 
         filteredClients.forEach(client => {
+            if (!client.id) return;
             rows.push({
-                id: client.id!,
+                id: client.id,
                 type: 'client',
                 client,
                 name: client.name,
-                projectCount: client.projects?.length || 0,
+                projectCount: client.projects?.length ?? 0,
                 pinned: client.pinned,
             });
 
@@ -248,8 +252,9 @@ export default function ClientsPage() {
             try {
                 const updated = await clientService.togglePin(menuClient.id, !menuClient.pinned);
                 replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
-            } catch (error) {
-                console.error('Failed to toggle pin:', error);
+            } catch (err) {
+                console.error('Failed to toggle pin:', err);
+                showError('Failed to toggle pin', err instanceof Error ? err.message : undefined);
             }
         }
         handleMenuClose();
@@ -260,8 +265,9 @@ export default function ClientsPage() {
             await clientService.bulkDeleteClients(selectedIds);
             removeMany(selectedIds);
             setSelectedIds([]);
-        } catch (error) {
-            console.error('Failed to delete clients:', error);
+        } catch (err) {
+            console.error('Failed to delete clients:', err);
+            showError('Failed to delete clients', err instanceof Error ? err.message : undefined);
         }
     };
 
@@ -271,8 +277,9 @@ export default function ClientsPage() {
             const updatedClients = await clientService.getClientsWithProjects();
             setClients(updatedClients.map(c => ({ ...c, _expanded: false })));
             setSelectedIds([]);
-        } catch (error) {
-            console.error('Failed to pin clients:', error);
+        } catch (err) {
+            console.error('Failed to pin clients:', err);
+            showError('Failed to pin clients', err instanceof Error ? err.message : undefined);
         }
     };
 
@@ -281,8 +288,9 @@ export default function ClientsPage() {
             try {
                 await clientService.deleteClient(clientToDelete.id);
                 removeOne(clientToDelete.id);
-            } catch (error) {
-                console.error('Failed to delete client:', error);
+            } catch (err) {
+                console.error('Failed to delete client:', err);
+                showError('Failed to delete client', err instanceof Error ? err.message : undefined);
             }
         }
         setDeleteDialogOpen(false);
@@ -295,19 +303,26 @@ export default function ClientsPage() {
     };
 
     const handleSaveClient = async (client: Client) => {
-        if (clientToEdit && clientToEdit.id) {
-            const updated = await clientService.updateClient({ ...client, id: clientToEdit.id });
-            replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
-        } else {
-            const created = await clientService.createClient(client);
-            prependOne({ ...created, _expanded: false });
+        try {
+            if (clientToEdit && clientToEdit.id) {
+                const updated = await clientService.updateClient({ ...client, id: clientToEdit.id });
+                replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
+            } else {
+                const created = await clientService.createClient(client);
+                prependOne({ ...created, _expanded: false });
+            }
+        } catch (err) {
+            console.error('Failed to save client:', err);
+            showError('Failed to save client', err instanceof Error ? err.message : undefined);
+            throw err;
         }
     };
 
     const renderRowActions = (row: TableRow) => {
-        if (row.type === 'project') return null;
+        if (row.type === 'project' || !row.client) return null;
+        const client = row.client;
         return (
-            <IconButton size="small" onClick={(e) => handleMenuOpen(e, row.client!)}>
+            <IconButton size="small" onClick={(e) => handleMenuOpen(e, client)}>
                 <MoreVert />
             </IconButton>
         );

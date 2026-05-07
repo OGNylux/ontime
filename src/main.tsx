@@ -10,7 +10,7 @@ import ClientsPage from "./routes/clients/page";
 import TasksPage from "./routes/tasks/page";
 import OverviewPage from "./routes/overview/page";
 import SettingsPage from "./routes/settings/page";
-import Navbar from "./components/Navigation/Navbar";
+//import Navbar from "./components/Navigation/Navbar";
 import Sidebar from "./components/Navigation/Sidebar";
 import BottomAppBar from "./components/Navigation/BottomAppBar";
 import { supabase } from "./lib/supabase";
@@ -21,6 +21,9 @@ import theme from "./theme";
 import { platform } from "@tauri-apps/plugin-os";
 import NotificationsPage from "./routes/notifications/page";
 import InvoicesPage from "./routes/invoices/page";
+import { NotificationsProvider } from "./hooks/useNotifications";
+import { SnackbarProvider } from "./hooks/useSnackbar";
+import AppSnackbar from "./components/AppSnackbar";
 
 function AppLayout() {
   const muiTheme = useTheme();
@@ -33,30 +36,34 @@ function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const checkPlatform = async () => {
-      try {
-        const platformType = await platform();
-        setIsTauriMobile(platformType === 'android' || platformType === 'ios');
-      } catch {
-        setIsTauriMobile(false);
-      }
-    };
-    checkPlatform();
+    try {
+      const platformType = platform();
+      setIsTauriMobile(platformType === 'android' || platformType === 'ios');
+    } catch {
+      setIsTauriMobile(false);
+    }
   }, []);
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!mounted) return;
-      setUser(user);
-      if (!user) {
-        if (location.pathname !== "/login" && location.pathname !== "/register") {
+    supabase.auth.getUser()
+      .then(({ data: { user } }) => {
+        if (!mounted) return;
+        setUser(user);
+        if (!user) {
+          if (location.pathname !== "/login" && location.pathname !== "/register") {
+            navigate("/login", { replace: true });
+          }
+        } else if (location.pathname === "/") {
+          navigate("/timer", { replace: true });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch current user:", err);
+        if (mounted && location.pathname !== "/login" && location.pathname !== "/register") {
           navigate("/login", { replace: true });
         }
-      } else if (location.pathname === "/") {
-        navigate("/timer", { replace: true });
-      }
-    });
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
@@ -77,6 +84,9 @@ function AppLayout() {
   }, [location.pathname, navigate]);
 
   return (
+    <SnackbarProvider>
+    <AppSnackbar />
+    <NotificationsProvider>
     <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
       {/* {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />} */}
 
@@ -116,6 +126,8 @@ function AppLayout() {
 
       {isTauriMobile && !hideNav && <BottomAppBar />}
     </Box>
+    </NotificationsProvider>
+    </SnackbarProvider>
   );
 }
 
