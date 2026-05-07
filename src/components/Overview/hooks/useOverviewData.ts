@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
+import { calendarService, CalendarEntry } from '../../../services/calendarService';
 import { projectService, Project, TAILWIND_COLORS } from '../../../services/projectService';
 import { clientService, Client } from '../../../services/clientService';
-import { analyticsService, OverviewAggregateRow } from '../../../services/analyticsService';
 import { ProjectRowData } from '../ProjectTaskTable';
 
 export interface DailyChartPoint {
@@ -43,7 +43,7 @@ interface ProjectAggregate {
 const projectColor = (project: Project) => TAILWIND_COLORS[project.color ?? 0].value;
 
 export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
-    const [aggregateRows, setAggregateRows] = useState<OverviewAggregateRow[]>([]);
+    const [entries, setEntries] = useState<CalendarEntry[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,16 +58,16 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
         setLoading(true);
         setError(null);
         Promise.all([
-            analyticsService.overviewAggregates(
+            calendarService.getEntries(
                 startDate.startOf('day').toISOString(),
                 endDate.endOf('day').toISOString(),
             ),
             projectService.getProjectsLight(),
             clientService.getClientsLight(),
         ])
-            .then(([rows, p, c]) => {
+            .then(([e, p, c]) => {
                 if (cancelled) return;
-                setAggregateRows(rows);
+                setEntries(e);
                 setProjects(p);
                 setClients(c);
             })
@@ -80,21 +80,22 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
         return () => { cancelled = true; };
     }, [startDate, endDate]);
 
-    const filteredRows = useMemo(() => {
+    const filteredEntries = useMemo(() => {
         const clientFilter = new Set(selectedClientIds);
         const projectFilter = new Set(selectedProjectIds);
-        return aggregateRows.filter((row) => {
-            if (projectFilter.size && !projectFilter.has(row.project_id)) return false;
+        return entries.filter((entry) => {
+            const projectId = entry.task?.project?.id;
+            if (projectFilter.size && (!projectId || !projectFilter.has(projectId))) return false;
             if (clientFilter.size) {
-                const clientId = row.client_id;
+                const clientId = entry.task?.project?.client_id;
                 if (!clientId || !clientFilter.has(clientId)) return false;
             }
             return true;
         });
-    }, [aggregateRows, selectedClientIds, selectedProjectIds]);
+    }, [entries, selectedClientIds, selectedProjectIds]);
 
     /**
-     * Single pass over SQL-aggregated rows that builds every aggregate the
+     * Single pass over calendar entries that builds every aggregate the
      * page needs (stats, daily breakdown, pie chart, project/task table).
      */
     const aggregates = useMemo(() => {
@@ -112,24 +113,25 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
         let billableMinutes = 0;
         let revenue = 0;
 
-        for (const row of filteredRows) {
-            const minutes = Number(row.total_minutes ?? 0);
+        for (const entry of filteredEntries) {
+            if (!entry.start_time || !entry.end_time) continue;
+            const project = entry.task?.project;
+            if (!project?.id) continue;
+
+            const minutes = dayjs(entry.end_time).diff(dayjs(entry.start_time), 'minute', true);
             if (minutes <= 0) continue;
 
-            const rowBillableMinutes = Number(row.billable_minutes ?? 0);
-            const rowRevenue = Number(row.revenue ?? 0);
-            const projectId = row.project_id;
-            const project: Project = {
-                id: projectId,
-                name: row.project_name,
-                color: row.project_color ?? 0,
-            };
+            const isBillable = entry.is_billable === true;
+            const entryBillableMinutes = isBillable ? minutes : 0;
+            const entryRevenue = isBillable ? (minutes / 60) * (project.hourly_rate ?? 0) : 0;
+            const projectId = project.id;
 
             totalMinutes += minutes;
-            billableMinutes += rowBillableMinutes;
-            revenue += rowRevenue;
+            billableMinutes += entryBillableMinutes;
+            revenue += entryRevenue;
 
-            const dayBucket = dayBuckets.get(dayjs(row.day).format('YYYY-MM-DD'));
+            const dayKey = dayjs(entry.start_time).format('YYYY-MM-DD');
+            const dayBucket = dayBuckets.get(dayKey);
             if (dayBucket) {
                 dayBucket.set(projectId, (dayBucket.get(projectId) ?? 0) + minutes / 60);
             }
@@ -140,18 +142,19 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
                 projectAggs.set(projectId, agg);
             }
             agg.totalMinutes += minutes;
-            agg.billableMinutes += rowBillableMinutes;
-            agg.revenue += rowRevenue;
+            agg.billableMinutes += entryBillableMinutes;
+            agg.revenue += entryRevenue;
 
-            if (row.task_id && row.task_name) {
-                const taskAgg = agg.tasks.get(row.task_id);
+            const task = entry.task;
+            if (task?.id && task.name) {
+                const taskAgg = agg.tasks.get(task.id);
                 if (taskAgg) taskAgg.minutes += minutes;
-                else agg.tasks.set(row.task_id, { taskName: row.task_name, minutes });
+                else agg.tasks.set(task.id, { taskName: task.name, minutes });
             }
         }
 
         return { dayBuckets, projectAggs, totalMinutes, billableMinutes, revenue };
-    }, [filteredRows, startDate, endDate]);
+    }, [filteredEntries, startDate, endDate]);
 
     const stats: Stats = useMemo(() => {
         const daysInRange = endDate.diff(startDate, 'day') + 1;

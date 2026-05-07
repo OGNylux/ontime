@@ -43,7 +43,7 @@ interface TableRow {
 }
 
 export default function ClientsPage() {
-    const { showError } = useSnackbar();
+    const { showError, showWithAction } = useSnackbar();
     const [clients, setClients] = useState<ClientWithExpansion[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -261,10 +261,28 @@ export default function ClientsPage() {
     };
 
     const handleBulkDelete = async () => {
+        const idsToDelete = [...selectedIds];
         try {
-            await clientService.bulkDeleteClients(selectedIds);
-            removeMany(selectedIds);
+            await clientService.bulkDeleteClients(idsToDelete);
+            removeMany(idsToDelete);
             setSelectedIds([]);
+            showWithAction(
+                `Deleted ${idsToDelete.length} client${idsToDelete.length === 1 ? '' : 's'}`,
+                {
+                    label: 'Undo',
+                    onClick: async () => {
+                        try {
+                            await clientService.bulkRestoreClients(idsToDelete);
+                            const restored = await clientService.getClientsWithProjects();
+                            setClients(restored.map(c => ({ ...c, _expanded: false })));
+                        } catch (err) {
+                            console.error('Failed to restore clients:', err);
+                            showError('Failed to restore clients', err instanceof Error ? err.message : undefined);
+                        }
+                    },
+                },
+                { severity: 'info' },
+            );
         } catch (err) {
             console.error('Failed to delete clients:', err);
             showError('Failed to delete clients', err instanceof Error ? err.message : undefined);
@@ -285,9 +303,26 @@ export default function ClientsPage() {
 
     const handleConfirmDelete = async () => {
         if (clientToDelete && clientToDelete.id) {
+            const target = clientToDelete;
             try {
-                await clientService.deleteClient(clientToDelete.id);
-                removeOne(clientToDelete.id);
+                await clientService.deleteClient(target.id!);
+                removeOne(target.id!);
+                showWithAction(
+                    `Deleted "${target.name}"`,
+                    {
+                        label: 'Undo',
+                        onClick: async () => {
+                            try {
+                                const restored = await clientService.restoreClient(target.id!);
+                                prependOne({ ...(restored as ClientWithExpansion), _expanded: false });
+                            } catch (err) {
+                                console.error('Failed to restore client:', err);
+                                showError('Failed to restore client', err instanceof Error ? err.message : undefined);
+                            }
+                        },
+                    },
+                    { severity: 'info' },
+                );
             } catch (err) {
                 console.error('Failed to delete client:', err);
                 showError('Failed to delete client', err instanceof Error ? err.message : undefined);
@@ -305,8 +340,25 @@ export default function ClientsPage() {
     const handleSaveClient = async (client: Client) => {
         try {
             if (clientToEdit && clientToEdit.id) {
-                const updated = await clientService.updateClient({ ...client, id: clientToEdit.id });
+                const previous = clientToEdit;
+                const updated = await clientService.updateClient({ ...client, id: previous.id });
                 replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
+                showWithAction(
+                    `Updated "${updated.name}"`,
+                    {
+                        label: 'Undo',
+                        onClick: async () => {
+                            try {
+                                const reverted = await clientService.updateClient(previous);
+                                replaceOne(reverted as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
+                            } catch (err) {
+                                console.error('Failed to revert client:', err);
+                                showError('Failed to revert client', err instanceof Error ? err.message : undefined);
+                            }
+                        },
+                    },
+                    { severity: 'info' },
+                );
             } else {
                 const created = await clientService.createClient(client);
                 prependOne({ ...created, _expanded: false });

@@ -158,6 +158,17 @@ export const projectService = {
         if (error) throw error;
     },
 
+    async restoreProject(id: string): Promise<Project> {
+        const { data, error } = await supabase
+            .from("ontime_project")
+            .update({ deleted_at: null })
+            .eq("id", id)
+            .select(PROJECT_SELECT)
+            .single();
+        if (error) throw error;
+        return data as Project;
+    },
+
     async bulkSetPinned(ids: string[], pinned: boolean): Promise<void> {
         if (ids.length === 0) return;
         const { error } = await supabase
@@ -172,6 +183,15 @@ export const projectService = {
         const { error } = await supabase
             .from("ontime_project")
             .update({ deleted_at: new Date().toISOString() })
+            .in("id", ids);
+        if (error) throw error;
+    },
+
+    async bulkRestoreProjects(ids: string[]): Promise<void> {
+        if (ids.length === 0) return;
+        const { error } = await supabase
+            .from("ontime_project")
+            .update({ deleted_at: null })
             .in("id", ids);
         if (error) throw error;
     },

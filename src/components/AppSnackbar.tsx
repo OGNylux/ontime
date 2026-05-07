@@ -1,24 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
 import {
-    Box, IconButton, LinearProgress, Paper, Stack, Typography,
+    Box, Button, IconButton, LinearProgress, Paper, Stack, Typography,
 } from "@mui/material";
 import {
     Close, CheckCircle, ErrorOutline, InfoOutlined, WarningAmber,
 } from "@mui/icons-material";
+import { AnimatePresence, motion } from "motion/react";
 import { SnackbarMessage, SnackbarSeverity, useSnackbarContext } from "../hooks/useSnackbar";
 
 const ICON: Record<SnackbarSeverity, JSX.Element> = {
     success: <CheckCircle fontSize="small" />,
-    error:   <ErrorOutline fontSize="small" />,
+    error: <ErrorOutline fontSize="small" />,
     warning: <WarningAmber fontSize="small" />,
-    info:    <InfoOutlined fontSize="small" />,
+    info: <InfoOutlined fontSize="small" />,
 };
 
 const COLOR: Record<SnackbarSeverity, string> = {
     success: "success.main",
-    error:   "error.main",
+    error: "error.main",
     warning: "warning.main",
-    info:    "info.main",
+    info: "secondary.main",
 };
 
 const PROGRESS_INTERVAL = 50; // ms between ticks
@@ -47,6 +48,12 @@ function SingleSnackbar({ msg, onDismiss }: { msg: SnackbarMessage; onDismiss: (
 
     return (
         <Paper
+            component={motion.div}
+            layout
+            initial={{ opacity: 0, x: 40, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 40, scale: 0.95, transition: { duration: 0.2, ease: "easeIn" } }}
+            transition={{ type: "spring", stiffness: 380, damping: 30 }}
             elevation={6}
             onMouseEnter={() => { paused.current = true; }}
             onMouseLeave={() => { paused.current = false; }}
@@ -82,6 +89,27 @@ function SingleSnackbar({ msg, onDismiss }: { msg: SnackbarMessage; onDismiss: (
                         </Typography>
                     )}
                 </Box>
+                {msg.action && (
+                    <Button
+                        size="small"
+                        onClick={async () => {
+                            try {
+                                await msg.action!.onClick();
+                            } finally {
+                                onDismiss();
+                            }
+                        }}
+                        sx={{
+                            color: COLOR[msg.severity],
+                            fontWeight: "bold",
+                            textTransform: "uppercase",
+                            minWidth: 0,
+                            px: 1,
+                        }}
+                    >
+                        {msg.action.label}
+                    </Button>
+                )}
                 <IconButton size="small" onClick={onDismiss} sx={{ mt: "-4px", mr: "-4px" }}>
                     <Close fontSize="small" />
                 </IconButton>
@@ -106,9 +134,11 @@ export default function AppSnackbar() {
                 alignItems: "flex-end",
             }}
         >
-            {messages.map(msg => (
-                <SingleSnackbar key={msg.id} msg={msg} onDismiss={() => dismiss(msg.id)} />
-            ))}
+            <AnimatePresence initial={false}>
+                {messages.map(msg => (
+                    <SingleSnackbar key={msg.id} msg={msg} onDismiss={() => dismiss(msg.id)} />
+                ))}
+            </AnimatePresence>
         </Box>
     );
 }

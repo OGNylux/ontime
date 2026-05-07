@@ -163,6 +163,17 @@ export const clientService = {
         if (error) throw error;
     },
 
+    async restoreClient(id: string): Promise<Client> {
+        const { data, error } = await supabase
+            .from("ontime_client")
+            .update({ deleted_at: null })
+            .eq("id", id)
+            .select(CLIENT_SELECT)
+            .single();
+        if (error) throw error;
+        return data as Client;
+    },
+
     async togglePin(id: string, pinned: boolean): Promise<Client> {
         const { data, error } = await supabase
             .from("ontime_client")
@@ -188,6 +199,15 @@ export const clientService = {
         const { error } = await supabase
             .from("ontime_client")
             .update({ deleted_at: new Date().toISOString() })
+            .in("id", ids);
+        if (error) throw error;
+    },
+
+    async bulkRestoreClients(ids: string[]): Promise<void> {
+        if (ids.length === 0) return;
+        const { error } = await supabase
+            .from("ontime_client")
+            .update({ deleted_at: null })
             .in("id", ids);
         if (error) throw error;
     },

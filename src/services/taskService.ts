@@ -131,6 +131,17 @@ export const taskService = {
         if (error) throw error;
     },
 
+    async restoreTask(id: string): Promise<Task> {
+        const { data, error } = await supabase
+            .from("ontime_task")
+            .update({ deleted_at: null })
+            .eq("id", id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data as Task;
+    },
+
     async searchTasks(query: string): Promise<Task[]> {
         const workspaceId = await getActiveWorkspaceId();
 
@@ -189,6 +200,15 @@ export const taskService = {
         const { error } = await supabase
             .from("ontime_task")
             .update({ deleted_at: new Date().toISOString() })
+            .in("id", ids);
+        if (error) throw error;
+    },
+
+    async bulkRestoreTasks(ids: string[]): Promise<void> {
+        if (ids.length === 0) return;
+        const { error } = await supabase
+            .from("ontime_task")
+            .update({ deleted_at: null })
             .in("id", ids);
         if (error) throw error;
     },

@@ -45,6 +45,7 @@ import { InvoicePDF } from './InvoicePDF';
 import { DataTable, Column } from '../../components/DataTable';
 import PageHeader from '../../components/PageHeader';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
+import { useSnackbar } from '../../hooks/useSnackbar';
 
 const STATUS_COLORS: Record<InvoiceStatus, 'default' | 'primary' | 'success' | 'error' | 'warning'> = {
     draft: 'default',
@@ -283,6 +284,7 @@ const errorMessage = (err: unknown, fallback: string): string =>
     err instanceof Error ? err.message : fallback;
 
 export default function InvoicesPage() {
+    const { showWithAction, showError } = useSnackbar();
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
@@ -324,10 +326,27 @@ export default function InvoicesPage() {
     const handleStatusChange = async (status: InvoiceStatus) => {
         if (!menuInvoice) return;
         const target = menuInvoice;
+        const previousStatus = target.status;
         handleMenuClose();
         try {
             await invoiceService.updateStatus(target.id, status);
             setInvoices((prev) => prev.map((inv) => inv.id === target.id ? { ...inv, status } : inv));
+            showWithAction(
+                `Invoice ${target.invoice_number} marked as ${status}`,
+                {
+                    label: 'Undo',
+                    onClick: async () => {
+                        try {
+                            await invoiceService.updateStatus(target.id, previousStatus);
+                            setInvoices((prev) => prev.map((inv) => inv.id === target.id ? { ...inv, status: previousStatus } : inv));
+                        } catch (err) {
+                            console.error('Failed to revert invoice status:', err);
+                            showError('Failed to revert invoice status', err instanceof Error ? err.message : undefined);
+                        }
+                    },
+                },
+                { severity: 'info' },
+            );
         } catch (err) {
             console.error('Failed to update invoice status:', err);
             setError(errorMessage(err, 'Failed to update invoice status'));

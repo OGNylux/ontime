@@ -40,7 +40,7 @@ const errorMessage = (err: unknown, fallback: string): string =>
     err instanceof Error ? err.message : fallback;
 
 export default function TasksPage() {
-    const { showError } = useSnackbar();
+    const { showError, showWithAction } = useSnackbar();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
@@ -179,9 +179,26 @@ export default function TasksPage() {
 
     const handleConfirmDelete = async () => {
         if (taskToDelete?.id) {
+            const target = taskToDelete;
             try {
-                await taskService.deleteTask(taskToDelete.id);
-                removeOne(taskToDelete.id);
+                await taskService.deleteTask(target.id!);
+                removeOne(target.id!);
+                showWithAction(
+                    `Deleted "${target.name}"`,
+                    {
+                        label: 'Undo',
+                        onClick: async () => {
+                            try {
+                                const restored = await taskService.restoreTask(target.id!);
+                                prependOne({ ...restored, total_time: target.total_time ?? 0 });
+                            } catch (err) {
+                                console.error('Failed to restore task:', err);
+                                showError('Failed to restore task', err instanceof Error ? err.message : undefined);
+                            }
+                        },
+                    },
+                    { severity: 'info' },
+                );
             } catch (err) {
                 console.error('Failed to delete task:', err);
                 showError('Failed to delete task', err instanceof Error ? err.message : undefined);
@@ -192,10 +209,28 @@ export default function TasksPage() {
     };
 
     const handleBulkDelete = async () => {
+        const idsToDelete = [...selectedIds];
         try {
-            await taskService.bulkDeleteTasks(selectedIds);
-            removeMany(selectedIds);
+            await taskService.bulkDeleteTasks(idsToDelete);
+            removeMany(idsToDelete);
             setSelectedIds([]);
+            showWithAction(
+                `Deleted ${idsToDelete.length} task${idsToDelete.length === 1 ? '' : 's'}`,
+                {
+                    label: 'Undo',
+                    onClick: async () => {
+                        try {
+                            await taskService.bulkRestoreTasks(idsToDelete);
+                            const restored = await taskService.getTasksWithTotals();
+                            setTasks(restored);
+                        } catch (err) {
+                            console.error('Failed to restore tasks:', err);
+                            showError('Failed to restore tasks', err instanceof Error ? err.message : undefined);
+                        }
+                    },
+                },
+                { severity: 'info' },
+            );
         } catch (err) {
             console.error('Failed to delete tasks:', err);
             showError('Failed to delete tasks', err instanceof Error ? err.message : undefined);
@@ -217,8 +252,25 @@ export default function TasksPage() {
     const handleSaveTask = async (taskData: Task) => {
         try {
             if (editingTask?.id) {
-                const updated = await taskService.updateTask(editingTask.id, taskData);
+                const previous = editingTask;
+                const updated = await taskService.updateTask(previous.id!, taskData);
                 replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
+                showWithAction(
+                    `Updated "${updated.name}"`,
+                    {
+                        label: 'Undo',
+                        onClick: async () => {
+                            try {
+                                const reverted = await taskService.updateTask(previous.id!, previous);
+                                replaceOne(reverted as Task, (current, next) => ({ ...next, total_time: current.total_time }));
+                            } catch (err) {
+                                console.error('Failed to revert task:', err);
+                                showError('Failed to revert task', err instanceof Error ? err.message : undefined);
+                            }
+                        },
+                    },
+                    { severity: 'info' },
+                );
             } else {
                 const created = await taskService.createTask(taskData);
                 prependOne({ ...created, total_time: 0 });

@@ -37,7 +37,7 @@ const formatDate = (dateStr?: string | null) => {
 };
 
 export default function ProjectsPage() {
-    const { showError } = useSnackbar();
+    const { showError, showWithAction } = useSnackbar();
     const [projects, setProjects] = useState<Project[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [loading, setLoading] = useState(true);
@@ -169,9 +169,26 @@ export default function ProjectsPage() {
 
     const handleConfirmDelete = async () => {
         if (projectToDelete?.id) {
+            const target = projectToDelete;
             try {
-                await projectService.deleteProject(projectToDelete.id);
-                removeOne(projectToDelete.id);
+                await projectService.deleteProject(target.id!);
+                removeOne(target.id!);
+                showWithAction(
+                    `Deleted "${target.name}"`,
+                    {
+                        label: 'Undo',
+                        onClick: async () => {
+                            try {
+                                const restored = await projectService.restoreProject(target.id!);
+                                prependOne({ ...restored, total_time: target.total_time ?? 0 });
+                            } catch (err) {
+                                console.error('Failed to restore project:', err);
+                                showError('Failed to restore project', err instanceof Error ? err.message : undefined);
+                            }
+                        },
+                    },
+                    { severity: 'info' },
+                );
             } catch (err) {
                 console.error('Failed to delete project:', err);
                 showError('Failed to delete project', err instanceof Error ? err.message : undefined);
@@ -182,10 +199,28 @@ export default function ProjectsPage() {
     };
 
     const handleBulkDelete = async () => {
+        const idsToDelete = [...selectedIds];
         try {
-            await projectService.bulkDeleteProjects(selectedIds);
-            removeMany(selectedIds);
+            await projectService.bulkDeleteProjects(idsToDelete);
+            removeMany(idsToDelete);
             setSelectedIds([]);
+            showWithAction(
+                `Deleted ${idsToDelete.length} project${idsToDelete.length === 1 ? '' : 's'}`,
+                {
+                    label: 'Undo',
+                    onClick: async () => {
+                        try {
+                            await projectService.bulkRestoreProjects(idsToDelete);
+                            const restored = await projectService.getProjectsWithTotals();
+                            setProjects(restored);
+                        } catch (err) {
+                            console.error('Failed to restore projects:', err);
+                            showError('Failed to restore projects', err instanceof Error ? err.message : undefined);
+                        }
+                    },
+                },
+                { severity: 'info' },
+            );
         } catch (err) {
             console.error('Failed to delete projects:', err);
             showError('Failed to delete projects', err instanceof Error ? err.message : undefined);
@@ -207,8 +242,25 @@ export default function ProjectsPage() {
     const handleSaveProject = async (projectData: Project) => {
         try {
             if (editingProject?.id) {
-                const updated = await projectService.updateProject(editingProject.id, projectData);
+                const previous = editingProject;
+                const updated = await projectService.updateProject(previous.id!, projectData);
                 replaceOne(updated, (current, next) => ({ ...next, total_time: current.total_time }));
+                showWithAction(
+                    `Updated "${updated.name}"`,
+                    {
+                        label: 'Undo',
+                        onClick: async () => {
+                            try {
+                                const reverted = await projectService.updateProject(previous.id!, previous);
+                                replaceOne(reverted, (current, next) => ({ ...next, total_time: current.total_time }));
+                            } catch (err) {
+                                console.error('Failed to revert project:', err);
+                                showError('Failed to revert project', err instanceof Error ? err.message : undefined);
+                            }
+                        },
+                    },
+                    { severity: 'info' },
+                );
             } else {
                 const created = await projectService.createProject(projectData);
                 prependOne({ ...created, total_time: 0 });

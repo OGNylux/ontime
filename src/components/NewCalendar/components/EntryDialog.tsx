@@ -201,7 +201,7 @@ export default function EntryDialog({
                 <Box sx={{ width: 40, height: 4, bgcolor: "grey.300", borderRadius: 2, mx: "auto", mt: 2, mb: 1 }} />
                 <Typography variant="h6" align="center" sx={{ mb: 1 }}>{isEdit ? "Edit Entry" : "Create New Entry"}</Typography>
                 {content}
-                <ConfirmDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmDelete} title="Delete Entry" message="Are you sure you want to delete this entry?" confirmLabel="Delete" confirmColor="secondary" />
+                <ConfirmDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmDelete} title="Delete Entry" message="Are you sure you want to delete this entry?" confirmLabel="Delete" confirmColor="error" />
             </SwipeableDrawer>
         );
     }
@@ -214,7 +214,7 @@ export default function EntryDialog({
                 PaperProps={{ sx: { bgcolor: "background.default", backgroundImage: "none" } }}>
                 {content}
             </Popover>
-            <ConfirmDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmDelete} title="Delete Entry" message="Are you sure you want to delete this entry?" confirmLabel="Delete" confirmColor="secondary" />
+            <ConfirmDialog open={confirmOpen} onClose={() => setConfirmOpen(false)} onConfirm={confirmDelete} title="Delete Entry" message="Are you sure you want to delete this entry?" confirmLabel="Delete" confirmColor="error" />
         </>
     );
 }
