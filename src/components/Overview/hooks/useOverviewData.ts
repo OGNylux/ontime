@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
-import { calendarService, CalendarEntry } from '../../../services/calendarService';
+import { useQuery } from '@tanstack/react-query';
+import { calendarService } from '../../../services/calendarService';
 import { projectService, Project, TAILWIND_COLORS } from '../../../services/projectService';
-import { clientService, Client } from '../../../services/clientService';
+import { clientService } from '../../../services/clientService';
 import { ProjectRowData } from '../ProjectTaskTable';
 
 export interface DailyChartPoint {
@@ -43,42 +44,32 @@ interface ProjectAggregate {
 const projectColor = (project: Project) => TAILWIND_COLORS[project.color ?? 0].value;
 
 export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
-    const [entries, setEntries] = useState<CalendarEntry[]>([]);
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const startIso = startDate.startOf('day').toISOString();
+    const endIso = endDate.endOf('day').toISOString();
+
+    const { data: entries = [], isLoading: entriesLoading, error: entriesError } = useQuery({
+        queryKey: ['overview', 'entries', startIso, endIso],
+        queryFn: () => calendarService.getEntries(startIso, endIso),
+    });
+
+    const { data: projects = [] } = useQuery({
+        queryKey: ['projects', 'light'],
+        queryFn: () => projectService.getProjectsLight(),
+    });
+
+    const { data: clients = [] } = useQuery({
+        queryKey: ['clients', 'light'],
+        queryFn: () => clientService.getClientsLight(),
+    });
+
+    const loading = entriesLoading;
+    const error = entriesError
+        ? (entriesError instanceof Error ? entriesError.message : 'Failed to load overview data')
+        : null;
 
     const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
     const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
     const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(() => new Set());
-
-    useEffect(() => {
-        let cancelled = false;
-        setLoading(true);
-        setError(null);
-        Promise.all([
-            calendarService.getEntries(
-                startDate.startOf('day').toISOString(),
-                endDate.endOf('day').toISOString(),
-            ),
-            projectService.getProjectsLight(),
-            clientService.getClientsLight(),
-        ])
-            .then(([e, p, c]) => {
-                if (cancelled) return;
-                setEntries(e);
-                setProjects(p);
-                setClients(c);
-            })
-            .catch((err) => {
-                if (cancelled) return;
-                console.error('Failed to load overview data:', err);
-                setError(err instanceof Error ? err.message : 'Failed to load overview data');
-            })
-            .finally(() => { if (!cancelled) setLoading(false); });
-        return () => { cancelled = true; };
-    }, [startDate, endDate]);
 
     const filteredEntries = useMemo(() => {
         const clientFilter = new Set(selectedClientIds);
@@ -94,12 +85,8 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
         });
     }, [entries, selectedClientIds, selectedProjectIds]);
 
-    /**
-     * Single pass over calendar entries that builds every aggregate the
-     * page needs (stats, daily breakdown, pie chart, project/task table).
-     */
     const aggregates = useMemo(() => {
-        const dayBuckets = new Map<string, Map<string, number>>(); // dayKey -> projectId -> hours
+        const dayBuckets = new Map<string, Map<string, number>>();
         const projectAggs = new Map<string, ProjectAggregate>();
 
         let current = startDate.startOf('day');
@@ -224,13 +211,13 @@ export function useOverviewData(startDate: Dayjs, endDate: Dayjs) {
 
     const toggleClient = useCallback((clientId: string) => {
         setSelectedClientIds((prev) =>
-            prev.includes(clientId) ? prev.filter((id) => id !== clientId) : [...prev, clientId]
+            prev.includes(clientId) ? prev.filter((id) => id !== clientId) : [...prev, clientId],
         );
     }, []);
 
     const toggleProjectFilter = useCallback((projectId: string) => {
         setSelectedProjectIds((prev) =>
-            prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId]
+            prev.includes(projectId) ? prev.filter((id) => id !== projectId) : [...prev, projectId],
         );
     }, []);
 

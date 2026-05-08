@@ -1,39 +1,19 @@
 import { supabase } from "../lib/supabase";
 import { requireUserId, setActiveWorkspaceIdCache } from "./workspaceContext";
+import type { Tables } from "../lib/database.types";
 
-export interface WorkspaceBilling {
-    id?: string;
-    workspace_id?: string;
-    company_name?: string;
-    email?: string;
-    phone?: string;
-    vat_number?: string;
-    street?: string;
-    house_number?: string;
-    postal_code?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    bank_name?: string;
-    account_holder?: string;
-    iban?: string;
-    swift?: string;
-}
+type WorkspaceRow = Tables<'ontime_workspace'>;
+type WorkspaceBillingRow = Tables<'ontime_workspace_billing'>;
+type WorkspaceMemberRow = Tables<'ontime_workspace_member'>;
+
+export type WorkspaceBilling = Partial<WorkspaceBillingRow>;
 
 export type WorkspaceRole = "owner" | "admin" | "member";
 
-export interface Workspace {
-    id: string;
-    name: string;
-    created_by: string;
-    created_at: string;
-}
+export type Workspace = WorkspaceRow;
 
-export interface WorkspaceMember {
-    user_id: string;
-    workspace_id: string;
+export interface WorkspaceMember extends Omit<WorkspaceMemberRow, 'role'> {
     role: WorkspaceRole;
-    created_at: string;
     user?: {
         id: string;
         name: string;
@@ -66,7 +46,7 @@ export const workspaceService = {
             .single();
         if (error) throw error;
 
-        return data as Workspace;
+        return data;
     },
 
     async rename(id: string, name: string): Promise<Workspace> {
@@ -77,7 +57,7 @@ export const workspaceService = {
             .select()
             .single();
         if (error) throw error;
-        return data as Workspace;
+        return data;
     },
 
     async setActive(workspaceId: string): Promise<void> {
@@ -93,9 +73,10 @@ export const workspaceService = {
             .from("ontime_workspace_member")
             .select("*, user:ontime_user(id, name)")
             .eq("workspace_id", workspaceId)
-            .order("created_at", { ascending: true });
+            .order("created_at", { ascending: true })
+            .returns<WorkspaceMember[]>();
         if (error) throw error;
-        return data as WorkspaceMember[];
+        return data ?? [];
     },
 
     async updateMemberRole(
@@ -125,9 +106,10 @@ export const workspaceService = {
             .from("ontime_workspace_billing")
             .select("*")
             .eq("workspace_id", workspaceId)
+            .returns<WorkspaceBilling>()
             .maybeSingle();
         if (error) throw error;
-        return data as WorkspaceBilling | null;
+        return data;
     },
 
     async saveBilling(workspaceId: string, billing: Partial<WorkspaceBilling>): Promise<WorkspaceBilling> {
@@ -138,8 +120,9 @@ export const workspaceService = {
             .from("ontime_workspace_billing")
             .upsert(payload, { onConflict: "workspace_id" })
             .select("*")
+            .returns<WorkspaceBilling>()
             .single();
         if (error) throw error;
-        return data as WorkspaceBilling;
+        return data;
     },
 };

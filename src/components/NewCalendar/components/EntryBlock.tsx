@@ -116,6 +116,8 @@ export default function EntryBlock({
     const colorIdx = entry.task?.color ?? 0;
     const color = TAILWIND_COLORS[colorIdx];
     const title = entry.task?.name || "";
+    const isRecordingPlaceholder = entry.id.startsWith("recording-");
+    const displayTitle = title || (isRecordingPlaceholder ? "Recording..." : "");
     const showTitle = height >= 15;
     const showDuration = height >= 40;
     const showResize = !isPreview && !isDragging;
@@ -141,17 +143,28 @@ export default function EntryBlock({
             sx={{
                 touchAction: "none",
                 cursor: isDragging ? "grabbing" : "pointer",
-                opacity: isDragging ? 0.3 : isPreview ? 0.8 : 1,
+                opacity: isDragging ? 0.3 : isPreview || isRecordingPlaceholder ? 0.5 : 1,
                 transition: isDragging ? "none" : "box-shadow 0.2s",
                 "&:hover": { boxShadow: isDragging ? 4 : 3, filter: isDragging ? "none" : "brightness(0.95)" },
                 "&:hover > .resize-handle, &:focus-within > .resize-handle": { opacity: showResize ? 1 : 0 },
+                backgroundImage: isRecordingPlaceholder
+                    ? `repeating-linear-gradient(135deg, ${color.value}33 0, ${color.value}33 6px, ${color.value}0F 6px, ${color.value}0F 12px)`
+                    : "none",
             }}
         >
             {showResize && <ResizeHandle edge="top" onResize={handleResize} onClick={handleResizeClick} />}
 
             {showTitle && (
-                <Typography variant="caption" color="background.default" fontWeight={600} display="block" noWrap fontSize={height < 40 ? "0.65rem" : "0.75rem"}>
-                    {title}
+                <Typography
+                    variant="caption"
+                    color="background.default"
+                    fontWeight={600}
+                    display="block"
+                    noWrap
+                    fontSize={height < 40 ? "0.65rem" : "0.75rem"}
+                    sx={{ fontStyle: isRecordingPlaceholder ? "italic" : "normal" }}
+                >
+                    {displayTitle}
                 </Typography>
             )}
             {showTitle && entry.task?.project?.name && (

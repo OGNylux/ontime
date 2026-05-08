@@ -114,7 +114,6 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
         </Box>
       ) : (
         <>
-          {/* ── Member list ── */}
           <List disablePadding>
             {members.map((member) => {
               const isMe = member.user_id === currentUserId;
@@ -186,7 +185,6 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
             })}
           </List>
 
-          {/* ── Invite form ── */}
           {canManage && (
             <Box mt={3}>
               <Typography variant="body2" color="text.secondary" fontWeight={500} mb={1}>
@@ -227,7 +225,6 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
             </Box>
           )}
 
-          {/* ── Pending invites ── */}
           {pendingInvites.length > 0 && (
             <Box mt={3}>
               <Typography variant="body2" color="text.secondary" fontWeight={500} mb={1}>

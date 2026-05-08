@@ -3,6 +3,7 @@
  */
 import { Box, Typography } from "@mui/material";
 import { CalendarEntry } from "../../../services/calendarService";
+import { Project } from "../../../services/projectService";
 import type { ViewMode } from "../types";
 import Recorder from "./Recorder";
 import Navigation from "./Navigation";
@@ -11,6 +12,8 @@ import ViewSelector from "./ViewSelector";
 interface Props {
     onRecordingStart: (fn: () => void) => void;
     onRecordingChange?: (isRecording: boolean) => void;
+    onActiveEntryId?: (id: string | null, dbId: string | null) => void;
+    onSyncRecording?: (fn: (title: string, project: Project | null, billable: boolean, startTimeISO?: string) => void) => void;
     addOrReplace: (e: CalendarEntry) => void;
     removeLocal: (id: string) => void;
     refetch: () => void;
@@ -23,12 +26,15 @@ interface Props {
 }
 
 export default function Toolbar({
-    onRecordingStart, onRecordingChange, addOrReplace, removeLocal, refetch, onPrev, onNext, onToday, totalTime, viewMode, onViewModeChange,
+    onRecordingStart, onRecordingChange, onActiveEntryId, onSyncRecording,
+    addOrReplace, removeLocal, refetch, onPrev, onNext, onToday, totalTime, viewMode, onViewModeChange,
 }: Props) {
     return (
         <>
             <Box sx={{ display: "flex", px: 1, pt: 1 }}>
-                <Recorder addOrReplace={addOrReplace} removeLocal={removeLocal} refetch={refetch} onRecordingStart={onRecordingStart} onRecordingChange={onRecordingChange} />
+                <Recorder addOrReplace={addOrReplace} removeLocal={removeLocal} refetch={refetch}
+                    onRecordingStart={onRecordingStart} onRecordingChange={onRecordingChange}
+                    onActiveEntryId={onActiveEntryId} onSyncRecording={onSyncRecording} />
             </Box>
             <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2} pb={1} px={1}
                 flexWrap={{ xs: "wrap", lg: "nowrap" }} mx={1} borderBottom={t => `1px solid ${t.palette.divider}`}>

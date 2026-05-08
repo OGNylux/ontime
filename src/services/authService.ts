@@ -17,7 +17,7 @@ export const authService = {
             email_input: email,
         });
         if (error) throw error;
-        return data as AvailabilityResult;
+        return data as unknown as AvailabilityResult;
     },
 
     async register(request: User) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
     Box,
     Typography,
@@ -10,7 +10,6 @@ import {
     Divider,
     Chip,
 } from '@mui/material';
-import { useSnackbar } from '../../hooks/useSnackbar';
 import {
     MoreVert,
     Edit,
@@ -19,6 +18,7 @@ import {
     PushPin,
     PushPinOutlined,
 } from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
 import { taskService, Task } from '../../services/taskService';
 import { projectService, Project } from '../../services/projectService';
 import { DataTable, Column } from '../../components/DataTable';
@@ -26,7 +26,7 @@ import PageHeader from '../../components/PageHeader';
 import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import TaskDialog from '../../components/TaskDialog';
-import { useEntityListState } from '../../hooks/useEntityListState';
+import { useCrudPage } from '../../hooks/useCrudPage';
 
 const formatTotalTime = (minutes?: number) => {
     if (!minutes) return '0h';
@@ -36,50 +36,34 @@ const formatTotalTime = (minutes?: number) => {
     return `${hours}.${String(Math.round((mins / 60) * 100)).padStart(2, '0')}h`;
 };
 
-const errorMessage = (err: unknown, fallback: string): string =>
-    err instanceof Error ? err.message : fallback;
-
 export default function TasksPage() {
-    const { showError, showWithAction } = useSnackbar();
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [projectFilter, setProjectFilter] = React.useState('');
+    const [filterAnchorEl, setFilterAnchorEl] = React.useState<null | HTMLElement>(null);
 
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-    const [menuTask, setMenuTask] = useState<Task | null>(null);
+    const { data: projects = [] } = useQuery({
+        queryKey: ['projects', 'light'],
+        queryFn: () => projectService.getProjectsLight(),
+    });
 
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-
-    const [projectFilter, setProjectFilter] = useState('');
-    const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
-
-    const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setTasks);
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const [tasksData, projectsData] = await Promise.all([
-                taskService.getTasksWithTotals(),
-                projectService.getProjectsLight(),
-            ]);
-            setTasks(tasksData);
-            setProjects(projectsData);
-        } catch (err) {
-            console.error('Failed to load tasks:', err);
-            showError('Failed to load tasks', err instanceof Error ? err.message : undefined);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const crud = useCrudPage<Task>({
+        queryKey: ['tasks', 'with-totals'],
+        fetcher: () => taskService.getTasksWithTotals(),
+        entityLabel: 'task',
+        entityLabelPlural: 'tasks',
+        getName: (t) => t.name,
+        mergeOnUpdate: (current, next) => ({ ...next, total_time: current.total_time }),
+        decorateNew: (t) => ({ ...t, total_time: 0 }),
+        mutations: {
+            create: (t) => taskService.createTask(t),
+            update: (id, t) => taskService.updateTask(id, t),
+            delete: (id) => taskService.deleteTask(id),
+            restore: (id) => taskService.restoreTask(id),
+            togglePin: (id, pinned) => taskService.togglePin(id, pinned),
+            bulkSetPinned: (ids, pinned) => taskService.bulkSetPinned(ids, pinned),
+            bulkDelete: (ids) => taskService.bulkDeleteTasks(ids),
+            bulkRestore: (ids) => taskService.bulkRestoreTasks(ids),
+        },
+    });
 
     const projectsById = useMemo(() => {
         const map = new Map<string, Project>();
@@ -90,9 +74,9 @@ export default function TasksPage() {
     }, [projects]);
 
     const filteredTasks = useMemo(() => {
-        return tasks
+        const query = crud.searchQuery.toLowerCase();
+        return crud.items
             .filter((task) => {
-                const query = searchQuery.toLowerCase();
                 const matchesTaskName = task.name.toLowerCase().includes(query);
                 const project = task.project_id ? projectsById.get(task.project_id) : undefined;
                 const matchesProjectName = project?.name?.toLowerCase().includes(query) ?? false;
@@ -105,7 +89,7 @@ export default function TasksPage() {
                 if (!a.pinned && b.pinned) return 1;
                 return 0;
             });
-    }, [tasks, projectsById, searchQuery, projectFilter]);
+    }, [crud.items, projectsById, crud.searchQuery, projectFilter]);
 
     const columns: Column<Task>[] = useMemo(() => [
         {
@@ -131,179 +115,27 @@ export default function TasksPage() {
             label: 'Pinned',
             sortable: false,
             render: (row) =>
-                row.pinned ? (
-                    <PushPin color="secondary" fontSize="small" />
-                ) : null,
+                row.pinned ? <PushPin color="secondary" fontSize="small" /> : null,
             align: 'center',
         },
     ], [projectsById]);
 
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, task: Task) => {
-        setMenuAnchorEl(event.currentTarget);
-        setMenuTask(task);
-    };
-
-    const handleMenuClose = () => {
-        setMenuAnchorEl(null);
-        setMenuTask(null);
-    };
-
-    const handleEdit = () => {
-        if (menuTask) {
-            setEditingTask(menuTask);
-            setDialogOpen(true);
-        }
-        handleMenuClose();
-    };
-
-    const handleDelete = () => {
-        if (menuTask) {
-            setTaskToDelete(menuTask);
-            setDeleteDialogOpen(true);
-        }
-        handleMenuClose();
-    };
-
-    const handleTogglePin = async () => {
-        if (menuTask?.id) {
-            try {
-                const updated = await taskService.togglePin(menuTask.id, !menuTask.pinned);
-                replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
-            } catch (err) {
-                console.error('Failed to toggle pin:', err);
-                showError('Failed to toggle pin', err instanceof Error ? err.message : undefined);
-            }
-        }
-        handleMenuClose();
-    };
-
-    const handleConfirmDelete = async () => {
-        if (taskToDelete?.id) {
-            const target = taskToDelete;
-            try {
-                await taskService.deleteTask(target.id!);
-                removeOne(target.id!);
-                showWithAction(
-                    `Deleted "${target.name}"`,
-                    {
-                        label: 'Undo',
-                        onClick: async () => {
-                            try {
-                                const restored = await taskService.restoreTask(target.id!);
-                                prependOne({ ...restored, total_time: target.total_time ?? 0 });
-                            } catch (err) {
-                                console.error('Failed to restore task:', err);
-                                showError('Failed to restore task', err instanceof Error ? err.message : undefined);
-                            }
-                        },
-                    },
-                    { severity: 'info' },
-                );
-            } catch (err) {
-                console.error('Failed to delete task:', err);
-                showError('Failed to delete task', err instanceof Error ? err.message : undefined);
-            }
-        }
-        setDeleteDialogOpen(false);
-        setTaskToDelete(null);
-    };
-
-    const handleBulkDelete = async () => {
-        const idsToDelete = [...selectedIds];
-        try {
-            await taskService.bulkDeleteTasks(idsToDelete);
-            removeMany(idsToDelete);
-            setSelectedIds([]);
-            showWithAction(
-                `Deleted ${idsToDelete.length} task${idsToDelete.length === 1 ? '' : 's'}`,
-                {
-                    label: 'Undo',
-                    onClick: async () => {
-                        try {
-                            await taskService.bulkRestoreTasks(idsToDelete);
-                            const restored = await taskService.getTasksWithTotals();
-                            setTasks(restored);
-                        } catch (err) {
-                            console.error('Failed to restore tasks:', err);
-                            showError('Failed to restore tasks', err instanceof Error ? err.message : undefined);
-                        }
-                    },
-                },
-                { severity: 'info' },
-            );
-        } catch (err) {
-            console.error('Failed to delete tasks:', err);
-            showError('Failed to delete tasks', err instanceof Error ? err.message : undefined);
-        }
-    };
-
-    const handleBulkPin = async (pinned: boolean) => {
-        try {
-            await taskService.bulkSetPinned(selectedIds, pinned);
-            const idSet = new Set(selectedIds);
-            setTasks((prev) => prev.map((t) => t.id && idSet.has(t.id) ? { ...t, pinned } : t));
-            setSelectedIds([]);
-        } catch (err) {
-            console.error('Failed to pin tasks:', err);
-            showError('Failed to pin tasks', err instanceof Error ? err.message : undefined);
-        }
-    };
-
-    const handleSaveTask = async (taskData: Task) => {
-        try {
-            if (editingTask?.id) {
-                const previous = editingTask;
-                const updated = await taskService.updateTask(previous.id!, taskData);
-                replaceOne(updated as Task, (current, next) => ({ ...next, total_time: current.total_time }));
-                showWithAction(
-                    `Updated "${updated.name}"`,
-                    {
-                        label: 'Undo',
-                        onClick: async () => {
-                            try {
-                                const reverted = await taskService.updateTask(previous.id!, previous);
-                                replaceOne(reverted as Task, (current, next) => ({ ...next, total_time: current.total_time }));
-                            } catch (err) {
-                                console.error('Failed to revert task:', err);
-                                showError('Failed to revert task', err instanceof Error ? err.message : undefined);
-                            }
-                        },
-                    },
-                    { severity: 'info' },
-                );
-            } else {
-                const created = await taskService.createTask(taskData);
-                prependOne({ ...created, total_time: 0 });
-            }
-            setEditingTask(null);
-        } catch (err) {
-            console.error('Failed to save task:', err);
-            showError('Failed to save task', err instanceof Error ? err.message : undefined);
-            throw err;
-        }
-    };
-
-    const handleOpenNewTask = () => {
-        setEditingTask(null);
-        setDialogOpen(true);
-    };
-
     const renderRowActions = (task: Task) => (
-        <IconButton size="small" onClick={(e) => handleMenuOpen(e, task)}>
+        <IconButton size="small" onClick={(e) => crud.openMenu(e, task)}>
             <MoreVert />
         </IconButton>
     );
 
     return (
         <Box padding={3} height="100%" display="flex" flexDirection="column" borderRadius={2} boxShadow={4} bgcolor="background.default">
-            <PageHeader title="Tasks" actionLabel="New Task" onAction={handleOpenNewTask} />
+            <PageHeader title="Tasks" actionLabel="New Task" onAction={crud.openCreate} />
 
             <Divider sx={{ mb: 2 }} />
 
             <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
-                    value={searchQuery}
-                    onChange={setSearchQuery}
+                    value={crud.searchQuery}
+                    onChange={crud.setSearchQuery}
                     placeholder="Search tasks or projects..."
                 />
                 <IconButton
@@ -326,19 +158,19 @@ export default function TasksPage() {
             <DataTable
                 data={filteredTasks}
                 columns={columns}
-                loading={loading}
+                loading={crud.isLoading}
                 selectable
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
+                selectedIds={crud.selectedIds}
+                onSelectionChange={crud.setSelectedIds}
                 defaultSortField="name"
                 rowActions={renderRowActions}
-                emptyMessage={searchQuery ? 'No tasks match your search' : 'No tasks found'}
+                emptyMessage={crud.searchQuery ? 'No tasks match your search' : 'No tasks found'}
                 bulkActions={
                     <>
                         <Divider orientation="vertical" flexItem />
                         <IconButton
                             color="secondary"
-                            onClick={() => handleBulkPin(true)}
+                            onClick={() => crud.handleBulkPin(true)}
                             title="Pin selected"
                             size="small"
                         >
@@ -346,7 +178,7 @@ export default function TasksPage() {
                         </IconButton>
                         <IconButton
                             color="error"
-                            onClick={handleBulkDelete}
+                            onClick={crud.handleBulkDelete}
                             title="Delete selected"
                             size="small"
                         >
@@ -382,40 +214,40 @@ export default function TasksPage() {
             </Menu>
 
             <Menu
-                anchorEl={menuAnchorEl}
-                open={Boolean(menuAnchorEl)}
-                onClose={handleMenuClose}
+                anchorEl={crud.menuAnchorEl}
+                open={Boolean(crud.menuAnchorEl)}
+                onClose={crud.closeMenu}
             >
-                <MenuItem onClick={handleEdit}>
+                <MenuItem onClick={crud.handleEditFromMenu}>
                     <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
                     <ListItemText>Edit</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={handleTogglePin}>
+                <MenuItem onClick={crud.handleTogglePinFromMenu}>
                     <ListItemIcon>
-                        {menuTask?.pinned ? <PushPinOutlined fontSize="small" /> : <PushPin fontSize="small" />}
+                        {crud.menuItem?.pinned ? <PushPinOutlined fontSize="small" /> : <PushPin fontSize="small" />}
                     </ListItemIcon>
-                    <ListItemText>{menuTask?.pinned ? 'Unpin' : 'Pin'}</ListItemText>
+                    <ListItemText>{crud.menuItem?.pinned ? 'Unpin' : 'Pin'}</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={handleDelete}>
+                <MenuItem onClick={crud.handleDeleteFromMenu}>
                     <ListItemIcon><Delete fontSize="small" color="error" /></ListItemIcon>
                     <ListItemText color="error.main">Delete</ListItemText>
                 </MenuItem>
             </Menu>
 
             <TaskDialog
-                open={dialogOpen}
-                onClose={() => { setDialogOpen(false); setEditingTask(null); }}
-                onSave={handleSaveTask}
-                task={editingTask}
+                open={crud.dialogOpen}
+                onClose={crud.closeDialog}
+                onSave={crud.handleSave}
+                task={crud.editingItem}
                 projects={projects}
             />
 
             <ConfirmDialog
-                open={deleteDialogOpen}
-                onClose={() => { setDeleteDialogOpen(false); setTaskToDelete(null); }}
-                onConfirm={handleConfirmDelete}
+                open={crud.deleteDialogOpen}
+                onClose={crud.closeDeleteDialog}
+                onConfirm={crud.handleConfirmDelete}
                 title="Delete Task"
-                message={`Are you sure you want to delete "${taskToDelete?.name}"? This action cannot be undone.`}
+                message={`Are you sure you want to delete "${crud.itemToDelete?.name}"? This action cannot be undone.`}
                 confirmLabel="Delete"
             />
         </Box>

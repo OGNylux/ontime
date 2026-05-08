@@ -1,17 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { requireUserId } from './workspaceContext';
+import type { Tables } from '../lib/database.types';
+
+type NotificationRow = Tables<'ontime_notification'>;
 
 export type NotificationType = 'workspace_invite' | 'workspace_removed' | 'entry_updated' | 'entry_deleted';
 
-export interface AppNotification {
-    id: string;
-    user_id: string;
-    workspace_id?: string | null;
+export interface AppNotification extends Omit<NotificationRow, 'type' | 'metadata'> {
     type: NotificationType;
-    title: string;
-    body: string;
-    read: boolean;
-    ref_id?: string | null;
     metadata?: {
         token?: string;
         workspace_name?: string;
@@ -21,7 +17,6 @@ export interface AppNotification {
         task_name?: string;
         entry_date?: string;
     } | null;
-    created_at: string;
 }
 
 export const notificationService = {
@@ -30,9 +25,10 @@ export const notificationService = {
             .from('ontime_notification')
             .select('*')
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(50)
+            .returns<AppNotification[]>();
         if (error) throw error;
-        return (data ?? []) as AppNotification[];
+        return data ?? [];
     },
 
     async markRead(id: string): Promise<void> {

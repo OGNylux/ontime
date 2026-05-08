@@ -1,36 +1,24 @@
 import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { CalendarEntry } from "./calendarService";
+import type { Tables } from "../lib/database.types";
+
+type InvoiceRow = Tables<'ontime_invoice'>;
+type InvoiceLineItemRow = Tables<'ontime_invoice_line_item'>;
 
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
-export interface InvoiceLineItem {
+export interface InvoiceLineItem extends Omit<InvoiceLineItemRow, 'id' | 'invoice_id' | 'amount' | 'created_at'> {
     id?: string;
     invoice_id?: string;
-    calendar_entry_id?: string | null;
-    project_name?: string | null;
-    description: string;
-    date: string;
-    quantity_hours: number;
-    unit_price: number;
     amount?: number;
+    created_at?: string;
+    project_name?: string | null;
 }
 
-export interface Invoice {
-    id: string;
-    workspace_id: string;
-    client_id: string;
-    invoice_number: string;
+export interface Invoice extends Omit<InvoiceRow, 'status' | 'client_id'> {
     status: InvoiceStatus;
-    issue_date: string;
-    due_date?: string | null;
-    currency: string;
-    tax_rate: number;
-    notes?: string | null;
-    created_by: string;
-    created_at: string;
-    sent_at?: string | null;
-    paid_at?: string | null;
+    client_id: string;
     client?: { id: string; name: string };
     line_items?: InvoiceLineItem[];
 }
@@ -80,9 +68,10 @@ export const invoiceService = {
             .from('ontime_invoice')
             .select(INVOICE_SELECT)
             .eq('workspace_id', workspaceId)
-            .order('issue_date', { ascending: false });
+            .order('issue_date', { ascending: false })
+            .returns<Invoice[]>();
         if (error) throw error;
-        return data as Invoice[];
+        return data ?? [];
     },
 
     async create(
@@ -109,14 +98,14 @@ export const invoiceService = {
                 ...invoice,
                 workspace_id: workspaceId,
                 created_by: userId,
-                invoice_number: invoiceNumber as string,
+                invoice_number: invoiceNumber,
                 status: 'draft' as InvoiceStatus,
             })
             .select('id')
             .single();
         if (error) throw error;
 
-        const invoiceId = (data as { id: string }).id;
+        const invoiceId = data.id;
 
         if (lineItems.length > 0) {
             const { error: lineError } = await supabase
@@ -129,9 +118,10 @@ export const invoiceService = {
             .from('ontime_invoice')
             .select(INVOICE_SELECT)
             .eq('id', invoiceId)
+            .returns<Invoice>()
             .single();
         if (fetchError) throw fetchError;
-        return full as Invoice;
+        return full;
     },
 
     async updateStatus(id: string, status: InvoiceStatus): Promise<void> {
@@ -199,10 +189,11 @@ export const invoiceService = {
             .eq('is_billable', true)
             .gte('start_time', start.toISOString())
             .lte('start_time', end.toISOString())
-            .order('start_time', { ascending: true });
+            .order('start_time', { ascending: true })
+            .returns<CalendarEntry[]>();
         if (error) throw error;
 
-        return (data as CalendarEntry[]).filter(
+        return (data ?? []).filter(
             (e) => e.task?.project?.client?.id === clientId,
         );
     },

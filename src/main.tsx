@@ -10,11 +10,12 @@ import ClientsPage from "./routes/clients/page";
 import TasksPage from "./routes/tasks/page";
 import OverviewPage from "./routes/overview/page";
 import SettingsPage from "./routes/settings/page";
-//import Navbar from "./components/Navigation/Navbar";
+import SettingsCalendarPage from "./routes/settings/calendar/page";
+import SettingsWorkspacePage from "./routes/settings/workspace/page";
+import SettingsBillingPage from "./routes/settings/billing/page";
+import SettingsAccountPage from "./routes/settings/account/page";
 import Sidebar from "./components/Navigation/Sidebar";
 import BottomAppBar from "./components/Navigation/BottomAppBar";
-import { supabase } from "./lib/supabase";
-import type { User } from "@supabase/supabase-js";
 import { ThemeProvider } from "@mui/material/styles";
 import { CssBaseline, Box, useMediaQuery, useTheme } from "@mui/material";
 import theme from "./theme";
@@ -24,14 +25,27 @@ import InvoicesPage from "./routes/invoices/page";
 import { NotificationsProvider } from "./hooks/useNotifications";
 import { SnackbarProvider } from "./hooks/useSnackbar";
 import AppSnackbar from "./components/AppSnackbar";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function AppLayout() {
   const muiTheme = useTheme();
   const isSmallDesktop = useMediaQuery(muiTheme.breakpoints.down("lg"));
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const hideNav = location.pathname === "/login" || location.pathname === "/register";
-  const [_, setUser] = useState<User | null>(null);
   const [isTauriMobile, setIsTauriMobile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -45,55 +59,17 @@ function AppLayout() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getUser()
-      .then(({ data: { user } }) => {
-        if (!mounted) return;
-        setUser(user);
-        if (!user) {
-          if (location.pathname !== "/login" && location.pathname !== "/register") {
-            navigate("/login", { replace: true });
-          }
-        } else if (location.pathname === "/") {
-          navigate("/timer", { replace: true });
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch current user:", err);
-        if (mounted && location.pathname !== "/login" && location.pathname !== "/register") {
-          navigate("/login", { replace: true });
-        }
-      });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (!u) {
-        if (location.pathname !== "/login" && location.pathname !== "/register") {
-          navigate("/login", { replace: true });
-        }
-      } else if (location.pathname === "/") {
-        navigate("/timer", { replace: true });
-      }
-    });
-
-    return () => {
-      mounted = false;
-      subscription?.unsubscribe();
-    };
-  }, [location.pathname, navigate]);
+    if (user && location.pathname === "/") navigate("/timer", { replace: true });
+  }, [user, location.pathname, navigate]);
 
   return (
     <SnackbarProvider>
     <AppSnackbar />
     <NotificationsProvider>
     <Box bgcolor="background.paper" display="flex" flexDirection="column" height="100vh" overflow="hidden">
-      {/* {!hideNav && <Navbar showMenuButton={isSmallDesktop} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />} */}
-
       <Box
         display="flex"
         flexDirection="row"
-        // pt={!hideNav ? { xs: 7, md: 8 } : 0}
         pb={(isTauriMobile && !hideNav) ? '80px' : 0}
         flex={1}
         minHeight={0}
@@ -109,17 +85,23 @@ function AppLayout() {
 
         <Box component="main" display="flex" flex={1} flexDirection="column" overflow="auto" minWidth={0} minHeight={0} padding={1.5}>
           <Routes>
-            <Route path="/" element={<Timer />} />
-            <Route path="/timer" element={<Timer />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/clients" element={<ClientsPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/overview" element={<OverviewPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/invoices" element={<InvoicesPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Timer />} />
+              <Route path="/timer" element={<Timer />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/clients" element={<ClientsPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/overview" element={<OverviewPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/calendar" element={<SettingsCalendarPage />} />
+              <Route path="/settings/workspace" element={<SettingsWorkspacePage />} />
+              <Route path="/settings/billing" element={<SettingsBillingPage />} />
+              <Route path="/settings/account" element={<SettingsAccountPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/invoices" element={<InvoicesPage />} />
+            </Route>
           </Routes>
         </Box>
       </Box>
@@ -133,11 +115,15 @@ function AppLayout() {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
-        <AppLayout />
-      </BrowserRouter>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <AuthProvider>
+            <AppLayout />
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );

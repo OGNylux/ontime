@@ -1,17 +1,8 @@
 import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
+import type { Tables } from "../lib/database.types";
 
-export interface ActiveRecording {
-    id: string;
-    workspace_id: string;
-    created_by: string;
-    task_id: string | null;
-    calendar_entry_id: string | null;
-    title: string | null;
-    is_billable: boolean;
-    started_at: string;
-    created_at?: string;
-}
+export type ActiveRecording = Tables<'ontime_active_recording'>;
 
 export interface StartRecordingRequest {
     task_id?: string | null;
@@ -23,15 +14,17 @@ export interface StartRecordingRequest {
 export const recordingService = {
     async getActiveRecording(): Promise<ActiveRecording | null> {
         const userId = await requireUserId();
+        const workspaceId = await getActiveWorkspaceId();
 
         const { data, error } = await supabase
             .from("ontime_active_recording")
             .select("*")
             .eq("created_by", userId)
+            .eq("workspace_id", workspaceId)
             .maybeSingle();
         if (error) throw error;
 
-        return data as ActiveRecording | null;
+        return data;
     },
 
     async startRecording(request: StartRecordingRequest = {}): Promise<ActiveRecording> {
@@ -48,12 +41,12 @@ export const recordingService = {
                 title: request.title ?? null,
                 is_billable: request.is_billable ?? false,
                 started_at: request.started_at ?? new Date().toISOString(),
-            }, { onConflict: "created_by" })
+            }, { onConflict: "created_by,workspace_id" })
             .select("*")
             .single();
         if (error) throw error;
 
-        return data as ActiveRecording;
+        return data;
     },
 
     async updateRecording(
@@ -67,7 +60,7 @@ export const recordingService = {
             .select("*")
             .single();
         if (error) throw error;
-        return data as ActiveRecording;
+        return data;
     },
 
     async setCalendarEntryId(id: string, calendarEntryId: string | null): Promise<void> {
@@ -80,23 +73,25 @@ export const recordingService = {
 
     async stopRecording(): Promise<void> {
         const userId = await requireUserId();
+        const workspaceId = await getActiveWorkspaceId();
 
         const { error } = await supabase
             .from("ontime_active_recording")
             .delete()
-            .eq("created_by", userId);
+            .eq("created_by", userId)
+            .eq("workspace_id", workspaceId);
         if (error) throw error;
     },
 
-    subscribeToChanges(callbacks: {
+    subscribeToChanges(workspaceId: string, callbacks: {
         onUpsert: () => void;
         onDelete: () => void;
     }): () => void {
         const channel = supabase
-            .channel("ontime-active-recording")
+            .channel(`ontime-active-recording-${workspaceId}`)
             .on(
                 "postgres_changes",
-                { event: "*", schema: "public", table: "ontime_active_recording" },
+                { event: "*", schema: "public", table: "ontime_active_recording", filter: `workspace_id=eq.${workspaceId}` },
                 (payload) => {
                     if (payload.eventType === "DELETE") {
                         callbacks.onDelete();

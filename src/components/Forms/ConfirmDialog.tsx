@@ -27,7 +27,7 @@ export default function ConfirmDialog({
     confirmColor = 'error',
 }: ConfirmDialogProps) {
     return (
-        <Dialog open={open} onClose={onClose}>
+        <Dialog open={open} onClose={onClose} PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
             <DialogTitle>{title}</DialogTitle>
             <DialogContent>
                 <Typography>{message}</Typography>

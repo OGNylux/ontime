@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
     Box,
     Typography,
@@ -10,7 +10,6 @@ import {
     ListItemIcon,
     ListItemText,
 } from '@mui/material';
-import { useSnackbar } from '../../hooks/useSnackbar';
 import {
     KeyboardArrowDown,
     KeyboardArrowRight,
@@ -26,16 +25,12 @@ import PageHeader from '../../components/PageHeader';
 import SearchBar from '../../components/Forms/SearchBar';
 import ConfirmDialog from '../../components/Forms/ConfirmDialog';
 import ClientDialog from '../../components/ClientDialog';
-import { useEntityListState } from '../../hooks/useEntityListState';
-
-interface ClientWithExpansion extends Client {
-    _expanded?: boolean;
-}
+import { useCrudPage } from '../../hooks/useCrudPage';
 
 interface TableRow {
     id: string;
     type: 'client' | 'project';
-    client?: ClientWithExpansion;
+    client?: Client;
     project?: any;
     name: string;
     projectCount?: number;
@@ -43,68 +38,48 @@ interface TableRow {
 }
 
 export default function ClientsPage() {
-    const { showError, showWithAction } = useSnackbar();
-    const [clients, setClients] = useState<ClientWithExpansion[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
-    const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
-    const [menuClient, setMenuClient] = useState<Client | null>(null);
+    const crud = useCrudPage<Client>({
+        queryKey: ['clients', 'with-projects'],
+        fetcher: () => clientService.getClientsWithProjects(),
+        entityLabel: 'client',
+        entityLabelPlural: 'clients',
+        getName: (c) => c.name,
+        mutations: {
+            create: (c) => clientService.createClient(c),
+            update: (id, c) => clientService.updateClient({ ...c, id }),
+            delete: (id) => clientService.deleteClient(id),
+            restore: (id) => clientService.restoreClient(id),
+            togglePin: (id, pinned) => clientService.togglePin(id, pinned),
+            bulkSetPinned: (ids, pinned) => clientService.bulkSetPinned(ids, pinned),
+            bulkDelete: (ids) => clientService.bulkDeleteClients(ids),
+            bulkRestore: (ids) => clientService.bulkRestoreClients(ids),
+        },
+    });
 
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
-    const [clientDialogOpen, setClientDialogOpen] = useState(false);
-    const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
-
-    const { replaceOne, prependOne, removeOne, removeMany } = useEntityListState(setClients);
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const clientsData = await clientService.getClientsWithProjects();
-            setClients(clientsData.map(c => ({ ...c, _expanded: false })));
-        } catch (err) {
-            console.error('Failed to load clients:', err);
-            showError('Failed to load clients', err instanceof Error ? err.message : undefined);
-        } finally {
-            setLoading(false);
-        }
+    const toggleExpansion = (clientId: string) => {
+        setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(clientId)) next.delete(clientId);
+            else next.add(clientId);
+            return next;
+        });
     };
 
     const filteredClients = useMemo(() => {
-        const filtered = searchQuery
-            ? clients.filter((client) => {
-                const query = searchQuery.toLowerCase();
-                if (client.name.toLowerCase().includes(query)) {
-                    return true;
-                }
-                if (client.projects?.some(project =>
-                    project.name.toLowerCase().includes(query)
-                )) {
-                    return true;
-                }
-                return false;
-            })
-            : clients;
-
-        return filtered;
-    }, [clients, searchQuery]);
-
-    const toggleExpansion = (clientId: string) => {
-        setClients(prev => prev.map(c =>
-            c.id === clientId ? { ...c, _expanded: !c._expanded } : c
-        ));
-    };
+        if (!crud.searchQuery) return crud.items;
+        const query = crud.searchQuery.toLowerCase();
+        return crud.items.filter((client) => {
+            if (client.name.toLowerCase().includes(query)) return true;
+            if (client.projects?.some((project) => project.name.toLowerCase().includes(query))) return true;
+            return false;
+        });
+    }, [crud.items, crud.searchQuery]);
 
     const tableRows = useMemo(() => {
         const rows: TableRow[] = [];
-
-        filteredClients.forEach(client => {
+        filteredClients.forEach((client) => {
             if (!client.id) return;
             rows.push({
                 id: client.id,
@@ -115,8 +90,8 @@ export default function ClientsPage() {
                 pinned: client.pinned,
             });
 
-            if (client._expanded && client.projects) {
-                client.projects.forEach(project => {
+            if (expandedIds.has(client.id) && client.projects) {
+                client.projects.forEach((project) => {
                     rows.push({
                         id: `${client.id}-${project.id}`,
                         type: 'project',
@@ -127,9 +102,8 @@ export default function ClientsPage() {
                 });
             }
         });
-
         return rows;
-    }, [filteredClients]);
+    }, [filteredClients, expandedIds]);
 
     const columns: Column<TableRow>[] = useMemo(() => [
         {
@@ -140,6 +114,7 @@ export default function ClientsPage() {
                 if (row.type === 'project') return null;
                 const projectCount = row.projectCount || 0;
                 if (projectCount === 0) return null;
+                const isExpanded = row.client?.id ? expandedIds.has(row.client.id) : false;
                 return (
                     <IconButton
                         size="small"
@@ -149,7 +124,7 @@ export default function ClientsPage() {
                             toggleExpansion(row.id);
                         }}
                     >
-                        {row.client?._expanded ? <KeyboardArrowDown /> : <KeyboardArrowRight />}
+                        {isExpanded ? <KeyboardArrowDown /> : <KeyboardArrowRight />}
                     </IconButton>
                 );
             },
@@ -201,8 +176,8 @@ export default function ClientsPage() {
                     <Chip
                         label={projectCount}
                         size="small"
-                        color={projectCount > 0 ? "secondary" : "default"}
-                        variant={projectCount > 0 ? "filled" : "outlined"}
+                        color={projectCount > 0 ? 'secondary' : 'default'}
+                        variant={projectCount > 0 ? 'filled' : 'outlined'}
                     />
                 );
             },
@@ -213,168 +188,17 @@ export default function ClientsPage() {
             sortable: false,
             render: (row) => {
                 if (row.type === 'project') return null;
-                return row.client?.pinned ? (
-                    <PushPin color="secondary" fontSize="small" />
-                ) : null;
+                return row.client?.pinned ? <PushPin color="secondary" fontSize="small" /> : null;
             },
             align: 'center',
         },
-    ], []);
-
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, client: Client) => {
-        setMenuAnchorEl(event.currentTarget);
-        setMenuClient(client);
-    };
-
-    const handleMenuClose = () => {
-        setMenuAnchorEl(null);
-        setMenuClient(null);
-    };
-
-    const handleEdit = () => {
-        if (menuClient) {
-            setClientToEdit(menuClient);
-            setClientDialogOpen(true);
-        }
-        handleMenuClose();
-    };
-
-    const handleDelete = () => {
-        if (menuClient) {
-            setClientToDelete(menuClient);
-            setDeleteDialogOpen(true);
-        }
-        handleMenuClose();
-    };
-
-    const handleTogglePin = async () => {
-        if (menuClient && menuClient.id) {
-            try {
-                const updated = await clientService.togglePin(menuClient.id, !menuClient.pinned);
-                replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
-            } catch (err) {
-                console.error('Failed to toggle pin:', err);
-                showError('Failed to toggle pin', err instanceof Error ? err.message : undefined);
-            }
-        }
-        handleMenuClose();
-    };
-
-    const handleBulkDelete = async () => {
-        const idsToDelete = [...selectedIds];
-        try {
-            await clientService.bulkDeleteClients(idsToDelete);
-            removeMany(idsToDelete);
-            setSelectedIds([]);
-            showWithAction(
-                `Deleted ${idsToDelete.length} client${idsToDelete.length === 1 ? '' : 's'}`,
-                {
-                    label: 'Undo',
-                    onClick: async () => {
-                        try {
-                            await clientService.bulkRestoreClients(idsToDelete);
-                            const restored = await clientService.getClientsWithProjects();
-                            setClients(restored.map(c => ({ ...c, _expanded: false })));
-                        } catch (err) {
-                            console.error('Failed to restore clients:', err);
-                            showError('Failed to restore clients', err instanceof Error ? err.message : undefined);
-                        }
-                    },
-                },
-                { severity: 'info' },
-            );
-        } catch (err) {
-            console.error('Failed to delete clients:', err);
-            showError('Failed to delete clients', err instanceof Error ? err.message : undefined);
-        }
-    };
-
-    const handleBulkPin = async (pinned: boolean) => {
-        try {
-            await clientService.bulkSetPinned(selectedIds, pinned);
-            const updatedClients = await clientService.getClientsWithProjects();
-            setClients(updatedClients.map(c => ({ ...c, _expanded: false })));
-            setSelectedIds([]);
-        } catch (err) {
-            console.error('Failed to pin clients:', err);
-            showError('Failed to pin clients', err instanceof Error ? err.message : undefined);
-        }
-    };
-
-    const handleConfirmDelete = async () => {
-        if (clientToDelete && clientToDelete.id) {
-            const target = clientToDelete;
-            try {
-                await clientService.deleteClient(target.id!);
-                removeOne(target.id!);
-                showWithAction(
-                    `Deleted "${target.name}"`,
-                    {
-                        label: 'Undo',
-                        onClick: async () => {
-                            try {
-                                const restored = await clientService.restoreClient(target.id!);
-                                prependOne({ ...(restored as ClientWithExpansion), _expanded: false });
-                            } catch (err) {
-                                console.error('Failed to restore client:', err);
-                                showError('Failed to restore client', err instanceof Error ? err.message : undefined);
-                            }
-                        },
-                    },
-                    { severity: 'info' },
-                );
-            } catch (err) {
-                console.error('Failed to delete client:', err);
-                showError('Failed to delete client', err instanceof Error ? err.message : undefined);
-            }
-        }
-        setDeleteDialogOpen(false);
-        setClientToDelete(null);
-    };
-
-    const handleOpenNewClient = () => {
-        setClientToEdit(null);
-        setClientDialogOpen(true);
-    };
-
-    const handleSaveClient = async (client: Client) => {
-        try {
-            if (clientToEdit && clientToEdit.id) {
-                const previous = clientToEdit;
-                const updated = await clientService.updateClient({ ...client, id: previous.id });
-                replaceOne(updated as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
-                showWithAction(
-                    `Updated "${updated.name}"`,
-                    {
-                        label: 'Undo',
-                        onClick: async () => {
-                            try {
-                                const reverted = await clientService.updateClient(previous);
-                                replaceOne(reverted as ClientWithExpansion, (current, next) => ({ ...next, _expanded: current._expanded }));
-                            } catch (err) {
-                                console.error('Failed to revert client:', err);
-                                showError('Failed to revert client', err instanceof Error ? err.message : undefined);
-                            }
-                        },
-                    },
-                    { severity: 'info' },
-                );
-            } else {
-                const created = await clientService.createClient(client);
-                prependOne({ ...created, _expanded: false });
-            }
-        } catch (err) {
-            console.error('Failed to save client:', err);
-            showError('Failed to save client', err instanceof Error ? err.message : undefined);
-            throw err;
-        }
-    };
+    ], [expandedIds]);
 
     const renderRowActions = (row: TableRow) => {
         if (row.type === 'project' || !row.client) return null;
         const client = row.client;
         return (
-            <IconButton size="small" onClick={(e) => handleMenuOpen(e, client)}>
+            <IconButton size="small" onClick={(e) => crud.openMenu(e, client)}>
                 <MoreVert />
             </IconButton>
         );
@@ -393,15 +217,15 @@ export default function ClientsPage() {
             <PageHeader
                 title="Clients"
                 actionLabel="New Client"
-                onAction={handleOpenNewClient}
+                onAction={crud.openCreate}
             />
 
             <Divider sx={{ mb: 2 }} />
 
             <Box display="flex" gap={2} marginBottom={2} alignItems="center">
                 <SearchBar
-                    value={searchQuery}
-                    onChange={setSearchQuery}
+                    value={crud.searchQuery}
+                    onChange={crud.setSearchQuery}
                     placeholder="Search clients or projects..."
                 />
             </Box>
@@ -411,12 +235,12 @@ export default function ClientsPage() {
             <DataTable
                 data={tableRows}
                 columns={columns}
-                loading={loading}
+                loading={crud.isLoading}
                 selectable
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
+                selectedIds={crud.selectedIds}
+                onSelectionChange={crud.setSelectedIds}
                 rowActions={renderRowActions}
-                emptyMessage={searchQuery ? 'No clients or projects match your search' : 'No clients found'}
+                emptyMessage={crud.searchQuery ? 'No clients or projects match your search' : 'No clients found'}
                 getRowId={(row) => row.id}
                 isRowSelectable={(row) => row.type === 'client'}
                 defaultSortField="name"
@@ -426,7 +250,7 @@ export default function ClientsPage() {
                         <Divider orientation="vertical" flexItem />
                         <IconButton
                             color="secondary"
-                            onClick={() => handleBulkPin(true)}
+                            onClick={() => crud.handleBulkPin(true)}
                             title="Pin selected"
                             size="small"
                         >
@@ -434,7 +258,7 @@ export default function ClientsPage() {
                         </IconButton>
                         <IconButton
                             color="error"
-                            onClick={handleBulkDelete}
+                            onClick={crud.handleBulkDelete}
                             title="Delete selected"
                             size="small"
                         >
@@ -445,46 +269,40 @@ export default function ClientsPage() {
             />
 
             <Menu
-                anchorEl={menuAnchorEl}
-                open={Boolean(menuAnchorEl)}
-                onClose={handleMenuClose}
+                anchorEl={crud.menuAnchorEl}
+                open={Boolean(crud.menuAnchorEl)}
+                onClose={crud.closeMenu}
             >
-                <MenuItem onClick={handleEdit}>
+                <MenuItem onClick={crud.handleEditFromMenu}>
                     <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
                     <ListItemText>Edit</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={handleTogglePin}>
+                <MenuItem onClick={crud.handleTogglePinFromMenu}>
                     <ListItemIcon>
-                        {menuClient?.pinned ? <PushPinOutlined fontSize="small" /> : <PushPin fontSize="small" />}
+                        {crud.menuItem?.pinned ? <PushPinOutlined fontSize="small" /> : <PushPin fontSize="small" />}
                     </ListItemIcon>
-                    <ListItemText>{menuClient?.pinned ? 'Unpin' : 'Pin'}</ListItemText>
+                    <ListItemText>{crud.menuItem?.pinned ? 'Unpin' : 'Pin'}</ListItemText>
                 </MenuItem>
-                <MenuItem onClick={handleDelete}>
+                <MenuItem onClick={crud.handleDeleteFromMenu}>
                     <ListItemIcon><Delete fontSize="small" color="error" /></ListItemIcon>
                     <ListItemText color="error.main">Delete</ListItemText>
                 </MenuItem>
             </Menu>
 
             <ConfirmDialog
-                open={deleteDialogOpen}
-                onClose={() => {
-                    setDeleteDialogOpen(false);
-                    setClientToDelete(null);
-                }}
-                onConfirm={handleConfirmDelete}
+                open={crud.deleteDialogOpen}
+                onClose={crud.closeDeleteDialog}
+                onConfirm={crud.handleConfirmDelete}
                 title="Delete Client"
-                message={`Are you sure you want to delete "${clientToDelete?.name}"? This action cannot be undone.`}
+                message={`Are you sure you want to delete "${crud.itemToDelete?.name}"? This action cannot be undone.`}
                 confirmLabel="Delete"
             />
 
             <ClientDialog
-                open={clientDialogOpen}
-                onClose={() => {
-                    setClientDialogOpen(false);
-                    setClientToEdit(null);
-                }}
-                onSave={handleSaveClient}
-                client={clientToEdit}
+                open={crud.dialogOpen}
+                onClose={crud.closeDialog}
+                onSave={crud.handleSave}
+                client={crud.editingItem}
             />
         </Box>
     );

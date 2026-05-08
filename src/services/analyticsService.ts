@@ -1,63 +1,18 @@
 import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId } from "./workspaceContext";
+import type { Database } from "../lib/database.types";
 
-export interface HoursPerProject {
-    workspace_id: string;
-    created_by: string;
-    project_id: string;
-    total_hours: number;
-    billable_hours: number;
-}
+type Views = Database['public']['Views'];
+type Functions = Database['public']['Functions'];
 
-export interface HoursPerTask {
-    workspace_id: string;
-    created_by: string;
-    project_id: string;
-    task_id: string | null;
-    total_hours: number;
-    billable_hours: number;
-}
+export type HoursPerProject = Views['v_hours_per_project']['Row'];
+export type HoursPerTask = Views['v_hours_per_task']['Row'];
+export type HoursPerClient = Views['v_hours_per_client']['Row'];
+export type HoursPerDay = Views['v_hours_per_day']['Row'];
+export type HoursPerUser = Views['v_hours_per_user']['Row'];
+export type BillableSummary = Views['v_billable_summary']['Row'];
 
-export interface HoursPerClient {
-    workspace_id: string;
-    client_id: string;
-    total_hours: number;
-    billable_hours: number;
-}
-
-export interface HoursPerDay {
-    workspace_id: string;
-    created_by: string;
-    day: string;
-    total_hours: number;
-    billable_hours: number;
-}
-
-export interface HoursPerUser {
-    workspace_id: string;
-    created_by: string;
-    total_hours: number;
-    billable_hours: number;
-}
-
-export interface BillableSummary {
-    workspace_id: string;
-    is_billable: boolean;
-    total_hours: number;
-}
-
-export interface OverviewAggregateRow {
-    day: string;
-    client_id: string | null;
-    project_id: string;
-    project_name: string;
-    project_color: number | null;
-    task_id: string | null;
-    task_name: string | null;
-    total_minutes: number;
-    billable_minutes: number;
-    revenue: number;
-}
+export type OverviewAggregateRow = Functions['get_overview_aggregates']['Returns'][number];
 
 export const analyticsService = {
     async hoursPerProject(): Promise<HoursPerProject[]> {
@@ -67,7 +22,7 @@ export const analyticsService = {
             .select("*")
             .eq("workspace_id", workspaceId);
         if (error) throw error;
-        return data as HoursPerProject[];
+        return data ?? [];
     },
 
     async hoursPerTask(): Promise<HoursPerTask[]> {
@@ -77,7 +32,7 @@ export const analyticsService = {
             .select("*")
             .eq("workspace_id", workspaceId);
         if (error) throw error;
-        return data as HoursPerTask[];
+        return data ?? [];
     },
 
     async hoursPerClient(): Promise<HoursPerClient[]> {
@@ -87,7 +42,7 @@ export const analyticsService = {
             .select("*")
             .eq("workspace_id", workspaceId);
         if (error) throw error;
-        return data as HoursPerClient[];
+        return data ?? [];
     },
 
     async hoursPerDay(start?: string, end?: string): Promise<HoursPerDay[]> {
@@ -102,7 +57,7 @@ export const analyticsService = {
 
         const { data, error } = await query;
         if (error) throw error;
-        return data as HoursPerDay[];
+        return data ?? [];
     },
 
     async hoursPerUser(): Promise<HoursPerUser[]> {
@@ -112,7 +67,7 @@ export const analyticsService = {
             .select("*")
             .eq("workspace_id", workspaceId);
         if (error) throw error;
-        return data as HoursPerUser[];
+        return data ?? [];
     },
 
     async billableSummary(): Promise<BillableSummary[]> {
@@ -122,7 +77,7 @@ export const analyticsService = {
             .select("*")
             .eq("workspace_id", workspaceId);
         if (error) throw error;
-        return data as BillableSummary[];
+        return data ?? [];
     },
 
     async overviewAggregates(startIso: string, endIso: string): Promise<OverviewAggregateRow[]> {
@@ -131,12 +86,12 @@ export const analyticsService = {
             p_workspace_id: workspaceId,
             p_start: startIso,
             p_end: endIso,
-            p_client_ids: null,
-            p_project_ids: null,
+            p_client_ids: undefined,
+            p_project_ids: undefined,
         });
         if (error) throw error;
 
-        return (data ?? []).map((row: OverviewAggregateRow) => ({
+        return (data ?? []).map((row) => ({
             ...row,
             total_minutes: Number(row.total_minutes ?? 0),
             billable_minutes: Number(row.billable_minutes ?? 0),

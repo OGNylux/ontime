@@ -1,17 +1,12 @@
 import { supabase } from "../lib/supabase";
+import type { Tables } from "../lib/database.types";
+
+type InviteRow = Tables<'ontime_workspace_invite'>;
 
 export type InviteRole = "admin" | "member";
 
-export interface WorkspaceInvite {
-    id: string;
-    workspace_id: string;
-    email: string;
+export interface WorkspaceInvite extends Omit<InviteRow, 'role'> {
     role: InviteRole;
-    token: string;
-    invited_by: string;
-    accepted_at: string | null;
-    expires_at: string;
-    created_at: string;
 }
 
 export interface CreateInviteRequest {
@@ -30,7 +25,7 @@ export const inviteService = {
             p_ttl_hours: request.ttlHours ?? 72,
         });
         if (error) throw error;
-        return data as string;
+        return data;
     },
 
     async accept(token: string): Promise<void> {
@@ -43,9 +38,10 @@ export const inviteService = {
             .from("ontime_workspace_invite")
             .select("*")
             .eq("workspace_id", workspaceId)
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .returns<WorkspaceInvite[]>();
         if (error) throw error;
-        return data as WorkspaceInvite[];
+        return data ?? [];
     },
 
     async revoke(id: string): Promise<void> {

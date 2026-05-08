@@ -328,10 +328,22 @@ create table public.ontime_client (
 
 alter table public.ontime_client enable row level security;
 
-create policy "client_all"
-on public.ontime_client for all
-using (public.is_workspace_member(workspace_id) and deleted_at is null)
+create policy "client_select_active"
+on public.ontime_client for select
+using (public.is_workspace_member(workspace_id));
+
+create policy "client_insert_member"
+on public.ontime_client for insert
 with check (public.is_workspace_member(workspace_id));
+
+create policy "client_update_member"
+on public.ontime_client for update
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+
+create policy "client_delete_member"
+on public.ontime_client for delete
+using (public.is_workspace_member(workspace_id));
 
 -- =========================
 -- PROJECT
@@ -356,10 +368,22 @@ create table public.ontime_project (
 
 alter table public.ontime_project enable row level security;
 
-create policy "project_all"
-on public.ontime_project for all
-using (public.is_workspace_member(workspace_id) and deleted_at is null)
+create policy "project_select_active"
+on public.ontime_project for select
+using (public.is_workspace_member(workspace_id));
+
+create policy "project_insert_member"
+on public.ontime_project for insert
 with check (public.is_workspace_member(workspace_id));
+
+create policy "project_update_member"
+on public.ontime_project for update
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+
+create policy "project_delete_member"
+on public.ontime_project for delete
+using (public.is_workspace_member(workspace_id));
 
 -- =========================
 -- TASK
@@ -380,10 +404,22 @@ create table public.ontime_task (
 
 alter table public.ontime_task enable row level security;
 
-create policy "task_all"
-on public.ontime_task for all
-using (public.is_workspace_member(workspace_id) and deleted_at is null)
+create policy "task_select_active"
+on public.ontime_task for select
+using (public.is_workspace_member(workspace_id));
+
+create policy "task_insert_member"
+on public.ontime_task for insert
 with check (public.is_workspace_member(workspace_id));
+
+create policy "task_update_member"
+on public.ontime_task for update
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+
+create policy "task_delete_member"
+on public.ontime_task for delete
+using (public.is_workspace_member(workspace_id));
 
 -- =========================
 -- CALENDAR ENTRY
@@ -421,7 +457,7 @@ create table public.ontime_active_recording (
     is_billable boolean not null default false,
     started_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
-    constraint one_active_per_user unique (created_by)
+    constraint one_active_per_user_workspace unique (created_by, workspace_id)
 );
 
 alter table public.ontime_active_recording enable row level security;

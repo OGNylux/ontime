@@ -15,7 +15,7 @@ export function notifyTimezoneChange(newTimezone: string) {
  */
 export function useUserTimezone() {
   const [timezone, setTimezone] = useState<string>(getBrowserTimezone());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;

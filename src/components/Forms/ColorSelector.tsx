@@ -29,6 +29,7 @@ export default function ColorSelector({ value, onChange }: ColorSelectorProps) {
                                 gap: 1,
                                 padding: 1,
                             },
+                            bgcolor: t => t.palette.background.default, backgroundImage: "none" 
                         },
                     },
                 }}

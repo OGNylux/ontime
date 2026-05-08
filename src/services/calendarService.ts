@@ -2,16 +2,18 @@ import { supabase } from "../lib/supabase";
 import dayjs from "dayjs";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { Task } from "./taskService";
+import type { Tables } from "../lib/database.types";
 
-export interface CalendarEntry {
-    id: string;
+type CalendarEntryRow = Tables<'ontime_calendar_entry'>;
+
+export interface CalendarEntry extends Omit<CalendarEntryRow, 'workspace_id' | 'created_by' | 'is_billable' | 'created_at' | 'invoice_id' | 'project_id' | 'task_id'> {
     workspace_id?: string;
     created_by?: string;
-    task_id?: string | null;
-    start_time: string;
-    end_time: string;
     is_billable?: boolean;
     created_at?: string;
+    invoice_id?: string | null;
+    project_id?: string | null;
+    task_id?: string | null;
     task?: Task | null;
 }
 
@@ -32,10 +34,11 @@ export const calendarService = {
             .eq("workspace_id", workspaceId)
             .gte("start_time", start)
             .lte("start_time", end)
-            .order("start_time", { ascending: true });
+            .order("start_time", { ascending: true })
+            .returns<CalendarEntry[]>();
         if (error) throw error;
 
-        return data as CalendarEntry[];
+        return data ?? [];
     },
 
     async getEntryById(id: string): Promise<CalendarEntry> {
@@ -43,9 +46,10 @@ export const calendarService = {
             .from("ontime_calendar_entry")
             .select(ENTRY_SELECT)
             .eq("id", id)
+            .returns<CalendarEntry>()
             .single();
         if (error) throw error;
-        return data as CalendarEntry;
+        return data;
     },
 
     async createEntry(request: Omit<CalendarEntry, "id">): Promise<CalendarEntry> {
@@ -63,10 +67,11 @@ export const calendarService = {
                 end_time: request.end_time,
             })
             .select(ENTRY_SELECT)
+            .returns<CalendarEntry>()
             .single();
         if (error) throw error;
 
-        return data as CalendarEntry;
+        return data;
     },
 
     async updateEntry(id: string, request: Partial<CalendarEntry>): Promise<CalendarEntry> {
@@ -81,10 +86,11 @@ export const calendarService = {
             .update(payload)
             .eq("id", id)
             .select(ENTRY_SELECT)
+            .returns<CalendarEntry>()
             .single();
         if (error) throw error;
 
-        return data as CalendarEntry;
+        return data;
     },
 
     async deleteEntry(id: string): Promise<void> {

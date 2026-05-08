@@ -1,30 +1,26 @@
 import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { Project } from "./projectService";
+import type { Tables } from "../lib/database.types";
 
-export interface ClientInfo {
-    id?: string;
-    street?: string | null;
-    house_number?: string | null;
-    postal_code?: string | null;
-    city?: string | null;
-    state?: string | null;
-    country?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    vat_number?: string | null;
-}
+type ClientRow = Tables<'ontime_client'>;
+type ClientInfoRow = Tables<'ontime_client_info'>;
 
-export interface Client {
+export interface ClientInfo extends Omit<ClientInfoRow, 'id' | 'created_by' | 'created_at'> {
     id?: string;
-    workspace_id?: string;
-    name: string;
-    info_id?: string | null;
-    info?: ClientInfo | null;
-    pinned?: boolean;
-    projects?: Project[];
     created_by?: string;
     created_at?: string;
+}
+
+export interface Client extends Omit<ClientRow, 'id' | 'workspace_id' | 'created_by' | 'created_at' | 'pinned' | 'deleted_at' | 'info_id'> {
+    id?: string;
+    workspace_id?: string;
+    created_by?: string;
+    created_at?: string;
+    pinned?: boolean;
+    info_id?: string | null;
+    info?: ClientInfo | null;
+    projects?: Project[];
 }
 
 const CLIENT_SELECT = `
@@ -50,11 +46,13 @@ export const clientService = {
             .from("ontime_client")
             .select(CLIENT_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .returns<Client[]>();
         if (error) throw error;
 
-        return data as Client[];
+        return data ?? [];
     },
 
     async getClientsLight(): Promise<Client[]> {
@@ -64,11 +62,13 @@ export const clientService = {
             .from("ontime_client")
             .select(CLIENT_LIGHT_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .returns<Client[]>();
         if (error) throw error;
 
-        return data as Client[];
+        return data ?? [];
     },
 
     async getClient(id: string): Promise<Client> {
@@ -76,9 +76,11 @@ export const clientService = {
             .from("ontime_client")
             .select(CLIENT_SELECT)
             .eq("id", id)
+            .is("deleted_at", null)
+            .returns<Client>()
             .single();
         if (error) throw error;
-        return data as Client;
+        return data;
     },
 
     async createClient(request: Client): Promise<Client> {
@@ -108,10 +110,11 @@ export const clientService = {
                 created_by: userId,
             })
             .select(CLIENT_SELECT)
+            .returns<Client>()
             .single();
         if (error) throw error;
 
-        return data as Client;
+        return data;
     },
 
     async updateClient(request: Client): Promise<Client> {
@@ -149,10 +152,11 @@ export const clientService = {
             })
             .eq("id", request.id)
             .select(CLIENT_SELECT)
+            .returns<Client>()
             .single();
         if (error) throw error;
 
-        return data as Client;
+        return data;
     },
 
     async deleteClient(id: string): Promise<void> {
@@ -169,9 +173,10 @@ export const clientService = {
             .update({ deleted_at: null })
             .eq("id", id)
             .select(CLIENT_SELECT)
+            .returns<Client>()
             .single();
         if (error) throw error;
-        return data as Client;
+        return data;
     },
 
     async togglePin(id: string, pinned: boolean): Promise<Client> {
@@ -180,9 +185,10 @@ export const clientService = {
             .update({ pinned })
             .eq("id", id)
             .select(CLIENT_SELECT)
+            .returns<Client>()
             .single();
         if (error) throw error;
-        return data as Client;
+        return data;
     },
 
     async bulkSetPinned(ids: string[], pinned: boolean): Promise<void> {

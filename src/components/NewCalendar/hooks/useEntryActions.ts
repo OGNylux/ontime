@@ -33,7 +33,7 @@ export interface EntryFormData {
     taskId?: string;
 }
 
-async function resolveTaskId(
+export async function resolveTaskId(
     taskName: string | undefined,
     taskId: string | undefined,
     projectId: string | undefined,
@@ -46,7 +46,7 @@ async function resolveTaskId(
         let color: number | undefined;
         if (projectId) {
             try {
-                color = (await projectService.getProject(projectId)).color;
+                color = (await projectService.getProject(projectId)).color ?? undefined;
             } catch (err) {
                 // Color lookup is best-effort; fall back to undefined.
                 console.error('Failed to fetch project color:', err);

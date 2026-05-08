@@ -4,17 +4,19 @@
  * Start -> creates a DB entry -> ticks every second -> auto-saves every 60 s.
  * Stop -> finalises the entry.
  */
-import { Box, IconButton, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import { PlayArrow, Stop, AttachMoney } from "@mui/icons-material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { CalendarEntry, calendarService } from "../../../services/calendarService";
-import { Project, projectService } from "../../../services/projectService";
-import { taskService } from "../../../services/taskService";
+import { Project } from "../../../services/projectService";
 import { recordingService, ActiveRecording } from "../../../services/recordingService";
+import { getActiveWorkspaceId } from "../../../services/workspaceContext";
+import { resolveTaskId } from "../hooks/useEntryActions";
 // Uses raw elapsed-seconds display; formatDuration also accepts seconds now
 import { RECORDER_SAVE_INTERVAL, RECORDER_TICK_INTERVAL } from "../constants";
 import ProjectSelector from "./ProjectSelector";
+import TaskAutocomplete from "./TaskAutocomplete";
 
 interface RecordingState {
     entryId: string;
@@ -31,9 +33,11 @@ interface Props {
     refetch: () => void;
     onRecordingStart?: (fn: () => void) => void;
     onRecordingChange?: (isRecording: boolean) => void;
+    onActiveEntryId?: (id: string | null, dbId: string | null) => void;
+    onSyncRecording?: (fn: (title: string, project: Project | null, billable: boolean, startTimeISO?: string) => void) => void;
 }
 
-export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordingStart, onRecordingChange }: Props) {
+export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordingStart, onRecordingChange, onActiveEntryId, onSyncRecording }: Props) {
     const [recording, setRecording] = useState(false);
     const [title, setTitle] = useState("");
     const [project, setProject] = useState<Project | null>(null);
@@ -52,6 +56,9 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
     useEffect(() => { billableRef.current = billable; }, [billable]);
     useEffect(() => { projectRef.current = project; }, [project]);
 
+    const onActiveEntryIdRef = useRef(onActiveEntryId);
+    useEffect(() => { onActiveEntryIdRef.current = onActiveEntryId; }, [onActiveEntryId]);
+
     const clearTick = useCallback(() => { if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; } }, []);
 
     const updateLocal = useCallback((s: RecordingState, end: string) => {
@@ -59,7 +66,7 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
         s.isBillable = billableRef.current;
         const proj = projectRef.current;
         const taskShape = (s.title || proj)
-            ? ({ name: s.title || proj?.name || '', color: proj?.color, project: proj ?? undefined } as any)
+            ? ({ name: s.title || proj?.name || '', color: proj?.color, project: proj ?? undefined, project_id: proj?.id ?? null } as any)
             : undefined;
         addOrReplace({
             id: s.entryId, start_time: s.startTime, end_time: end,
@@ -67,6 +74,25 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
             task: taskShape,
         } as CalendarEntry);
     }, [addOrReplace]);
+
+    const syncFromExternal = useCallback((newTitle: string, newProject: Project | null, newBillable: boolean, newStartTimeISO?: string) => {
+        setTitle(newTitle);
+        setProject(newProject);
+        setBillable(newBillable);
+        titleRef.current = newTitle;
+        projectRef.current = newProject;
+        billableRef.current = newBillable;
+        if (stateRef.current) {
+            stateRef.current.title = newTitle;
+            stateRef.current.isBillable = newBillable;
+            if (newStartTimeISO) {
+                stateRef.current.startTime = newStartTimeISO;
+                setElapsed(Math.floor((Date.now() - new Date(newStartTimeISO).getTime()) / 1000));
+            }
+            updateLocal(stateRef.current, dayjs().toISOString());
+        }
+    }, [updateLocal]);
+    useEffect(() => { onSyncRecording?.(syncFromExternal); }, [onSyncRecording, syncFromExternal]);
 
     const autoSave = useCallback(async (s: RecordingState, end: string) => {
         if (!s.dbId || Date.now() - s.lastSave < RECORDER_SAVE_INTERVAL) return;
@@ -105,6 +131,7 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
             isBillable: rec.is_billable,
         };
         stateRef.current = s;
+        onActiveEntryIdRef.current?.(s.entryId, s.dbId);
         titleRef.current = rec.title ?? "";
         billableRef.current = rec.is_billable;
         setTitle(rec.title ?? "");
@@ -124,6 +151,7 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
                 });
                 const oldId = s.entryId;
                 s.dbId = c.id; s.entryId = c.id; s.lastSave = Date.now();
+                onActiveEntryIdRef.current?.(c.id, c.id);
                 removeLocal(oldId);
                 addOrReplace(c);
                 if (activeRecordingIdRef.current) {
@@ -152,6 +180,7 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
         stateRef.current = s;
         updateLocal(s, now);
         setRecording(true); setElapsed(0);
+        onActiveEntryIdRef.current?.(s.entryId, null);
         beginTick();
         recordingService.startRecording({
             is_billable: billable,
@@ -162,31 +191,11 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
         createDb(s);
     }, [updateLocal, beginTick, createDb, title, billable, project]);
 
-    const resolveTaskId = useCallback(async (
-        taskName: string | undefined,
-        projectId: string | undefined,
-    ): Promise<string | undefined> => {
-        if (!taskName?.trim()) return undefined;
-        let task = await taskService.getTaskByName(taskName.trim(), projectId);
-        if (!task) {
-            let color: number | undefined;
-            if (projectId) {
-                try { color = (await projectService.getProject(projectId)).color; }
-                catch (err) { console.error("Failed to fetch project color:", err); }
-            }
-            task = await taskService.createTask({
-                name: taskName.trim(),
-                project_id: projectId ?? null,
-                color,
-            });
-        }
-        return task.id;
-    }, []);
-
     const stop = useCallback(async () => {
         clearTick(); setRecording(false);
         const s = stateRef.current; stateRef.current = null;
         activeRecordingIdRef.current = null;
+        onActiveEntryIdRef.current?.(null, null);
         recordingService.stopRecording().catch(err => console.error("Failed to clear active recording:", err));
         if (!s) return;
 
@@ -201,7 +210,7 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
         const proj = projectRef.current;
         let taskId: string | undefined;
         try {
-            taskId = await resolveTaskId(t, proj?.id ?? undefined);
+            taskId = await resolveTaskId(t || proj?.name || '', undefined, proj?.id ?? undefined);
         } catch (err) { console.error("Failed to resolve task:", err); }
 
         try {
@@ -222,7 +231,7 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
         if (s.entryId && s.entryId !== s.dbId) removeLocal(s.entryId);
         refetch();
         setTitle(""); setProject(null); setBillable(false); setElapsed(0);
-    }, [addOrReplace, removeLocal, refetch, clearTick, resolveTaskId]);
+    }, [addOrReplace, removeLocal, refetch, clearTick]);
 
     // Restore active recording from DB on mount - survives page reload and other devices
     useEffect(() => {
@@ -235,25 +244,37 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
 
     // Real-time: pick up recordings started / stopped on another device
     useEffect(() => {
-        return recordingService.subscribeToChanges({
-            onUpsert: () => {
-                if (stateRef.current) return;
-                recordingService.getActiveRecording()
-                    .then(rec => { if (rec) applyRecordingRef.current(rec); })
-                    .catch(console.error);
-            },
-            onDelete: () => {
-                if (!stateRef.current) return;
-                clearTick();
-                stateRef.current = null;
-                activeRecordingIdRef.current = null;
-                setRecording(false);
-                setTitle('');
-                setProject(null);
-                setBillable(false);
-                setElapsed(0);
-            },
-        });
+        let cancelled = false;
+        let unsubscribe = () => {};
+        getActiveWorkspaceId()
+            .then((workspaceId) => {
+                if (cancelled) return;
+                unsubscribe = recordingService.subscribeToChanges(workspaceId, {
+                    onUpsert: () => {
+                        if (stateRef.current) return;
+                        recordingService.getActiveRecording()
+                            .then(rec => { if (rec) applyRecordingRef.current(rec); })
+                            .catch(console.error);
+                    },
+                    onDelete: () => {
+                        if (!stateRef.current) return;
+                        clearTick();
+                        stateRef.current = null;
+                        activeRecordingIdRef.current = null;
+                        onActiveEntryIdRef.current?.(null, null);
+                        setRecording(false);
+                        setTitle('');
+                        setProject(null);
+                        setBillable(false);
+                        setElapsed(0);
+                    },
+                });
+            })
+            .catch(console.error);
+        return () => {
+            cancelled = true;
+            unsubscribe();
+        };
     }, [clearTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const toggle = useCallback(() => { recording ? stop() : start(); }, [recording, start, stop]);
@@ -267,8 +288,17 @@ export default function Recorder({ addOrReplace, removeLocal, refetch, onRecordi
 
     return (
         <Box sx={{ display: "flex", alignItems: "center", width: "100%", gap: 1, borderBottom: t => `1px solid ${t.palette.divider}`, pb: 1, mb: 1 }}>
-            <TextField placeholder="What are you working on?" value={title} onChange={e => setTitle(e.target.value)} size="small"
-                sx={{ flexGrow: 1, minWidth: 120, "& .MuiInputBase-root": { height: 36 } }} />
+            <Box sx={{ flexGrow: 1, minWidth: 120 }}>
+                <TaskAutocomplete
+                    value={title}
+                    onValueChange={setTitle}
+                    onTaskSelect={(task) => {
+                        if (task.project_id) setProject({ id: task.project_id } as Project);
+                    }}
+                    placeholder="What are you working on?"
+                    size="small"
+                />
+            </Box>
             <ProjectSelector selectedProjectId={project?.id} onSelect={setProject} />
             <Typography variant="body2" sx={{
                 minWidth: 70, fontFamily: "monospace", fontSize: "0.95rem", fontWeight: 500,

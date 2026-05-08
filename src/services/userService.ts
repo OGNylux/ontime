@@ -1,13 +1,13 @@
 import { supabase } from "../lib/supabase";
 import { requireUserId, setActiveWorkspaceIdCache } from "./workspaceContext";
+import type { Tables } from "../lib/database.types";
 
-export interface OntimeUser {
-    id: string;
-    name: string;
-    email?: string;
-    timezone?: string | null;
+type UserRow = Tables<'ontime_user'>;
+
+export interface OntimeUser extends Omit<UserRow, 'active_workspace_id' | 'created_at'> {
     active_workspace_id?: string | null;
     created_at?: string;
+    email?: string;
 }
 
 export interface ProfileUpdate {
@@ -18,7 +18,8 @@ export interface ProfileUpdate {
 
 export const userService = {
     async getCurrentUser(): Promise<OntimeUser | null> {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         if (!user) return null;
 
         const { data, error } = await supabase
@@ -28,7 +29,10 @@ export const userService = {
             .single();
         if (error) throw error;
 
-        return { ...data, email: user.email ?? undefined } as OntimeUser;
+        // Prime the workspace cache so subsequent getActiveWorkspaceId() calls are free.
+        if (data?.active_workspace_id) setActiveWorkspaceIdCache(data.active_workspace_id);
+
+        return { ...data, email: user.email ?? undefined };
     },
 
     async getCurrentUserName(): Promise<string | null> {
@@ -71,7 +75,7 @@ export const userService = {
             .single();
         if (error) throw error;
 
-        return { ...data, email: updates.email ?? user?.email } as OntimeUser;
+        return { ...data, email: updates.email ?? user?.email };
     },
 
     async updatePassword(currentPassword: string, newPassword: string): Promise<void> {

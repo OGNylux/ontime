@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Dialog,
     DialogTitle,
@@ -11,15 +11,27 @@ import {
     FormControl,
     Select,
     MenuItem,
-    SelectChangeEvent,
     Box,
     Typography,
-
 } from '@mui/material';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import dayjs from 'dayjs';
 import { Project } from '../services/projectService';
 import ColorSelector from './Forms/ColorSelector';
 import { Client } from '../services/clientService';
+
+const schema = z.object({
+    name: z.string().min(1, 'Project name is required'),
+    description: z.string().optional(),
+    colorIndex: z.number().min(0).max(17),
+    clientId: z.string().min(1, 'Client is required'),
+    hourlyRate: z.number({ error: 'Must be a number' }).min(0).optional(),
+    startDate: z.string(),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 interface ProjectDialogProps {
     open: boolean;
@@ -29,88 +41,73 @@ interface ProjectDialogProps {
     clients: Client[];
 }
 
+function getDefaults(project?: Project | null): FormValues {
+    return {
+        name: project?.name ?? '',
+        description: project?.description ?? '',
+        colorIndex: project?.color ?? 0,
+        clientId: project?.client_id ?? '',
+        hourlyRate: project?.hourly_rate ?? 50,
+        startDate: project?.start_date
+            ? dayjs(project.start_date).format('YYYY-MM-DD')
+            : dayjs().format('YYYY-MM-DD'),
+    };
+}
+
 export default function ProjectDialog({ open, onClose, onSave, project, clients }: ProjectDialogProps) {
-    const [name, setName] = useState('');
-    const [colorIndex, setColorIndex] = useState(0);
-    const [clientId, setClientId] = useState('');
-    const [hourlyRate, setHourlyRate] = useState<number | ''>(0);
-    const [startDate, setStartDate] = useState('');
-    const [description, setDescription] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [serverError, setServerError] = useState('');
+    const { control, register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+        resolver: zodResolver(schema),
+        defaultValues: getDefaults(project),
+    });
 
     useEffect(() => {
         if (open) {
-            if (project) {
-                setName(project.name || '');
-                setColorIndex(project.color ?? 0);
-                setClientId(project.client_id || '');
-                setHourlyRate(project.hourly_rate ?? 0);
-                setStartDate(project.start_date ? dayjs(project.start_date).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'));
-                setDescription(project.description || '');
-            } else {
-                setName('');
-                setColorIndex(0);
-                setClientId('');
-                setHourlyRate(50);
-                setStartDate(dayjs().format('YYYY-MM-DD'));
-                setDescription('');
-            }
-            setError('');
+            reset(getDefaults(project));
+            setServerError('');
         }
-    }, [open, project]);
+    }, [open, project, reset]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!name.trim()) {
-            setError('Project name is required');
-            return;
-        }
-        setLoading(true);
+    const onSubmit = async (values: FormValues) => {
         try {
-            await onSave(
-                {
-                    name: name.trim(),
-                    color: colorIndex,
-                    client_id: clientId,
-                    hourly_rate: hourlyRate ? hourlyRate : undefined,
-                    start_date: startDate,
-                    description: description.trim() || undefined,
-                }
-            );
+            await onSave({
+                name: values.name.trim(),
+                color: values.colorIndex,
+                client_id: values.clientId || null,
+                hourly_rate: values.hourlyRate ?? null,
+                start_date: values.startDate,
+                description: values.description?.trim() || undefined,
+            });
             onClose();
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-        } finally {
-            setLoading(false);
+        } catch (err) {
+            setServerError(err instanceof Error ? err.message : 'An error occurred');
         }
     };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
-            <form onSubmit={handleSubmit}>
-                <DialogTitle variant='h5' fontWeight="bold">{project ? 'Edit Project' : 'New Project'}</DialogTitle>
+            <form onSubmit={handleSubmit(onSubmit)}>
+                <DialogTitle variant="h5" fontWeight="bold">{project ? 'Edit Project' : 'New Project'}</DialogTitle>
                 <DialogContent>
-                    {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                    {serverError && <Alert severity="error" sx={{ mb: 2 }}>{serverError}</Alert>}
                     <Stack spacing={2} marginTop={1}>
                         <Box>
                             <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Project Name *</Typography>
                             <TextField
+                                {...register('name')}
                                 placeholder="Enter project name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
                                 fullWidth
-                                required
                                 autoFocus
+                                error={!!errors.name}
+                                helperText={errors.name?.message}
                             />
                         </Box>
 
                         <Box>
                             <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Description</Typography>
                             <TextField
+                                {...register('description')}
                                 placeholder="Enter project description"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
                                 fullWidth
                                 multiline
                                 minRows={3}
@@ -119,60 +116,83 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
 
                         <Box>
                             <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Hourly Rate (€)</Typography>
-                            <TextField
-                                placeholder="e.g. 50"
-                                type="number"
-                                inputProps={{ min: 0, step: '0.01' }}
-                                value={hourlyRate}
-                                onChange={(e) => setHourlyRate(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                fullWidth
+                            <Controller
+                                name="hourlyRate"
+                                control={control}
+                                render={({ field }) => (
+                                    <TextField
+                                        {...field}
+                                        placeholder="e.g. 50"
+                                        type="number"
+                                        inputProps={{ min: 0, step: '0.01' }}
+                                        fullWidth
+                                        error={!!errors.hourlyRate}
+                                        helperText={errors.hourlyRate?.message}
+                                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                                    />
+                                )}
                             />
                         </Box>
 
                         <Box>
                             <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Client *</Typography>
-                            <FormControl fullWidth>
-                                <Select
-                                    value={clientId}
-                                    displayEmpty
-                                    onChange={(e: SelectChangeEvent) => setClientId(e.target.value)}
-                                    renderValue={(value) => value ? clients.find(c => c.id === value)?.name : <em style={{ opacity: 0.6 }}>Select a client</em>}
-                                    required
-                                >
-                                    <MenuItem value="">
-                                        <em>None</em>
-                                    </MenuItem>
-                                    {clients.map((client) => (
-                                        <MenuItem key={client.id} value={client.id}>
-                                            {client.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                            <Controller
+                                name="clientId"
+                                control={control}
+                                render={({ field }) => (
+                                    <FormControl fullWidth error={!!errors.clientId}>
+                                        <Select
+                                            {...field}
+                                            displayEmpty
+                                            MenuProps={{ PaperProps: { sx: { bgcolor: t => t.palette.background.default, backgroundImage: "none" } } }}
+                                            renderValue={(value) =>
+                                                value
+                                                    ? clients.find((c) => c.id === value)?.name
+                                                    : <em style={{ opacity: 0.6 }}>Select a client</em>
+                                            }
+                                        >
+                                            <MenuItem value=""><em>None</em></MenuItem>
+                                            {clients.map((client) => (
+                                                <MenuItem key={client.id} value={client.id}>{client.name}</MenuItem>
+                                            ))}
+                                        </Select>
+                                        {errors.clientId && (
+                                            <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                                                {errors.clientId.message}
+                                            </Typography>
+                                        )}
+                                    </FormControl>
+                                )}
+                            />
                         </Box>
 
                         <Box display="flex" gap={2}>
                             <Box display="flex" flexDirection="column">
                                 <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Color</Typography>
-                                <ColorSelector value={colorIndex} onChange={(i: number) => setColorIndex(i)} />
+                                <Controller
+                                    name="colorIndex"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <ColorSelector value={field.value} onChange={field.onChange} />
+                                    )}
+                                />
                             </Box>
 
                             <Box display="flex" flexDirection="column" flexGrow={1}>
                                 <Typography variant="body2" marginBottom={0.5} fontWeight={500}>Start Date</Typography>
                                 <TextField
+                                    {...register('startDate')}
                                     type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
                                     fullWidth
                                     slotProps={{
                                         inputLabel: { shrink: true },
                                         input: {
                                             sx: {
                                                 '& input[type="date"]::-webkit-calendar-picker-indicator': {
-                                                    filter: (theme) => theme.palette.mode === 'dark' ? 'invert(0.6)' : 'opacity(0.6)'
-                                                }
-                                            }
-                                        }
+                                                    filter: (t) => t.palette.mode === 'dark' ? 'invert(0.6)' : 'opacity(0.6)',
+                                                },
+                                            },
+                                        },
                                     }}
                                 />
                             </Box>
@@ -181,7 +201,7 @@ export default function ProjectDialog({ open, onClose, onSave, project, clients 
                 </DialogContent>
                 <DialogActions sx={{ px: 3, py: 2 }}>
                     <Button onClick={onClose}>Cancel</Button>
-                    <Button type="submit" variant="contained" disabled={loading}>
+                    <Button type="submit" variant="contained" disabled={isSubmitting}>
                         {project ? 'Save' : 'Create'}
                     </Button>
                 </DialogActions>

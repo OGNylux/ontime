@@ -9,16 +9,17 @@
  */
 import {
     Button, TextField, Stack, Popover, useMediaQuery, useTheme,
-    SwipeableDrawer, Box, Typography, Autocomplete,
+    SwipeableDrawer, Box, Typography,
     IconButton, Tooltip, Menu, MenuItem, ListItemIcon, ListItemText, Alert,
 } from "@mui/material";
 import { AttachMoney, ContentCopy, Delete, MoreVert } from "@mui/icons-material";
 import { useState, useEffect, MouseEvent } from "react";
 import ConfirmDialog from "../../Forms/ConfirmDialog";
 import { Project } from "../../../services/projectService";
-import { taskService, Task } from "../../../services/taskService";
 import { useCalendar } from "../context";
+import { EntryFormData } from "../hooks/useEntryActions";
 import ProjectSelector from "./ProjectSelector";
+import TaskAutocomplete from "./TaskAutocomplete";
 
 interface Props {
     open: boolean;
@@ -30,8 +31,11 @@ interface Props {
     initialTitle?: string;
     initialIsBillable?: boolean;
     initialProjectId?: string | null;
+    initialProject?: Project | null;
     isEdit?: boolean;
     editingEntryId?: string | null;
+    isLiveRecording?: boolean;
+    onSaveOverride?: (data: EntryFormData & { project: Project | null }) => Promise<void>;
 }
 
 export default function EntryDialog({
@@ -39,6 +43,8 @@ export default function EntryDialog({
     initialStartTime = "09:00", initialEndTime = "10:00", dateStr,
     initialTitle, initialIsBillable = true, initialProjectId = null,
     isEdit = false, editingEntryId,
+    isLiveRecording = false, onSaveOverride,
+    initialProject,
 }: Props) {
     const theme = useTheme();
     const mobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -49,8 +55,6 @@ export default function EntryDialog({
     const [endTime, setEndTime] = useState(initialEndTime);
     const [billable, setBillable] = useState(initialIsBillable ?? true);
     const [project, setProject] = useState<Project | null>(null);
-    const [options, setOptions] = useState<Task[]>([]);
-    const [loading, setLoading] = useState(false);
     const [taskId, setTaskId] = useState<string | undefined>();
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -60,30 +64,11 @@ export default function EntryDialog({
         if (open) {
             setStartTime(initialStartTime); setEndTime(initialEndTime);
             setTitle(initialTitle || ""); setBillable(initialIsBillable ?? true);
-            setOptions([]); setTaskId(undefined);
-            setProject(initialProjectId ? { id: initialProjectId } as Project : null);
+            setTaskId(undefined);
+            setProject(initialProject ?? (initialProjectId ? { id: initialProjectId } as Project : null));
             setError(null);
         }
-    }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable, initialProjectId]);
-
-    useEffect(() => {
-        let active = true;
-        const t = setTimeout(async () => {
-            if (title.length < 3) { if (active) setOptions([]); return; }
-            setLoading(true);
-            try {
-                const results = await taskService.searchTasks(title);
-                if (active) setOptions(results);
-            } catch (err) {
-                // Autocomplete failure is non-blocking — user can still type a new task name.
-                console.error('Task search failed:', err);
-                if (active) setOptions([]);
-            } finally {
-                if (active) setLoading(false);
-            }
-        }, 300);
-        return () => { active = false; clearTimeout(t); };
-    }, [title]);
+    }, [open, initialStartTime, initialEndTime, initialTitle, initialIsBillable, initialProjectId, initialProject]);
 
     //  Menu (edit mode actions)
     const [menuEl, setMenuEl] = useState<null | HTMLElement>(null);
@@ -128,8 +113,9 @@ export default function EntryDialog({
         setError(null);
         setSaving(true);
         try {
-            const data = { dateStr: dateStr ?? "", startTime, endTime, taskName: title, isBillable: billable, projectId: project?.id, taskId };
-            if (isEdit && editingEntryId) await actions.update(editingEntryId, data);
+            const data = { dateStr: dateStr ?? "", startTime, endTime, taskName: title, isBillable: billable, projectId: project?.id, taskId, project };
+            if (onSaveOverride) await onSaveOverride(data);
+            else if (isEdit && editingEntryId) await actions.update(editingEntryId, data);
             else await actions.create(data);
             onClose();
         } catch (err) {
@@ -140,31 +126,31 @@ export default function EntryDialog({
         }
     };
 
-    //  Content 
+    //  Content
     const content = (
         <Stack spacing={2} sx={{ p: 2, minWidth: 300 }}>
-            {isEdit && (
+            {isEdit && !isLiveRecording && (
                 <Stack direction="row" spacing={1}>
                     <IconButton onClick={handleDuplicate} size="small"><ContentCopy /></IconButton>
                     <IconButton onClick={(e: MouseEvent<HTMLElement>) => setMenuEl(e.currentTarget)} size="small"><MoreVert /></IconButton>
-                    <Menu anchorEl={menuEl} open={Boolean(menuEl)} onClose={() => setMenuEl(null)}>
+                    <Menu anchorEl={menuEl} open={Boolean(menuEl)} onClose={() => setMenuEl(null)} PaperProps={{ sx: { bgcolor: 'background.default', backgroundImage: 'none' } }}>
                         <MenuItem onClick={handleDelete}><ListItemIcon><Delete fontSize="small" /></ListItemIcon><ListItemText>Delete</ListItemText></MenuItem>
                     </Menu>
                 </Stack>
             )}
-            {!mobile && <Typography variant="h6">{isEdit ? "Edit Entry" : "Create New Entry"}</Typography>}
+            {!mobile && <Typography variant="h6">{isLiveRecording ? "Edit Recording" : isEdit ? "Edit Entry" : "Create New Entry"}</Typography>}
 
-            <Autocomplete freeSolo options={options} loading={loading}
-                getOptionLabel={o => (typeof o === "string" ? o : o.name)}
-                renderInput={params => <TextField {...params} autoFocus label="Task" fullWidth size="small" />}
-                inputValue={title}
-                onInputChange={(_, v) => { setTitle(v); setTaskId(undefined); }}
-                onChange={(_, v) => {
-                    if (v && typeof v === "object") {
-                        setTitle(v.name); setTaskId(v.id);
-                        if (v.project_id) setProject({ id: v.project_id } as Project);
-                    }
+            <TaskAutocomplete
+                value={title}
+                onValueChange={setTitle}
+                onTaskClear={() => setTaskId(undefined)}
+                onTaskSelect={(task) => {
+                    setTaskId(task.id);
+                    if (task.project_id) setProject({ id: task.project_id } as Project);
                 }}
+                autoFocus
+                label="Task"
+                size="small"
             />
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -176,12 +162,17 @@ export default function EntryDialog({
                 </Tooltip>
             </Stack>
 
-            <Stack direction="row" spacing={2}>
+            {isLiveRecording ? (
                 <TextField label="Start" type="time" fullWidth value={startTime} onChange={e => setStartTime(e.target.value)} size="small"
                     slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
-                <TextField label="End" type="time" fullWidth value={endTime} onChange={e => setEndTime(e.target.value)} size="small"
-                    slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
-            </Stack>
+            ) : (
+                <Stack direction="row" spacing={2}>
+                    <TextField label="Start" type="time" fullWidth value={startTime} onChange={e => setStartTime(e.target.value)} size="small"
+                        slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
+                    <TextField label="End" type="time" fullWidth value={endTime} onChange={e => setEndTime(e.target.value)} size="small"
+                        slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
+                </Stack>
+            )}
 
             {error && <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>}
 

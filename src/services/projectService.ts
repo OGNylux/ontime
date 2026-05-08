@@ -2,21 +2,20 @@ import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { Client } from "./clientService";
 import { CalendarEntry } from "./calendarService";
+import type { Tables } from "../lib/database.types";
 
-export interface Project {
+type ProjectRow = Tables<'ontime_project'>;
+
+export interface Project extends Omit<ProjectRow, 'id' | 'workspace_id' | 'created_by' | 'created_at' | 'pinned' | 'color' | 'description' | 'deleted_at'> {
     id?: string;
     workspace_id?: string;
-    client_id?: string | null;
-    name: string;
-    description?: string | null;
-    color?: number | undefined;
-    hourly_rate?: number | null;
-    start_date?: string | null;
-    pinned?: boolean;
-    client?: Client | null;
-    total_time?: number;
     created_by?: string;
     created_at?: string;
+    pinned?: boolean;
+    color?: number | null;
+    description?: string | null;
+    client?: Client | null;
+    total_time?: number;
 }
 
 export const TAILWIND_COLORS = [
@@ -65,8 +64,10 @@ export const projectService = {
             .from("ontime_project")
             .select(PROJECT_WITH_ENTRIES_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .returns<ProjectWithEntries[]>();
         if (error) throw error;
 
         return (data ?? []).map(rowToProject);
@@ -79,11 +80,12 @@ export const projectService = {
             .from("ontime_project")
             .select(PROJECT_LIGHT_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
             .order("created_at", { ascending: false });
         if (error) throw error;
 
-        return data as Project[];
+        return data ?? [];
     },
 
     async getProject(id: string): Promise<Project> {
@@ -91,9 +93,11 @@ export const projectService = {
             .from("ontime_project")
             .select(PROJECT_SELECT)
             .eq("id", id)
+            .is("deleted_at", null)
+            .returns<Project>()
             .single();
         if (error) throw error;
-        return data as Project;
+        return data;
     },
 
     async createProject(request: Project): Promise<Project> {
@@ -114,10 +118,11 @@ export const projectService = {
                 created_by: userId,
             })
             .select(PROJECT_SELECT)
+            .returns<Project>()
             .single();
         if (error) throw error;
 
-        return data as Project;
+        return data;
     },
 
     async updateProject(id: string, request: Project): Promise<Project> {
@@ -134,9 +139,10 @@ export const projectService = {
             })
             .eq("id", id)
             .select(PROJECT_SELECT)
+            .returns<Project>()
             .single();
         if (error) throw error;
-        return data as Project;
+        return data;
     },
 
     async togglePin(id: string, pinned: boolean): Promise<Project> {
@@ -145,9 +151,10 @@ export const projectService = {
             .update({ pinned })
             .eq("id", id)
             .select(PROJECT_SELECT)
+            .returns<Project>()
             .single();
         if (error) throw error;
-        return data as Project;
+        return data;
     },
 
     async deleteProject(id: string): Promise<void> {
@@ -164,9 +171,10 @@ export const projectService = {
             .update({ deleted_at: null })
             .eq("id", id)
             .select(PROJECT_SELECT)
+            .returns<Project>()
             .single();
         if (error) throw error;
-        return data as Project;
+        return data;
     },
 
     async bulkSetPinned(ids: string[], pinned: boolean): Promise<void> {
@@ -197,9 +205,9 @@ export const projectService = {
     },
 };
 
-type ProjectRow = Project & { calendar_entries?: Pick<CalendarEntry, "start_time" | "end_time">[] };
+type ProjectWithEntries = Project & { calendar_entries?: Pick<CalendarEntry, "start_time" | "end_time">[] };
 
-function rowToProject(row: ProjectRow): Project {
+function rowToProject(row: ProjectWithEntries): Project {
     const entries = row.calendar_entries ?? [];
     const totalMinutes = entries.reduce((sum, entry) => {
         if (!entry.start_time || !entry.end_time) return sum;

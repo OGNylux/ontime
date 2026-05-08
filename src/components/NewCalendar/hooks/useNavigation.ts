@@ -7,22 +7,23 @@
  *  • viewMode / setViewMode    - day | work_week | week
  *  • loading     - true while timezone is loading
  */
-import { useState, useMemo, useCallback, useEffect } from "react";
-import { dayjs } from "../../../lib/timezone";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { dayjs, getBrowserTimezone } from "../../../lib/timezone";
 import { useUserTimezone } from "../../../hooks/useUserTimezone";
 import type { ViewMode, DayInfo } from "../types";
 
 export function useNavigation() {
     const { timezone, loading: tzLoading } = useUserTimezone();
-    const [date, setDate] = useState(() => dayjs());
+    // Initialise with browser timezone immediately so the calendar renders without waiting.
+    const [date, setDate] = useState(() => dayjs().tz(getBrowserTimezone()));
     const [viewMode, setViewMode] = useState<ViewMode>("week");
-    const [ready, setReady] = useState(false);
 
+    // Once the DB timezone loads, correct the date only if it differs from the browser tz.
+    const tzAppliedRef = useRef(false);
     useEffect(() => {
-        if (!tzLoading) {
-            setDate(dayjs().tz(timezone));
-            setReady(true);
-        }
+        if (tzLoading || tzAppliedRef.current) return;
+        tzAppliedRef.current = true;
+        if (timezone !== getBrowserTimezone()) setDate(dayjs().tz(timezone));
     }, [timezone, tzLoading]);
 
     const days: DayInfo[] = useMemo(() => {
@@ -61,6 +62,6 @@ export function useNavigation() {
         goNext,
         goPrev,
         goToday,
-        loading: !ready || tzLoading,
+        loading: false,
     };
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     Box,
     Typography,
@@ -283,11 +284,11 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
 const errorMessage = (err: unknown, fallback: string): string =>
     err instanceof Error ? err.message : fallback;
 
+const INVOICES_QUERY_KEY = ['invoices'] as const;
+
 export default function InvoicesPage() {
     const { showWithAction, showError } = useSnackbar();
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [error, setError] = useState<string | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
     const [menuAnchorEl, setMenuAnchorEl] = useState<HTMLElement | null>(null);
@@ -296,22 +297,29 @@ export default function InvoicesPage() {
     const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
+    const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useQuery({
+        queryKey: INVOICES_QUERY_KEY,
+        queryFn: () => invoiceService.list(),
+    });
+    const { data: clients = [], isLoading: clientsLoading } = useQuery({
+        queryKey: ['clients', 'light'],
+        queryFn: () => clientService.getClientsLight(),
+    });
+    const loading = invoicesLoading || clientsLoading;
+
     useEffect(() => {
-        let cancelled = false;
-        Promise.all([invoiceService.list(), clientService.getClientsLight()])
-            .then(([invs, cls]) => {
-                if (cancelled) return;
-                setInvoices(invs);
-                setClients(cls);
-            })
-            .catch((err) => {
-                if (cancelled) return;
-                console.error('Failed to load invoices:', err);
-                setError(errorMessage(err, 'Failed to load invoices'));
-            })
-            .finally(() => { if (!cancelled) setLoading(false); });
-        return () => { cancelled = true; };
-    }, []);
+        if (invoicesError) {
+            console.error('Failed to load invoices:', invoicesError);
+            setError(errorMessage(invoicesError, 'Failed to load invoices'));
+        }
+    }, [invoicesError]);
+
+    const setInvoices = useCallback(
+        (updater: (prev: Invoice[]) => Invoice[]) => {
+            queryClient.setQueryData<Invoice[]>(INVOICES_QUERY_KEY, (prev) => updater(prev ?? []));
+        },
+        [queryClient],
+    );
 
     const handleMenuOpen = (e: React.MouseEvent<HTMLElement>, inv: Invoice) => {
         setMenuAnchorEl(e.currentTarget);

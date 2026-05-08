@@ -2,19 +2,21 @@ import { supabase } from "../lib/supabase";
 import { getActiveWorkspaceId, requireUserId } from "./workspaceContext";
 import { CalendarEntry } from "./calendarService";
 import type { Project } from "./projectService";
+import type { Tables } from "../lib/database.types";
 
-export interface Task {
+type TaskRow = Tables<'ontime_task'>;
+
+export interface Task extends Omit<TaskRow, 'id' | 'workspace_id' | 'created_by' | 'created_at' | 'pinned' | 'color' | 'deleted_at' | 'project_id'> {
     id?: string;
     workspace_id?: string;
-    project_id?: string | null;
-    name: string;
-    color?: number | null;
-    pinned?: boolean;
-    total_time?: number;
-    project?: Project | null;
-    calendar_entries?: CalendarEntry[];
     created_by?: string;
     created_at?: string;
+    pinned?: boolean;
+    color?: number | null;
+    project_id?: string | null;
+    project?: Project | null;
+    calendar_entries?: CalendarEntry[];
+    total_time?: number;
 }
 
 const TASK_SELECT = `
@@ -41,8 +43,10 @@ export const taskService = {
             .from("ontime_task")
             .select(TASK_WITH_ENTRIES_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .returns<TaskWithEntries[]>();
         if (error) throw error;
 
         return (data ?? []).map(rowToTask);
@@ -55,8 +59,10 @@ export const taskService = {
             .from("ontime_task")
             .select(TASK_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
-            .order("created_at", { ascending: false });
+            .order("created_at", { ascending: false })
+            .returns<TaskWithEntries[]>();
         if (error) throw error;
 
         return (data ?? []).map(rowToTask);
@@ -69,11 +75,12 @@ export const taskService = {
             .from("ontime_task")
             .select(TASK_LIGHT_SELECT)
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
             .order("created_at", { ascending: false });
         if (error) throw error;
 
-        return data as Task[];
+        return data ?? [];
     },
 
     async getTasksForProject(projectId: string): Promise<Task[]> {
@@ -81,10 +88,11 @@ export const taskService = {
             .from("ontime_task")
             .select("*")
             .eq("project_id", projectId)
+            .is("deleted_at", null)
             .order("pinned", { ascending: false })
             .order("created_at", { ascending: false });
         if (error) throw error;
-        return data as Task[];
+        return data ?? [];
     },
 
     async createTask(request: Task): Promise<Task> {
@@ -95,32 +103,34 @@ export const taskService = {
             .from("ontime_task")
             .insert({
                 workspace_id: workspaceId,
-                project_id: request.project_id ?? null,
+                project_id: request.project_id ?? '',
                 name: request.name,
                 color: request.color ?? null,
                 pinned: request.pinned ?? false,
                 created_by: userId,
             })
             .select()
+            .returns<Task>()
             .single();
         if (error) throw error;
-        return data as Task;
+        return data;
     },
 
     async updateTask(id: string, request: Task): Promise<Task> {
         const { data, error } = await supabase
             .from("ontime_task")
             .update({
-                project_id: request.project_id,
+                project_id: request.project_id ?? undefined,
                 name: request.name,
                 color: request.color ?? null,
                 pinned: request.pinned,
             })
             .eq("id", id)
             .select()
+            .returns<Task>()
             .single();
         if (error) throw error;
-        return data as Task;
+        return data;
     },
 
     async deleteTask(id: string): Promise<void> {
@@ -137,9 +147,10 @@ export const taskService = {
             .update({ deleted_at: null })
             .eq("id", id)
             .select()
+            .returns<Task>()
             .single();
         if (error) throw error;
-        return data as Task;
+        return data;
     },
 
     async searchTasks(query: string): Promise<Task[]> {
@@ -147,13 +158,14 @@ export const taskService = {
 
         const { data, error } = await supabase
             .from("ontime_task")
-            .select("*")
+            .select("*, project:ontime_project(*, client:ontime_client(*))")
             .eq("workspace_id", workspaceId)
+            .is("deleted_at", null)
             .ilike("name", `%${query}%`)
             .limit(10);
         if (error) throw error;
 
-        return data as Task[];
+        return data ?? [];
     },
 
     async getTaskByName(name: string, projectId?: string | null): Promise<Task | null> {
@@ -169,10 +181,11 @@ export const taskService = {
         } else {
             query = query.is("project_id", null);
         }
+        query = query.is("deleted_at", null);
 
-        const { data, error } = await query.maybeSingle();
+        const { data, error } = await query.returns<Task>().maybeSingle();
         if (error) throw error;
-        return data as Task | null;
+        return data;
     },
 
     async togglePin(id: string, pinned: boolean): Promise<Task> {
@@ -181,9 +194,10 @@ export const taskService = {
             .update({ pinned })
             .eq("id", id)
             .select()
+            .returns<Task>()
             .single();
         if (error) throw error;
-        return data as Task;
+        return data;
     },
 
     async bulkSetPinned(ids: string[], pinned: boolean): Promise<void> {
@@ -214,9 +228,9 @@ export const taskService = {
     },
 };
 
-type TaskRow = Task & { calendar_entries?: Pick<CalendarEntry, "start_time" | "end_time">[] };
+type TaskWithEntries = Task & { calendar_entries?: Pick<CalendarEntry, "start_time" | "end_time">[] };
 
-function rowToTask(row: TaskRow): Task {
+function rowToTask(row: TaskWithEntries): Task {
     const entries = row.calendar_entries ?? [];
     const totalMinutes = entries.reduce((sum, entry) => {
         if (!entry.start_time || !entry.end_time) return sum;
@@ -224,6 +238,6 @@ function rowToTask(row: TaskRow): Task {
         return sum + ms / 1000 / 60;
     }, 0);
 
-    const { calendar_entries: _drop, project: _proj, ...rest } = row as TaskRow & { project?: unknown };
+    const { calendar_entries: _drop, project: _proj, ...rest } = row as TaskWithEntries & { project?: unknown };
     return { ...rest, total_time: Math.round(totalMinutes) };
 }
