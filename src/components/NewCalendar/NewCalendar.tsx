@@ -15,13 +15,14 @@
  *
  * CalendarProvider pushes shared state down to DayColumn children.
  */
-import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect, useLayoutEffect } from "react";
 import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { dayjs, parseAsUserTimezone } from "../../lib/timezone";
 import { Project } from "../../services/projectService";
 import { calendarService, CalendarEntry } from "../../services/calendarService";
 import { resolveTaskId } from "./hooks/useEntryActions";
 import { useUserTimezone } from "../../hooks/useUserTimezone";
+import { useCalendarPreferences } from "../../hooks/useCalendarPreferences";
 
 import type { ZoomLevel, PersistentPreview } from "./types";
 import { CalendarProvider, CalendarContextValue } from "./context";
@@ -44,7 +45,8 @@ import ContextMenu from "./components/ContextMenu";
 import ConfirmDialog from "../Forms/ConfirmDialog";
 
 export default function NewCalendar() {
-    const nav = useNavigation();
+    const { prefs } = useCalendarPreferences();
+    const nav = useNavigation(prefs.startOfWeek);
 
     const { byDate, refetch, addOrReplace, removeLocal, prefetch } = useEntries(nav.days);
 
@@ -73,6 +75,7 @@ export default function NewCalendar() {
     const { resizeState, beginResize } = useDragToResize(byDate, actions.updateTimes);
 
     const [zoom, setZoom] = useState<ZoomLevel>(30);
+    const zoomCenterMinuteRef = useRef<number | null>(null);
 
     const [persistPreview, setPersistPreview] = useState<PersistentPreview | null>(null);
 
@@ -98,10 +101,18 @@ export default function NewCalendar() {
 
     const theme = useTheme();
     const isSmall = useMediaQuery(theme.breakpoints.down("md"));
+    const scrollRef = useRef<HTMLDivElement>(null);
     const scale = useMemo(() => makeScale(zoom, isSmall), [zoom, isSmall]);
     const isCompact = nav.days.length > 1;
 
-    const scrollRef = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        if (!scrollRef.current) return;
+        const centerMinute = zoomCenterMinuteRef.current;
+        if (centerMinute == null) return;
+        const viewH = scrollRef.current.clientHeight;
+        scrollRef.current.scrollTop = Math.max(0, centerMinute * scale.pxPerMin - viewH / 2);
+        zoomCenterMinuteRef.current = null;
+    }, [scale.pxPerMin]);
     const scrollToNow = useCallback((behavior: ScrollBehavior = "smooth") => {
         if (!scrollRef.current) return;
         const now = dayjs().tz(timezone);
@@ -208,7 +219,19 @@ export default function NewCalendar() {
                         scrollbarWidth: "none",
                     }}
                 >
-                    <TimeGutter isCompact={isCompact} zoom={zoom} onZoomChange={setZoom} slotHeight={scale.slotHeight} />
+                    <TimeGutter
+                        isCompact={isCompact}
+                        zoom={zoom}
+                        onZoomChange={(nextZoom) => {
+                            if (scrollRef.current) {
+                                const viewH = scrollRef.current.clientHeight;
+                                zoomCenterMinuteRef.current = (scrollRef.current.scrollTop + viewH / 2) / scale.pxPerMin;
+                            }
+                            setZoom(nextZoom);
+                        }}
+                        slotHeight={scale.slotHeight}
+                        timeFormat={prefs.timeFormat}
+                    />
                     <Box display="flex" flex={1} alignItems="stretch">
                         {nav.days.map(day => (
                             <DayColumn

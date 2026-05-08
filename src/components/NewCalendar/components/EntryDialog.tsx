@@ -20,6 +20,7 @@ import { useCalendar } from "../context";
 import { EntryFormData } from "../hooks/useEntryActions";
 import ProjectSelector from "./ProjectSelector";
 import TaskAutocomplete from "./TaskAutocomplete";
+import { useCalendarPreferences } from "../../../hooks/useCalendarPreferences";
 
 interface Props {
     open: boolean;
@@ -49,6 +50,7 @@ export default function EntryDialog({
     const theme = useTheme();
     const mobile = useMediaQuery(theme.breakpoints.down("sm"));
     const { actions } = useCalendar();
+    const { prefs } = useCalendarPreferences();
 
     const [title, setTitle] = useState(initialTitle || "");
     const [startTime, setStartTime] = useState(initialStartTime);
@@ -163,14 +165,47 @@ export default function EntryDialog({
             </Stack>
 
             {isLiveRecording ? (
-                <TextField label="Start" type="time" fullWidth value={startTime} onChange={e => setStartTime(e.target.value)} size="small"
-                    slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
+                <TextField
+                    label="Start"
+                    type="time"
+                    fullWidth
+                    value={startTime}
+                    onChange={e => setStartTime(e.target.value)}
+                    size="small"
+                    slotProps={{
+                        inputLabel: { shrink: true },
+                        htmlInput: { lang: prefs.timeFormat === "12h" ? "en-US" : "en-GB", step: 60 },
+                        input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } },
+                    }}
+                />
             ) : (
                 <Stack direction="row" spacing={2}>
-                    <TextField label="Start" type="time" fullWidth value={startTime} onChange={e => setStartTime(e.target.value)} size="small"
-                        slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
-                    <TextField label="End" type="time" fullWidth value={endTime} onChange={e => setEndTime(e.target.value)} size="small"
-                        slotProps={{ inputLabel: { shrink: true }, input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } } }} />
+                    <TextField
+                        label="Start"
+                        type="time"
+                        fullWidth
+                        value={startTime}
+                        onChange={e => setStartTime(e.target.value)}
+                        size="small"
+                        slotProps={{
+                            inputLabel: { shrink: true },
+                            htmlInput: { lang: prefs.timeFormat === "12h" ? "en-US" : "en-GB", step: 60 },
+                            input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } },
+                        }}
+                    />
+                    <TextField
+                        label="End"
+                        type="time"
+                        fullWidth
+                        value={endTime}
+                        onChange={e => setEndTime(e.target.value)}
+                        size="small"
+                        slotProps={{
+                            inputLabel: { shrink: true },
+                            htmlInput: { lang: prefs.timeFormat === "12h" ? "en-US" : "en-GB", step: 60 },
+                            input: { sx: { '& input[type="time"]::-webkit-calendar-picker-indicator': { filter: t => t.palette.mode === "dark" ? "invert(0.5)" : "opacity(0.5)" } } },
+                        }}
+                    />
                 </Stack>
             )}
 

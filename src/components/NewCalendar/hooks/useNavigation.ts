@@ -12,7 +12,7 @@ import { dayjs, getBrowserTimezone } from "../../../lib/timezone";
 import { useUserTimezone } from "../../../hooks/useUserTimezone";
 import type { ViewMode, DayInfo } from "../types";
 
-export function useNavigation() {
+export function useNavigation(startOfWeek: "monday" | "sunday" = "monday") {
     const { timezone, loading: tzLoading } = useUserTimezone();
     // Initialise with browser timezone immediately so the calendar renders without waiting.
     const [date, setDate] = useState(() => dayjs().tz(getBrowserTimezone()));
@@ -34,7 +34,7 @@ export function useNavigation() {
                 dayOfWeek: date.format("ddd"),
             }];
         }
-        const start = date.startOf("isoWeek");
+        const start = startOfWeek === "sunday" ? date.startOf("week") : date.startOf("isoWeek");
         const count = viewMode === "work_week" ? 5 : 7;
         return Array.from({ length: count }, (_, i) => {
             const day = start.add(i, "day");
@@ -44,7 +44,7 @@ export function useNavigation() {
                 dayOfWeek: day.format("ddd"),
             };
         });
-    }, [date, viewMode]);
+    }, [date, viewMode, startOfWeek]);
 
     const goToday = useCallback(() => setDate(dayjs().tz(timezone)), [timezone]);
 

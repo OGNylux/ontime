@@ -36,11 +36,11 @@ export function formatDuration(seconds: number): string {
     return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
-/** Hour (0-23) or minute (when `useMinutes`) -> "h:mm A" display. */
-export function formatTimeLabel(minute: number): string {
+/** Minute -> time label, respecting 12h / 24h preference. */
+export function formatTimeLabel(minute: number, timeFormat: "12h" | "24h" = "12h"): string {
     const h = Math.floor(minute / 60);
     const m = minute % 60;
-    return dayjs().hour(h).minute(m).format("h:mm A");
+    return dayjs().hour(h).minute(m).format(timeFormat === "24h" ? "HH:mm" : "h:mm A");
 }
 
 //  DOM helpers (used by move / resize) 

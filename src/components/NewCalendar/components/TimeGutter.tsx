@@ -12,9 +12,10 @@ interface Props {
     zoom: ZoomLevel;
     onZoomChange: (z: ZoomLevel) => void;
     slotHeight: number;
+    timeFormat: "12h" | "24h";
 }
 
-export default function TimeGutter({ isCompact, zoom, onZoomChange, slotHeight }: Props) {
+export default function TimeGutter({ isCompact, zoom, onZoomChange, slotHeight, timeFormat }: Props) {
     const slots: number[] = [];
     for (let minute = 0; minute < MINUTES_PER_DAY; minute += zoom) {
         slots.push(minute);
@@ -45,7 +46,7 @@ export default function TimeGutter({ isCompact, zoom, onZoomChange, slotHeight }
                             fontSize={zoom < 60 ? "0.65rem" : "0.75rem"}
                             sx={{ transform: "translateY(50%)" }}
                         >
-                            {formatTimeLabel(minute + zoom)}
+                            {formatTimeLabel(minute + zoom, timeFormat)}
                         </Typography>
                     )}
                 </Box>
