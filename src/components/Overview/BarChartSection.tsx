@@ -16,6 +16,7 @@ interface BarChartSectionProps {
     projectIds: string[];
     projectNames: Record<string, string>;
     projectColors: Record<string, string>;
+    title?: string;
 }
 
 export default function BarChartSection({
@@ -23,6 +24,7 @@ export default function BarChartSection({
     projectIds,
     projectNames,
     projectColors,
+    title = 'Hours per Day',
 }: BarChartSectionProps) {
     const theme = useTheme();
     const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
@@ -60,7 +62,7 @@ export default function BarChartSection({
             bgcolor="background.default"
         >
             <Typography variant="subtitle1" fontWeight="bold" mb={2}>
-                Hours per Day
+                {title}
             </Typography>
             <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={data} layout={isSmallScreen ? 'vertical' : 'horizontal'}>

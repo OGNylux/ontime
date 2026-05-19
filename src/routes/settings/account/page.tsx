@@ -8,12 +8,14 @@ import {
   Grid,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useWorkspace } from "../../../hooks/useWorkspace";
 import LoadingBanner from "../../../components/Loading/LoadingBanner";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { userService, OntimeUser } from "../../../services/userService";
 
 export default function SettingsAccountPage() {
   const navigate = useNavigate();
+  const { path } = useWorkspace();
   const { showError, showSuccess } = useSnackbar();
   const [, setUser] = useState<OntimeUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +80,7 @@ export default function SettingsAccountPage() {
   return (
     <Box height="100%" display="flex" flexDirection="column">
       <Box mb={1}>
-        <Button size="small" onClick={() => navigate("/settings")}>Back to Settings</Button>
+        <Button size="small" onClick={() => navigate(path("/settings"))}>Back to Settings</Button>
       </Box>
       <Box borderRadius={2} boxShadow={4} bgcolor="background.default">
         <Box pl={3} py={2}>

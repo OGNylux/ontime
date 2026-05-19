@@ -13,31 +13,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import SidebarContent, { NavItem, NavSection } from './SidebarContent';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import { useNotificationsContext } from '../../hooks/useNotifications';
+import { useWorkspace } from '../../hooks/useWorkspace';
 
 interface SidebarProps {
   isDrawer?: boolean;
   open?: boolean;
   onClose?: () => void;
 }
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Overview', path: '/overview', icon: <Home /> },
-  { label: 'Calendar', path: '/timer', icon: <Timer /> },
-];
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    label: 'Create',
-    icon: <Add />,
-    paths: ['/clients', '/projects', '/tasks', '/invoices'],
-    subItems: [
-      { label: 'Clients', path: '/clients', pathMatch: 'startsWith' },
-      { label: 'Projects', path: '/projects', pathMatch: 'startsWith' },
-      { label: 'Tasks', path: '/tasks', pathMatch: 'startsWith' },
-      { label: 'Invoices', path: '/invoices', pathMatch: 'startsWith' },
-    ],
-  },
-];
 
 const drawerPaperSx = {
   width: 280,
@@ -56,6 +38,26 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
   const [collapsed, setCollapsed] = useState(false);
   const [sectionStates, setSectionStates] = useState<Record<string, boolean>>({});
   const { unreadCount } = useNotificationsContext();
+  const { path } = useWorkspace();
+
+  const NAV_ITEMS: NavItem[] = [
+    { label: 'Overview', path: path('/overview'), icon: <Home /> },
+    { label: 'Calendar', path: path('/timer'), icon: <Timer /> },
+  ];
+
+  const NAV_SECTIONS: NavSection[] = [
+    {
+      label: 'Create',
+      icon: <Add />,
+      paths: [path('/clients'), path('/projects'), path('/tasks'), path('/invoices')],
+      subItems: [
+        { label: 'Clients', path: path('/clients'), pathMatch: 'startsWith' },
+        { label: 'Projects', path: path('/projects'), pathMatch: 'startsWith' },
+        { label: 'Tasks', path: path('/tasks'), pathMatch: 'startsWith' },
+        { label: 'Invoices', path: path('/invoices'), pathMatch: 'startsWith' },
+      ],
+    },
+  ];
 
   useEffect(() => {
     const newStates: Record<string, boolean> = {};
@@ -89,14 +91,14 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
   const bottomNavItems: NavItem[] = [
     {
       label: 'Notifications',
-      path: '/notifications',
+      path: path('/notifications'),
       icon: (
         <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error" max={99}>
           <NotificationsIcon />
         </Badge>
       ),
     },
-    { label: 'Settings', path: '/settings', icon: <Settings /> },
+    { label: 'Settings', path: path('/settings'), icon: <Settings /> },
   ];
 
   const sidebarContent = useMemo(

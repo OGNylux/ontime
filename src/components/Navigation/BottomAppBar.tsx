@@ -24,36 +24,30 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotificationsContext } from '../../hooks/useNotifications';
+import { useWorkspace } from '../../hooks/useWorkspace';
 
 export default function BottomAppBar() {
     const navigate = useNavigate();
     const location = useLocation();
     const [fabOpen, setFabOpen] = useState(false);
     const { unreadCount } = useNotificationsContext();
+    const { path } = useWorkspace();
 
     const getNavValue = () => {
-        if (location.pathname === '/' || location.pathname === '/overview') return 0;
-        if (location.pathname === '/timer') return 1;
-        if (location.pathname === '/notifications') return 3;
-        if (location.pathname === '/settings') return 4;
+        if (location.pathname.endsWith('/overview')) return 0;
+        if (location.pathname.endsWith('/timer')) return 1;
+        if (location.pathname.endsWith('/notifications')) return 3;
+        if (location.pathname.endsWith('/settings')) return 4;
         return -1;
     };
 
     const handleNavChange = (_: React.SyntheticEvent, newValue: number) => {
         setFabOpen(false);
         switch (newValue) {
-            case 0:
-                navigate('/overview');
-                break;
-            case 1:
-                navigate('/timer');
-                break;
-            case 3:
-                navigate('/notifications');
-                break;
-            case 4:
-                navigate('/settings');
-                break;
+            case 0: navigate(path('/overview')); break;
+            case 1: navigate(path('/timer')); break;
+            case 3: navigate(path('/notifications')); break;
+            case 4: navigate(path('/settings')); break;
         }
     };
 
@@ -61,9 +55,9 @@ export default function BottomAppBar() {
         setFabOpen(!fabOpen);
     };
 
-    const handleQuickAction = (path: string) => {
+    const handleQuickAction = (p: string) => {
         setFabOpen(false);
-        navigate(path);
+        navigate(path(p));
     };
 
     return (

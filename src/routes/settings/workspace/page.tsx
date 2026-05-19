@@ -8,21 +8,21 @@ import {
   Autocomplete,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useWorkspace } from "../../../hooks/useWorkspace";
 import LoadingBanner from "../../../components/Loading/LoadingBanner";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { userService, OntimeUser } from "../../../services/userService";
 import { workspaceService, WorkspaceBilling } from "../../../services/workspaceService";
-import { getActiveWorkspaceId } from "../../../services/workspaceContext";
 import { TIMEZONE_OPTIONS, getBrowserTimezone } from "../../../lib/timezone";
 import { notifyTimezoneChange } from "../../../hooks/useUserTimezone";
 import WorkspaceMembersCard from "../WorkspaceMembersCard";
 
 export default function SettingsWorkspacePage() {
   const navigate = useNavigate();
+  const { path, workspaceId: urlWorkspaceId } = useWorkspace();
   const { showError, showSuccess } = useSnackbar();
   const [, setUser] = useState<OntimeUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const [timezone, setTimezone] = useState("");
   const [currency, setCurrency] = useState(() => localStorage.getItem("ontime_currency") ?? "EUR");
@@ -31,16 +31,14 @@ export default function SettingsWorkspacePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [current, wid] = await Promise.all([
+        const [current, billingData] = await Promise.all([
           userService.getCurrentUser(),
-          getActiveWorkspaceId(),
+          workspaceService.getBilling(urlWorkspaceId),
         ]);
         if (current) {
           setUser(current);
           setTimezone(current.timezone ?? getBrowserTimezone() ?? "UTC");
         }
-        setWorkspaceId(wid);
-        const billingData = await workspaceService.getBilling(wid);
         if (billingData) setBilling(billingData);
       } catch (e) {
         showError("Failed to load workspace settings", e instanceof Error ? e.message : undefined);
@@ -49,11 +47,11 @@ export default function SettingsWorkspacePage() {
       }
     };
     load();
-  }, []);
+  }, [urlWorkspaceId]);
 
   const handleSave = async () => {
     try {
-      const wid = workspaceId ?? (await getActiveWorkspaceId());
+      const wid = urlWorkspaceId ?? urlWorkspaceId;
       const [updated] = await Promise.all([
         userService.updateProfile({ timezone }),
         workspaceService.saveBilling(wid, billing),
@@ -71,7 +69,7 @@ export default function SettingsWorkspacePage() {
   return (
     <Box height="100%" display="flex" flexDirection="column">
       <Box mb={1}>
-        <Button size="small" onClick={() => navigate("/settings")}>Back to Settings</Button>
+        <Button size="small" onClick={() => navigate(path("/settings"))}>Back to Settings</Button>
       </Box>
       <Box borderRadius={2} boxShadow={4} bgcolor="background.default">
         <Box pl={3} py={2}>
@@ -107,7 +105,6 @@ export default function SettingsWorkspacePage() {
                 <TextField
                   {...params}
                   label="Timezone"
-                  helperText="Affects how times appear on invoices"
                 />
               )}
               freeSolo
@@ -143,7 +140,7 @@ export default function SettingsWorkspacePage() {
           </Box>
         </Box>
 
-        {workspaceId && <WorkspaceMembersCard workspaceId={workspaceId} />}
+        {urlWorkspaceId && <WorkspaceMembersCard workspaceId={urlWorkspaceId} />}
       </Box>
     </Box>
   );

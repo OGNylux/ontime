@@ -1,52 +1,39 @@
 import { useState, useEffect } from 'react';
-import { Button, Menu, MenuItem, ListItemIcon, Typography, CircularProgress } from '@mui/material';
+import { Button, Menu, MenuItem, ListItemIcon, Typography } from '@mui/material';
 import { Check, ExpandMore } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { workspaceService, type Workspace } from '../../services/workspaceService';
-import { getActiveWorkspaceId } from '../../services/workspaceContext';
+import { useWorkspace } from '../../hooks/useWorkspace';
 
 export default function WorkspaceSwitcher() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [switching, setSwitching] = useState(false);
+  const navigate = useNavigate();
+  const { workspaceId } = useWorkspace();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([workspaceService.listMine(), getActiveWorkspaceId()])
-      .then(([ws, id]) => {
-        if (cancelled) return;
-        setWorkspaces(ws);
-        setActiveId(id);
-      })
-      .catch((err) => {
-        console.error('Failed to load workspaces:', err);
-      });
+    workspaceService.listMine()
+      .then((ws) => { if (!cancelled) setWorkspaces(ws); })
+      .catch((err) => console.error('Failed to load workspaces:', err));
     return () => { cancelled = true; };
   }, []);
 
-  const activeWorkspace = workspaces.find((w) => w.id === activeId);
+  const activeWorkspace = workspaces.find((w) => w.id === workspaceId);
 
   const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
   const handleClose = () => setAnchorEl(null);
 
-  const handleSwitch = async (id: string) => {
-    if (id === activeId) { handleClose(); return; }
-    setSwitching(true);
-    try {
-      await workspaceService.setActive(id);
-      window.location.reload();
-    } catch (err) {
-      console.error('Failed to switch workspace:', err);
-      setSwitching(false);
-      handleClose();
-    }
+  const handleSwitch = (id: string) => {
+    handleClose();
+    if (id !== workspaceId) navigate(`/w/${id}/timer`);
   };
 
   return (
     <>
       <Button
         onClick={handleOpen}
-        endIcon={switching ? <CircularProgress size={14} color="inherit" /> : <ExpandMore />}
+        endIcon={<ExpandMore />}
         sx={{
           textTransform: 'none',
           justifyContent: 'flex-start',
@@ -63,9 +50,9 @@ export default function WorkspaceSwitcher() {
       </Button>
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
         {workspaces.map((ws) => (
-          <MenuItem key={ws.id} onClick={() => handleSwitch(ws.id)} selected={ws.id === activeId}>
+          <MenuItem key={ws.id} onClick={() => handleSwitch(ws.id)} selected={ws.id === workspaceId}>
             <ListItemIcon sx={{ minWidth: 32 }}>
-              {ws.id === activeId && <Check fontSize="small" />}
+              {ws.id === workspaceId && <Check fontSize="small" />}
             </ListItemIcon>
             {ws.name}
           </MenuItem>

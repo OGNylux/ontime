@@ -11,32 +11,34 @@ import { authService } from "../../services/authService";
 import { useNavigate } from "react-router-dom";
 import { useThemeMode } from "../../hooks/useThemeMode";
 import { useSnackbar } from "../../hooks/useSnackbar";
+import { useWorkspace } from "../../hooks/useWorkspace";
 
 export default function SettingsPage() {
   const { showError } = useSnackbar();
   const { mode, setLightMode, setDarkMode, setSystemMode } = useThemeMode();
   const navigate = useNavigate();
+  const { path } = useWorkspace();
 
   const sections = [
     {
       title: "Workspace Settings",
       description: "Timezone, currency, company details, and members.",
-      path: "/settings/workspace",
+      path: path("/settings/workspace"),
     },
     {
       title: "Billing & Bank",
       description: "Billing address and bank details for invoices.",
-      path: "/settings/billing",
+      path: path("/settings/billing"),
     },
     {
       title: "User Settings",
       description: "Profile details and password changes.",
-      path: "/settings/account",
+      path: path("/settings/account"),
     },
     {
       title: "Calendar Settings",
       description: "Start of week and time format.",
-      path: "/settings/calendar",
+      path: path("/settings/calendar"),
     },
   ];
 

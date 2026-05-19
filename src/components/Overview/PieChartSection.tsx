@@ -13,9 +13,10 @@ interface PieDataItem {
 interface PieChartSectionProps {
     data: PieDataItem[];
     projectNames: Record<string, string>;
+    title?: string;
 }
 
-export default function PieChartSection({ data, projectNames }: PieChartSectionProps) {
+export default function PieChartSection({ data, projectNames, title = 'Project Distribution' }: PieChartSectionProps) {
     const theme = useTheme();
     const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
     const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
@@ -32,7 +33,7 @@ export default function PieChartSection({ data, projectNames }: PieChartSectionP
             bgcolor="background.default"
         >
             <Typography variant="subtitle1" fontWeight="bold" mb={2}>
-                Project Distribution
+                {title}
             </Typography>
             <ResponsiveContainer width="100%" height={isSmall ? 180 : isNarrow ? 200 : 240}>
                 <PieChart>

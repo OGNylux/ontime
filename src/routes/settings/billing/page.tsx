@@ -11,21 +11,19 @@ import { useNavigate } from "react-router-dom";
 import LoadingBanner from "../../../components/Loading/LoadingBanner";
 import { useSnackbar } from "../../../hooks/useSnackbar";
 import { workspaceService, WorkspaceBilling } from "../../../services/workspaceService";
-import { getActiveWorkspaceId } from "../../../services/workspaceContext";
+import { useWorkspace } from "../../../hooks/useWorkspace";
 
 export default function SettingsBillingPage() {
   const navigate = useNavigate();
+  const { path, workspaceId } = useWorkspace();
   const { showError, showSuccess } = useSnackbar();
   const [loading, setLoading] = useState(true);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [billing, setBilling] = useState<WorkspaceBilling>({});
 
   useEffect(() => {
     const load = async () => {
       try {
-        const wid = await getActiveWorkspaceId();
-        setWorkspaceId(wid);
-        const billingData = await workspaceService.getBilling(wid);
+        const billingData = await workspaceService.getBilling(workspaceId);
         if (billingData) setBilling(billingData);
       } catch (e) {
         showError("Failed to load billing settings", e instanceof Error ? e.message : undefined);
@@ -34,12 +32,11 @@ export default function SettingsBillingPage() {
       }
     };
     load();
-  }, []);
+  }, [workspaceId]);
 
   const handleSave = async () => {
     try {
-      const wid = workspaceId ?? (await getActiveWorkspaceId());
-      await workspaceService.saveBilling(wid, billing);
+      await workspaceService.saveBilling(workspaceId, billing);
       showSuccess("Billing settings saved");
     } catch (e) {
       showError("Failed to save billing settings", e instanceof Error ? e.message : undefined);
@@ -51,7 +48,7 @@ export default function SettingsBillingPage() {
   return (
     <Box height="100%" display="flex" flexDirection="column">
       <Box mb={1}>
-        <Button size="small" onClick={() => navigate("/settings")}>Back to Settings</Button>
+        <Button size="small" onClick={() => navigate(path("/settings"))}>Back to Settings</Button>
       </Box>
       <Box borderRadius={2} boxShadow={4} bgcolor="background.default">
         <Box pl={3} py={2}>

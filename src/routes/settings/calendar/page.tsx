@@ -9,15 +9,17 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useCalendarPreferences } from "../../../hooks/useCalendarPreferences";
+import { useWorkspace } from "../../../hooks/useWorkspace";
 
 export default function SettingsCalendarPage() {
   const navigate = useNavigate();
+  const { path } = useWorkspace();
   const { prefs, update: updatePrefs } = useCalendarPreferences();
 
   return (
     <Box height="100%" display="flex" flexDirection="column">
       <Box mb={1}>
-        <Button size="small" onClick={() => navigate("/settings")}>Back to Settings</Button>
+        <Button size="small" onClick={() => navigate(path("/settings"))}>Back to Settings</Button>
       </Box>
       <Box borderRadius={2} boxShadow={4} bgcolor="background.default">
         <Box pl={3} py={2}>

@@ -9,6 +9,8 @@ import {
     MenuItem,
     Checkbox,
     ListItemText,
+    Radio,
+    Divider,
 } from '@mui/material';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import {
@@ -19,6 +21,7 @@ import {
     AttachMoney,
     TrendingUp,
     CalendarMonth,
+    CenterFocusStrong,
 } from '@mui/icons-material';
 import dayjs, { Dayjs } from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
@@ -28,6 +31,7 @@ import BarChartSection from '../../components/Overview/BarChartSection';
 import PieChartSection from '../../components/Overview/PieChartSection';
 import ProjectTaskTable from '../../components/Overview/ProjectTaskTable';
 import DateRangeDialog from '../../components/Overview/DateRangeDialog';
+import ActivityHeatmap from '../../components/Overview/ActivityHeatmap';
 import { useOverviewData } from '../../components/Overview/hooks/useOverviewData';
 import LoadingBanner from '../../components/Loading/LoadingBanner';
 import { formatDuration } from '../../components/NewCalendar/layout/timeUtils';
@@ -43,6 +47,7 @@ export default function OverviewPage() {
 
     const [clientAnchor, setClientAnchor] = useState<null | HTMLElement>(null);
     const [projectAnchor, setProjectAnchor] = useState<null | HTMLElement>(null);
+    const [focusAnchor, setFocusAnchor] = useState<null | HTMLElement>(null);
 
     const {
         loading,
@@ -59,6 +64,10 @@ export default function OverviewPage() {
         toggleProject,
         toggleClient,
         toggleProjectFilter,
+        focusedProjectId,
+        setFocusedProjectId,
+        focusedChartData,
+        activityByDay,
     } = useOverviewData(startDate, endDate);
 
     const navigate = (direction: 'prev' | 'next') => {
@@ -104,12 +113,14 @@ export default function OverviewPage() {
                                 </Typography>
                             </Box>
 
-                            <Box display="flex" gap={1}>
+                            <Box display="flex" gap={1} flexWrap="wrap">
+                                {/* Clients filter */}
                                 <Button
                                     variant="outlined"
                                     size="small"
                                     startIcon={<FilterList />}
                                     onClick={(e) => setClientAnchor(e.currentTarget)}
+                                    color={selectedClientIds.length > 0 ? 'primary' : 'inherit'}
                                 >
                                     Clients {selectedClientIds.length > 0 && `(${selectedClientIds.length})`}
                                 </Button>
@@ -127,54 +138,28 @@ export default function OverviewPage() {
                                             </MenuItem>
                                         ))}
                                         {clients.length === 0 && (
-                                            <MenuItem disabled>
-                                                <ListItemText primary="No clients" />
-                                            </MenuItem>
+                                            <MenuItem disabled><ListItemText primary="No clients" /></MenuItem>
                                         )}
                                     </Box>
-
                                     {selectedClientIds.length > 0 && (
-                                        <Box 
-                                            sx={{ 
-                                                display: 'flex', 
-                                                flexWrap: 'nowrap',
-                                                gap: 1, 
-                                                mt: 1, 
-                                                pt: 1, 
-                                                borderTop: 1, 
-                                                borderColor: 'divider',
-                                                overflowX: 'auto',
-                                                maxWidth: 260,
-                                                '&::-webkit-scrollbar': {
-                                                    height: 6,
-                                                },
-                                                '&::-webkit-scrollbar-thumb': {
-                                                    backgroundColor: 'rgba(0,0,0,.2)',
-                                                    borderRadius: 3,
-                                                },
-                                            }}
-                                        >
+                                        <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 1, mt: 1, pt: 1, borderTop: 1, borderColor: 'divider', overflowX: 'auto', maxWidth: 260 }}>
                                             {selectedClientIds.map((id) => {
                                                 const client = clients.find((c) => c.id === id);
                                                 return client ? (
-                                                    <Chip
-                                                        key={id}
-                                                        label={client.name}
-                                                        size="small"
-                                                        onDelete={() => toggleClient(id)}
-                                                        sx={{ flexShrink: 0 }}
-                                                    />
+                                                    <Chip key={id} label={client.name} size="small" onDelete={() => toggleClient(id)} sx={{ flexShrink: 0 }} />
                                                 ) : null;
                                             })}
                                         </Box>
                                     )}
                                 </Menu>
 
+                                {/* Projects filter */}
                                 <Button
                                     variant="outlined"
                                     size="small"
                                     startIcon={<FilterList />}
                                     onClick={(e) => setProjectAnchor(e.currentTarget)}
+                                    color={selectedProjectIds.length > 0 ? 'primary' : 'inherit'}
                                 >
                                     Projects {selectedProjectIds.length > 0 && `(${selectedProjectIds.length})`}
                                 </Button>
@@ -186,61 +171,69 @@ export default function OverviewPage() {
                                 >
                                     <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
                                         {projects
-                                            .filter((p) =>
-                                                selectedClientIds.length === 0 ||
-                                                (p.client_id && selectedClientIds.includes(p.client_id))
-                                            )
+                                            .filter((p) => selectedClientIds.length === 0 || (p.client_id && selectedClientIds.includes(p.client_id)))
                                             .map((p) => (
                                                 <MenuItem key={p.id} onClick={() => toggleProjectFilter(p.id!)}>
                                                     <Checkbox checked={selectedProjectIds.includes(p.id!)} />
                                                     <ListItemText primary={p.name} />
                                                 </MenuItem>
                                             ))}
-                                        {projects.filter((p) =>
-                                            selectedClientIds.length === 0 ||
-                                            (p.client_id && selectedClientIds.includes(p.client_id))
-                                        ).length === 0 && (
-                                            <MenuItem disabled>
-                                                <ListItemText primary={selectedClientIds.length > 0 ? "No projects in selected clients" : "No projects"} />
-                                            </MenuItem>
+                                        {projects.filter((p) => selectedClientIds.length === 0 || (p.client_id && selectedClientIds.includes(p.client_id))).length === 0 && (
+                                            <MenuItem disabled><ListItemText primary={selectedClientIds.length > 0 ? 'No projects in selected clients' : 'No projects'} /></MenuItem>
                                         )}
                                     </Box>
-
                                     {selectedProjectIds.length > 0 && (
-                                        <Box 
-                                            sx={{ 
-                                                display: 'flex', 
-                                                flexWrap: 'nowrap',
-                                                gap: 1, 
-                                                mt: 1, 
-                                                pt: 1, 
-                                                borderTop: 1, 
-                                                borderColor: 'divider',
-                                                overflowX: 'auto',
-                                                maxWidth: 260,
-                                                '&::-webkit-scrollbar': {
-                                                    height: 6,
-                                                },
-                                                '&::-webkit-scrollbar-thumb': {
-                                                    backgroundColor: 'rgba(0,0,0,.2)',
-                                                    borderRadius: 3,
-                                                },
-                                            }}
-                                        >
+                                        <Box sx={{ display: 'flex', flexWrap: 'nowrap', gap: 1, mt: 1, pt: 1, borderTop: 1, borderColor: 'divider', overflowX: 'auto', maxWidth: 260 }}>
                                             {selectedProjectIds.map((id) => {
                                                 const project = projects.find((p) => p.id === id);
                                                 return project ? (
-                                                    <Chip
-                                                        key={id}
-                                                        label={project.name}
-                                                        size="small"
-                                                        onDelete={() => toggleProjectFilter(id)}
-                                                        sx={{ flexShrink: 0 }}
-                                                    />
+                                                    <Chip key={id} label={project.name} size="small" onDelete={() => toggleProjectFilter(id)} sx={{ flexShrink: 0 }} />
                                                 ) : null;
                                             })}
                                         </Box>
                                     )}
+                                </Menu>
+
+                                {/* Task drill-down: focus on a specific project */}
+                                <Button
+                                    variant={focusedProjectId ? 'contained' : 'outlined'}
+                                    size="small"
+                                    startIcon={<CenterFocusStrong />}
+                                    onClick={(e) => setFocusAnchor(e.currentTarget)}
+                                    color={focusedProjectId ? 'primary' : 'inherit'}
+                                >
+                                    {focusedChartData ? focusedChartData.projectName : 'Task Detail'}
+                                </Button>
+                                <Menu
+                                    anchorEl={focusAnchor}
+                                    open={Boolean(focusAnchor)}
+                                    onClose={() => setFocusAnchor(null)}
+                                    PaperProps={{ sx: { bgcolor: 'background.default', width: 260, p: 1 } }}
+                                >
+                                    <Typography variant="caption" color="text.secondary" sx={{ px: 2, pb: 0.5, display: 'block' }}>
+                                        Show task breakdown for:
+                                    </Typography>
+                                    <MenuItem onClick={() => { setFocusedProjectId(null); setFocusAnchor(null); }}>
+                                        <Radio checked={focusedProjectId === null} size="small" sx={{ p: 0.5 }} />
+                                        <ListItemText primary="All projects" primaryTypographyProps={{ color: 'text.secondary', fontSize: 14 }} />
+                                    </MenuItem>
+                                    <Divider sx={{ my: 0.5 }} />
+                                    <Box sx={{ maxHeight: 240, overflowY: 'auto' }}>
+                                        {projectTableData.length === 0 && (
+                                            <MenuItem disabled><ListItemText primary="No data for this period" /></MenuItem>
+                                        )}
+                                        {projectTableData.map((p) => (
+                                            <MenuItem key={p.projectId} onClick={() => { setFocusedProjectId(p.projectId); setFocusAnchor(null); }}>
+                                                <Radio checked={focusedProjectId === p.projectId} size="small" sx={{ p: 0.5 }} />
+                                                <Box width={10} height={10} borderRadius="50%" bgcolor={p.projectColor} flexShrink={0} mx={1} />
+                                                <ListItemText
+                                                    primary={p.projectName}
+                                                    secondary={`${p.tasks.length} task${p.tasks.length !== 1 ? 's' : ''}`}
+                                                    secondaryTypographyProps={{ fontSize: 12 }}
+                                                />
+                                            </MenuItem>
+                                        ))}
+                                    </Box>
                                 </Menu>
                             </Box>
                         </Box>
@@ -253,14 +246,35 @@ export default function OverviewPage() {
                         <StatCard icon={<CalendarMonth />} label="Avg Hours/Day" value={formatDuration(stats.avgMinutesPerDay * 60)} />
                     </Box>
 
+                                        <ActivityHeatmap data={activityByDay} />
+
                                         <Box display="flex" gap={2} flexWrap="wrap">
-                        <BarChartSection
-                            data={dailyChartData.data}
-                            projectIds={dailyChartData.projectIds}
-                            projectNames={dailyChartData.projectNames}
-                            projectColors={dailyChartData.projectColors}
-                        />
-                        <PieChartSection data={pieChartData} projectNames={dailyChartData.projectNames} />
+                        {focusedChartData ? (
+                            <>
+                                <BarChartSection
+                                    data={focusedChartData.bar.data}
+                                    projectIds={focusedChartData.bar.projectIds}
+                                    projectNames={focusedChartData.bar.projectNames}
+                                    projectColors={focusedChartData.bar.projectColors}
+                                    title={`Hours per Day — ${focusedChartData.projectName}`}
+                                />
+                                <PieChartSection
+                                    data={focusedChartData.pieData}
+                                    projectNames={focusedChartData.itemNames}
+                                    title={`Task Distribution — ${focusedChartData.projectName}`}
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <BarChartSection
+                                    data={dailyChartData.data}
+                                    projectIds={dailyChartData.projectIds}
+                                    projectNames={dailyChartData.projectNames}
+                                    projectColors={dailyChartData.projectColors}
+                                />
+                                <PieChartSection data={pieChartData} projectNames={dailyChartData.projectNames} />
+                            </>
+                        )}
                     </Box>
 
                                         <ProjectTaskTable

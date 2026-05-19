@@ -151,6 +151,7 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
                       <FormControl size="small" sx={{ minWidth: 110 }}>
                         <Select
                           value={member.role}
+                          MenuProps={{ PaperProps: { sx: { bgcolor: t => t.palette.background.default, backgroundImage: "none" } } }}
                           onChange={(e) =>
                             handleRoleChange(member.user_id, e.target.value as WorkspaceRole)
                           }
@@ -205,6 +206,7 @@ export default function WorkspaceMembersCard({ workspaceId }: Props) {
                   <Select
                     label="Role"
                     value={inviteRole}
+                    MenuProps={{ PaperProps: { sx: { bgcolor: t => t.palette.background.default, backgroundImage: "none" } } }}
                     onChange={(e) => setInviteRole(e.target.value as InviteRole)}
                   >
                     {myRole === "owner" && <MenuItem value="admin">Admin</MenuItem>}
