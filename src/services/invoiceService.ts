@@ -110,7 +110,7 @@ export const invoiceService = {
         if (lineItems.length > 0) {
             const { error: lineError } = await supabase
                 .from('ontime_invoice_line_item')
-                .insert(lineItems.map((item) => ({ ...item, invoice_id: invoiceId })));
+                .insert(lineItems.map(({ project_name: _p, ...item }) => ({ ...item, invoice_id: invoiceId })));
             if (lineError) throw lineError;
         }
 
@@ -152,7 +152,7 @@ export const invoiceService = {
                 .select(`
                     *,
                     client:ontime_client(*, info:ontime_client_info(*)),
-                    line_items:ontime_invoice_line_item(*)
+                    line_items:ontime_invoice_line_item(*, calendar_entry:ontime_calendar_entry(task:ontime_task(project:ontime_project(name))))
                 `)
                 .eq('id', id)
                 .single(),
@@ -165,8 +165,40 @@ export const invoiceService = {
         if (error) throw error;
 
         const client = (raw as Record<string, unknown>).client as Record<string, unknown> | null;
+        const invoice = raw as Invoice;
+        if (invoice.line_items) {
+            invoice.line_items = invoice.line_items.map((item) => {
+                const entry = ((item as unknown) as Record<string, unknown>).calendar_entry as Record<string, unknown> | null;
+                const projectName = (entry?.task as Record<string, unknown> | null)?.project as Record<string, unknown> | null;
+                return { ...item, project_name: (projectName?.name as string) ?? null };
+            });
+        }
         return {
-            invoice: raw as Invoice,
+            invoice,
+            clientInfo: {
+                name: (client?.name as string) ?? '',
+                ...((client?.info as object) ?? {}),
+            },
+            billing: billing as InvoicePdfData['billing'],
+        };
+    },
+
+    async getPreviewData(clientId: string): Promise<Pick<InvoicePdfData, 'clientInfo' | 'billing'>> {
+        const workspaceId = await getActiveWorkspaceId();
+        const [{ data: clientData }, { data: billing }] = await Promise.all([
+            supabase
+                .from('ontime_client')
+                .select('*, info:ontime_client_info(*)')
+                .eq('id', clientId)
+                .single(),
+            supabase
+                .from('ontime_workspace_billing')
+                .select('*')
+                .eq('workspace_id', workspaceId)
+                .maybeSingle(),
+        ]);
+        const client = clientData as Record<string, unknown> | null;
+        return {
             clientInfo: {
                 name: (client?.name as string) ?? '',
                 ...((client?.info as object) ?? {}),

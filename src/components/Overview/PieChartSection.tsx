@@ -14,28 +14,38 @@ interface PieChartSectionProps {
     data: PieDataItem[];
     projectNames: Record<string, string>;
     title?: string;
+    fullHeight?: boolean;
 }
 
-export default function PieChartSection({ data, projectNames, title = 'Project Distribution' }: PieChartSectionProps) {
+export default function PieChartSection({
+    data,
+    projectNames,
+    title = 'Project Distribution',
+    fullHeight = false,
+}: PieChartSectionProps) {
     const theme = useTheme();
     const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
     const isNarrow = useMediaQuery(theme.breakpoints.down('md'));
+    const chartHeight = fullHeight ? '100%' : isSmall ? 180 : isNarrow ? 200 : 240;
 
     return (
         <Box
             flex={1}
             minWidth={250}
             minHeight={260}
+            height={fullHeight ? '100%' : undefined}
             py={1}
             px={2}
             borderRadius={2}
             boxShadow={4}
             bgcolor="background.default"
+            display="flex"
+            flexDirection="column"
         >
             <Typography variant="subtitle1" fontWeight="bold" mb={2}>
                 {title}
             </Typography>
-            <ResponsiveContainer width="100%" height={isSmall ? 180 : isNarrow ? 200 : 240}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
                 <PieChart>
                     <Pie
                         data={data}
@@ -43,8 +53,8 @@ export default function PieChartSection({ data, projectNames, title = 'Project D
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        innerRadius={isSmall ? 44 : isNarrow ? 52 : 70}
-                        outerRadius={isSmall ? 72 : isNarrow ? 86 : 120}
+                        innerRadius={isSmall ? 78 : isNarrow ? 96 : 129}
+                        outerRadius={isSmall ? 126 : isNarrow ? 156 : 225}
                         stroke={theme.palette.background.default}
                         strokeWidth={2}
                         cornerRadius={4}
@@ -54,7 +64,7 @@ export default function PieChartSection({ data, projectNames, title = 'Project D
                                 component="text"
                                 x={x}
                                 y={y}
-                                sx={{ fill: theme.palette.text.primary, fontSize: isSmall ? 12 : isNarrow ? 13 : 14 }}
+                                sx={{ fill: theme.palette.text.primary, fontSize: isSmall ? 15 : isNarrow ? 16 : 17 }}
                                 style={{ textAnchor: 'middle', dominantBaseline: 'central' }}
                             >
                                 {`${((percent ?? 0) * 100).toFixed(0)}%`}

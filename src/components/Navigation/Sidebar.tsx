@@ -125,10 +125,8 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         ModalProps={{ keepMounted: true }}
         slotProps={{ paper: { sx: drawerPaperSx } }}
       >
-        <Box display="flex" alignItems="center" px={2} py={2}>
-          <WorkspaceSwitcher />
-        </Box>
-        <Divider />
+        <WorkspaceSwitcher />
+        <Divider sx={{ mt: 1 }} />
         <Box display="flex" flexDirection="column" height="100%">
           <Box flex={1} overflow="auto">
             <SidebarContent
@@ -178,9 +176,13 @@ export default function Sidebar({ isDrawer = false, open = false, onClose }: Sid
         },
       }}
     >
-      <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
-        {!collapsed && <WorkspaceSwitcher />}
-        <IconButton onClick={handleDrawerToggle} sx={{ ml: 1 }}>
+      <Box display="flex" alignItems="flex-start" justifyContent="space-between" pr={1}>
+        {!collapsed && (
+          <Box flex={1} minWidth={0}>
+            <WorkspaceSwitcher />
+          </Box>
+        )}
+        <IconButton onClick={handleDrawerToggle} sx={{ mt: 1, ml: collapsed ? 1 : 0 }}>
           {collapsed ? <ChevronRight /> : <ChevronLeft />}
         </IconButton>
       </Box>

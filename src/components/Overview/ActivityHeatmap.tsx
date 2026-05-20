@@ -5,7 +5,7 @@ interface ActivityHeatmapProps {
     data: Record<string, number>; // date (YYYY-MM-DD) -> total minutes
 }
 
-const CELL = 12;
+const CELL = 20;
 const GAP = 2;
 const STEP = CELL + GAP;
 
@@ -21,7 +21,7 @@ function level(minutes: number): 0 | 1 | 2 | 3 | 4 {
 }
 
 function levelColor(lvl: number, dark: boolean): string {
-    if (lvl === 0) return dark ? '#161b22' : '#ebedf0';
+    if (lvl === 0) return dark ? '#525252' : '#F5F5F5';
     const palette = dark
         ? ['#0e4429', '#006d32', '#26a641', '#39d353']
         : ['#9be9a8', '#40c463', '#30a14e', '#216e39'];
@@ -83,7 +83,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
                         <Box key={i} height={CELL} display="flex" alignItems="center">
                             <Typography
                                 color="text.secondary"
-                                sx={{ fontSize: 10, lineHeight: 1, width: 26, textAlign: 'right', userSelect: 'none' }}
+                                sx={{ fontSize: 14, lineHeight: 1, width: 26, textAlign: 'right', userSelect: 'none' }}
                             >
                                 {label}
                             </Typography>
@@ -99,7 +99,7 @@ export default function ActivityHeatmap({ data }: ActivityHeatmapProps) {
                                 {monthLabels.has(wi) && (
                                     <Typography
                                         color="text.secondary"
-                                        sx={{ fontSize: 10, lineHeight: 1, userSelect: 'none' }}
+                                        sx={{ fontSize: 14, lineHeight: 1, userSelect: 'none' }}
                                     >
                                         {monthLabels.get(wi)}
                                     </Typography>

@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Button, Menu, MenuItem, ListItemIcon, Typography } from '@mui/material';
-import { Check, ExpandMore } from '@mui/icons-material';
+import { Box, Collapse, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { workspaceService, type Workspace } from '../../services/workspaceService';
 import { useWorkspace } from '../../hooks/useWorkspace';
+import TreeConnector from './TreeConnector';
+import { is } from 'zod/v4/locales';
 
 export default function WorkspaceSwitcher() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { workspaceId } = useWorkspace();
 
@@ -21,43 +23,72 @@ export default function WorkspaceSwitcher() {
 
   const activeWorkspace = workspaces.find((w) => w.id === workspaceId);
 
-  const handleOpen = (e: React.MouseEvent<HTMLElement>) => setAnchorEl(e.currentTarget);
-  const handleClose = () => setAnchorEl(null);
-
   const handleSwitch = (id: string) => {
-    handleClose();
+    setOpen(false);
     if (id !== workspaceId) navigate(`/w/${id}/timer`);
   };
 
   return (
-    <>
-      <Button
-        onClick={handleOpen}
-        endIcon={<ExpandMore />}
+    <Box mb={2}>
+      <ListItemButton
+        onClick={() => setOpen((prev) => !prev)}
         sx={{
-          textTransform: 'none',
-          justifyContent: 'flex-start',
-          color: 'text.primary',
-          px: 0,
-          minWidth: 0,
-          '&:hover': { background: 'transparent' },
+          bgcolor: 'background.default',
+          borderRadius: 2,
+          borderBottom: 3,
+          borderColor: 'primary.main',
+          mx: 1,
+          mt: 1,
+          '&:hover': { bgcolor: 'action.hover' },
         }}
-        disableRipple
       >
-        <Typography variant="h5" fontWeight="bold" color="text.primary" noWrap sx={{ maxWidth: 180 }}>
-          {activeWorkspace?.name ?? '…'}
-        </Typography>
-      </Button>
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
-        {workspaces.map((ws) => (
-          <MenuItem key={ws.id} onClick={() => handleSwitch(ws.id)} selected={ws.id === workspaceId}>
-            <ListItemIcon sx={{ minWidth: 32 }}>
-              {ws.id === workspaceId && <Check fontSize="small" />}
-            </ListItemIcon>
-            {ws.name}
-          </MenuItem>
-        ))}
-      </Menu>
-    </>
+        <ListItemText
+          primary={
+            <Typography variant="h6" fontWeight="bold" noWrap>
+              {activeWorkspace?.name ?? '...'}
+            </Typography>
+          }
+        />
+        {open ? <ExpandLess /> : <ExpandMore />}
+      </ListItemButton>
+
+      <Collapse in={open} timeout="auto" unmountOnExit>
+        <List component="div" disablePadding>
+          {workspaces.map((ws, index) => {
+            const isActive = ws.id === workspaceId;
+            const isLast = index === workspaces.length - 1;
+            const hasActiveBelow = workspaces.slice(index + 1).some((w) => w.id === workspaceId);
+            return (
+              <Box
+                key={ws.id}
+                sx={{ display: 'flex', alignItems: 'center', px: 1, my: 0.5 }}
+              >
+                <TreeConnector
+                  isLast={isLast}
+                  isActive={isActive}
+                  hasActiveBelow={hasActiveBelow}
+                />
+                <ListItemButton
+                  onClick={() => handleSwitch(ws.id)}
+                  sx={{
+                    flex: 1,
+                    bgcolor: isActive ? 'primary.main' : 'transparent',
+                    borderRadius: 2,
+                    '&:hover': {
+                      bgcolor: isActive ? 'primary.dark' : 'action.hover',
+                    },
+                  }}
+                >
+                  <ListItemText
+                    primary={ws.name}
+                    sx={{ color: isActive ? 'primary.contrastText' : 'text.primary' }}
+                  />
+                </ListItemButton>
+              </Box>
+            );
+          })}
+        </List>
+      </Collapse>
+    </Box>
   );
 }

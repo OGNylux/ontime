@@ -246,36 +246,40 @@ export default function OverviewPage() {
                         <StatCard icon={<CalendarMonth />} label="Avg Hours/Day" value={formatDuration(stats.avgMinutesPerDay * 60)} />
                     </Box>
 
-                                        <ActivityHeatmap data={activityByDay} />
+                                        <Box display="flex" gap={2} flexWrap="wrap" alignItems="stretch">
+                                            <Box display="flex" flexDirection="column" gap={2} flex={2} minWidth={360} flexShrink={0}>
+                                                <ActivityHeatmap data={activityByDay} />
+                                                {focusedChartData ? (
+                                                    <BarChartSection
+                                                        data={focusedChartData.bar.data}
+                                                        projectIds={focusedChartData.bar.projectIds}
+                                                        projectNames={focusedChartData.bar.projectNames}
+                                                        projectColors={focusedChartData.bar.projectColors}
+                                                        title={`Hours per Day — ${focusedChartData.projectName}`}
+                                                    />
+                                                ) : (
+                                                    <BarChartSection
+                                                        data={dailyChartData.data}
+                                                        projectIds={dailyChartData.projectIds}
+                                                        projectNames={dailyChartData.projectNames}
+                                                        projectColors={dailyChartData.projectColors}
+                                                    />
+                                                )}
+                                            </Box>
 
-                                        <Box display="flex" gap={2} flexWrap="wrap">
-                        {focusedChartData ? (
-                            <>
-                                <BarChartSection
-                                    data={focusedChartData.bar.data}
-                                    projectIds={focusedChartData.bar.projectIds}
-                                    projectNames={focusedChartData.bar.projectNames}
-                                    projectColors={focusedChartData.bar.projectColors}
-                                    title={`Hours per Day — ${focusedChartData.projectName}`}
-                                />
-                                <PieChartSection
-                                    data={focusedChartData.pieData}
-                                    projectNames={focusedChartData.itemNames}
-                                    title={`Task Distribution — ${focusedChartData.projectName}`}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <BarChartSection
-                                    data={dailyChartData.data}
-                                    projectIds={dailyChartData.projectIds}
-                                    projectNames={dailyChartData.projectNames}
-                                    projectColors={dailyChartData.projectColors}
-                                />
-                                <PieChartSection data={pieChartData} projectNames={dailyChartData.projectNames} />
-                            </>
-                        )}
-                    </Box>
+                                            <Box flex={1} minWidth={260} display="flex">
+                                                {focusedChartData ? (
+                                                    <PieChartSection
+                                                        data={focusedChartData.pieData}
+                                                        projectNames={focusedChartData.itemNames}
+                                                        title={`Task Distribution — ${focusedChartData.projectName}`}
+                                                        fullHeight
+                                                    />
+                                                ) : (
+                                                    <PieChartSection data={pieChartData} projectNames={dailyChartData.projectNames} fullHeight />
+                                                )}
+                                            </Box>
+                                        </Box>
 
                                         <ProjectTaskTable
                         data={projectTableData}

@@ -26,6 +26,7 @@ import {
     TableBody,
     CircularProgress,
     Alert,
+    Checkbox,
 } from '@mui/material';
 import {
     MoreVert,
@@ -36,10 +37,12 @@ import {
     Warning,
     Receipt,
     PictureAsPdf,
+    MergeType,
+    Visibility,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
-import { pdf } from '@react-pdf/renderer';
-import { invoiceService, Invoice, InvoiceStatus, InvoiceLineItem } from '../../services/invoiceService';
+import { pdf, PDFViewer } from '@react-pdf/renderer';
+import { invoiceService, Invoice, InvoiceStatus, InvoicePdfData } from '../../services/invoiceService';
 import { clientService, Client } from '../../services/clientService';
 import { CalendarEntry } from '../../services/calendarService';
 import { InvoicePDF } from './InvoicePDF';
@@ -87,6 +90,63 @@ function durationHours(entry: CalendarEntry): number {
     return (new Date(entry.end_time).getTime() - new Date(entry.start_time).getTime()) / 3_600_000;
 }
 
+function PdfPreviewDialog({
+    open,
+    onClose,
+    data,
+    loading,
+    onDownload,
+}: {
+    open: boolean;
+    onClose: () => void;
+    data: InvoicePdfData | null;
+    loading?: boolean;
+    onDownload?: () => void;
+}) {
+    return (
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="lg"
+            fullWidth
+            PaperProps={{ sx: { height: '90vh', display: 'flex', flexDirection: 'column' } }}
+        >
+            <DialogTitle>PDF Preview</DialogTitle>
+            <DialogContent sx={{ p: 0, flex: 1, overflow: 'hidden' }}>
+                {loading ? (
+                    <Box height="100%" display="flex" alignItems="center" justifyContent="center">
+                        <CircularProgress />
+                    </Box>
+                ) : data ? (
+                    <Box sx={{ width: '100%', height: '100%' }}>
+                        <PDFViewer width="100%" height="100%">
+                            <InvoicePDF {...data} />
+                        </PDFViewer>
+                    </Box>
+                ) : null}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>Close</Button>
+                {onDownload && (
+                    <Button variant="outlined" startIcon={<PictureAsPdf />} onClick={onDownload}>
+                        Download
+                    </Button>
+                )}
+            </DialogActions>
+        </Dialog>
+    );
+}
+
+interface EditableLineItem {
+    localId: string;
+    calendar_entry_ids: string[];
+    description: string;
+    date: string;
+    quantity_hours: number;
+    unit_price: number;
+    project_name: string | null;
+}
+
 interface CreateDialogProps {
     open: boolean;
     clients: Client[];
@@ -105,9 +165,14 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
     const [notes, setNotes] = useState('');
 
     const [entries, setEntries] = useState<CalendarEntry[]>([]);
+    const [editableItems, setEditableItems] = useState<EditableLineItem[]>([]);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [loadingEntries, setLoadingEntries] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewData, setPreviewData] = useState<InvoicePdfData | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     const canLoad = Boolean(clientId && dateFrom && dateTo);
 
@@ -121,7 +186,11 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
         setDueDate(dayjs().add(30, 'day').format('YYYY-MM-DD'));
         setNotes('');
         setEntries([]);
+        setEditableItems([]);
+        setSelectedIds(new Set());
         setError('');
+        setPreviewData(null);
+        setPreviewOpen(false);
     }, [open]);
 
     useEffect(() => {
@@ -154,32 +223,123 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
         return () => { cancelled = true; };
     }, [clientId, dateFrom, dateTo, canLoad]);
 
-    const lineItems = useMemo((): Omit<InvoiceLineItem, 'id' | 'invoice_id' | 'amount'>[] =>
-        entries.map((e) => ({
-            calendar_entry_id: e.id,
-            project_name: e.task?.project?.name ?? null,
+    useEffect(() => {
+        setEditableItems(entries.map((e) => ({
+            localId: e.id,
+            calendar_entry_ids: [e.id],
             description: e.task?.name ?? 'No task',
             date: dayjs(e.start_time).format('YYYY-MM-DD'),
             quantity_hours: Math.round(durationHours(e) * 100) / 100,
             unit_price: e.task?.project?.hourly_rate ?? 0,
-        })),
-        [entries],
-    );
+            project_name: e.task?.project?.name ?? null,
+        })));
+        setSelectedIds(new Set());
+    }, [entries]);
 
-    const subtotal = lineItems.reduce((s, i) => s + i.quantity_hours * i.unit_price, 0);
+    const handleDeleteItem = (localId: string) => {
+        setEditableItems((prev) => prev.filter((item) => item.localId !== localId));
+        setSelectedIds((prev) => { const next = new Set(prev); next.delete(localId); return next; });
+    };
+
+    const handleToggleSelect = (localId: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(localId)) next.delete(localId); else next.add(localId);
+            return next;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        setSelectedIds(checked ? new Set(editableItems.map((i) => i.localId)) : new Set());
+    };
+
+    const handleCombineSelected = () => {
+        const sel = editableItems.filter((item) => selectedIds.has(item.localId));
+        if (sel.length < 2) return;
+        const combined: EditableLineItem = {
+            localId: sel[0].localId,
+            calendar_entry_ids: sel.flatMap((item) => item.calendar_entry_ids),
+            description: sel[0].description,
+            date: sel.reduce((min, item) => (item.date < min ? item.date : min), sel[0].date),
+            quantity_hours: Math.round(sel.reduce((sum, item) => sum + item.quantity_hours, 0) * 100) / 100,
+            unit_price: sel[0].unit_price,
+            project_name: sel[0].project_name,
+        };
+        setEditableItems((prev) =>
+            prev.reduce<EditableLineItem[]>((acc, item) => {
+                if (!selectedIds.has(item.localId)) return [...acc, item];
+                if (item.localId === combined.localId) return [...acc, combined];
+                return acc;
+            }, []),
+        );
+        setSelectedIds(new Set());
+    };
+
+    const handleUpdateDescription = (localId: string, description: string) => {
+        setEditableItems((prev) => prev.map((item) => item.localId === localId ? { ...item, description } : item));
+    };
+
+    const subtotal = editableItems.reduce((s, i) => s + i.quantity_hours * i.unit_price, 0);
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
     const currency_symbol = currency === 'EUR' ? '€' : currency === 'USD' ? '$' : currency === 'GBP' ? '£' : currency;
 
+    const allSelected = editableItems.length > 0 && selectedIds.size === editableItems.length;
+    const someSelected = selectedIds.size > 0 && !allSelected;
+
+    const handlePreview = async () => {
+        if (!clientId || editableItems.length === 0) return;
+        setPreviewLoading(true);
+        setPreviewOpen(true);
+        try {
+            const { clientInfo, billing } = await invoiceService.getPreviewData(clientId);
+            setPreviewData({
+                invoice: {
+                    invoice_number: 'PREVIEW',
+                    client_id: clientId,
+                    issue_date: dayjs().format('YYYY-MM-DD'),
+                    due_date: dueDate || null,
+                    currency,
+                    tax_rate: taxRate,
+                    notes: notes || null,
+                    status: 'draft',
+                    line_items: editableItems.map((item) => ({
+                        calendar_entry_id: item.calendar_entry_ids[0],
+                        description: item.description,
+                        date: item.date,
+                        quantity_hours: item.quantity_hours,
+                        unit_price: item.unit_price,
+                        project_name: item.project_name,
+                    })),
+                } as Invoice,
+                clientInfo,
+                billing,
+            });
+        } catch (err) {
+            console.error('Failed to load preview data:', err);
+            setPreviewOpen(false);
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
     const handleCreate = async () => {
         if (!clientId) { setError('Please select a client.'); return; }
-        if (lineItems.length === 0) { setError('No billable entries found for the selected client and date range.'); return; }
+        if (editableItems.length === 0) { setError('No billable entries found for the selected client and date range.'); return; }
         setSaving(true);
         setError('');
         try {
+            const lineItemsToCreate = editableItems.map((item) => ({
+                calendar_entry_id: item.calendar_entry_ids[0],
+                description: item.description,
+                date: item.date,
+                quantity_hours: item.quantity_hours,
+                unit_price: item.unit_price,
+                project_name: item.project_name,
+            }));
             const inv = await invoiceService.create(
                 { client_id: clientId, issue_date: dayjs().format('YYYY-MM-DD'), due_date: dueDate || null, currency, tax_rate: taxRate, notes: notes || null },
-                lineItems,
+                lineItemsToCreate,
             );
             onCreate(inv);
         } catch (e) {
@@ -220,9 +380,16 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
 
                 <Divider sx={{ mb: 2 }} />
 
-                <Typography variant="subtitle2" fontWeight="bold" mb={1}>
-                    Billable Entries {loadingEntries && <CircularProgress size={12} sx={{ ml: 1 }} />}
-                </Typography>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                    <Typography variant="subtitle2" fontWeight="bold">
+                        Billable Entries {loadingEntries && <CircularProgress size={12} sx={{ ml: 1 }} />}
+                    </Typography>
+                    {selectedIds.size >= 2 && (
+                        <Button size="small" variant="outlined" startIcon={<MergeType />} onClick={handleCombineSelected}>
+                            Combine {selectedIds.size} entries
+                        </Button>
+                    )}
+                </Box>
 
                 {!canLoad && (
                     <Typography variant="body2" color="text.secondary">Select a client and date range to load entries.</Typography>
@@ -232,34 +399,63 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
                     <Typography variant="body2" color="text.secondary">No billable entries found.</Typography>
                 )}
 
-                {entries.length > 0 && (
+                {editableItems.length > 0 && (
                     <Table size="small">
                         <TableHead>
                             <TableRow>
+                                <TableCell padding="checkbox">
+                                    <Checkbox
+                                        size="small"
+                                        checked={allSelected}
+                                        indeterminate={someSelected}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                    />
+                                </TableCell>
                                 <TableCell>Date</TableCell>
                                 <TableCell>Task</TableCell>
                                 <TableCell>Project</TableCell>
                                 <TableCell align="right">Hours</TableCell>
                                 <TableCell align="right">Rate</TableCell>
                                 <TableCell align="right">Amount</TableCell>
+                                <TableCell padding="checkbox" />
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {lineItems.map((item, i) => (
-                                <TableRow key={entries[i].id}>
-                                    <TableCell>{item.date}</TableCell>
-                                    <TableCell>{item.description}</TableCell>
-                                    <TableCell>{entries[i].task?.project?.name ?? '—'}</TableCell>
+                            {editableItems.map((item) => (
+                                <TableRow key={item.localId} selected={selectedIds.has(item.localId)}>
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            size="small"
+                                            checked={selectedIds.has(item.localId)}
+                                            onChange={() => handleToggleSelect(item.localId)}
+                                        />
+                                    </TableCell>
+                                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.date}</TableCell>
+                                    <TableCell>
+                                        <TextField
+                                            variant="standard"
+                                            size="small"
+                                            value={item.description}
+                                            onChange={(e) => handleUpdateDescription(item.localId, e.target.value)}
+                                            sx={{ minWidth: 120 }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>{item.project_name ?? '—'}</TableCell>
                                     <TableCell align="right">{item.quantity_hours.toFixed(2)}</TableCell>
                                     <TableCell align="right">{currency_symbol}{item.unit_price.toFixed(2)}</TableCell>
                                     <TableCell align="right">{currency_symbol}{(item.quantity_hours * item.unit_price).toFixed(2)}</TableCell>
+                                    <TableCell padding="checkbox">
+                                        <IconButton size="small" onClick={() => handleDeleteItem(item.localId)}>
+                                            <Delete fontSize="small" />
+                                        </IconButton>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
                 )}
 
-                {entries.length > 0 && (
+                {editableItems.length > 0 && (
                     <Box mt={2} display="flex" flexDirection="column" alignItems="flex-end" gap={0.5}>
                         <Typography variant="body2">Subtotal: <strong>{currency_symbol}{subtotal.toFixed(2)}</strong></Typography>
                         {taxRate > 0 && <Typography variant="body2">Tax ({taxRate}%): <strong>{currency_symbol}{tax.toFixed(2)}</strong></Typography>}
@@ -271,10 +467,24 @@ function CreateInvoiceDialog({ open, clients, invoices, onClose, onCreate }: Cre
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>
+                <Button
+                    startIcon={<Visibility />}
+                    onClick={handlePreview}
+                    disabled={!clientId || editableItems.length === 0 || loadingEntries}
+                >
+                    Preview
+                </Button>
                 <Button variant="contained" onClick={handleCreate} disabled={saving || loadingEntries}>
                     {saving ? <CircularProgress size={18} /> : 'Create Invoice'}
                 </Button>
             </DialogActions>
+
+            <PdfPreviewDialog
+                open={previewOpen}
+                onClose={() => setPreviewOpen(false)}
+                data={previewData}
+                loading={previewLoading}
+            />
         </Dialog>
     );
 }
@@ -296,6 +506,9 @@ export default function InvoicesPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewPdfData, setPreviewPdfData] = useState<InvoicePdfData | null>(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
 
     const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useQuery({
         queryKey: INVOICES_QUERY_KEY,
@@ -379,6 +592,41 @@ export default function InvoicesPage() {
         } catch (err) {
             console.error('Failed to delete invoice:', err);
             setError(errorMessage(err, 'Failed to delete invoice'));
+        }
+    };
+
+    const handlePreviewPdf = async () => {
+        if (!menuInvoice) return;
+        const id = menuInvoice.id;
+        handleMenuClose();
+        setPreviewPdfData(null);
+        setPreviewLoading(true);
+        setPreviewOpen(true);
+        try {
+            const data = await invoiceService.getForPdf(id);
+            setPreviewPdfData(data);
+        } catch (err) {
+            console.error('Failed to load invoice PDF data:', err);
+            setPreviewOpen(false);
+            setError(errorMessage(err, 'Failed to load invoice preview'));
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
+    const handleDownloadFromPreview = async () => {
+        if (!previewPdfData) return;
+        try {
+            const blob = await pdf(<InvoicePDF {...previewPdfData} />).toBlob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${previewPdfData.invoice.invoice_number}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to download invoice PDF:', err);
+            setError(errorMessage(err, 'Failed to download invoice PDF'));
         }
     };
 
@@ -486,6 +734,10 @@ export default function InvoicesPage() {
             />
 
             <Menu anchorEl={menuAnchorEl} open={Boolean(menuAnchorEl)} onClose={handleMenuClose}>
+                <MenuItem onClick={handlePreviewPdf}>
+                    <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
+                    <ListItemText>Preview PDF</ListItemText>
+                </MenuItem>
                 <MenuItem onClick={handleDownloadPdf}>
                     <ListItemIcon><PictureAsPdf fontSize="small" /></ListItemIcon>
                     <ListItemText>Download PDF</ListItemText>
@@ -519,6 +771,14 @@ export default function InvoicesPage() {
                 title="Delete Invoice"
                 message={`Delete invoice ${invoiceToDelete?.invoice_number}? This cannot be undone.`}
                 confirmLabel="Delete"
+            />
+
+            <PdfPreviewDialog
+                open={previewOpen}
+                onClose={() => { setPreviewOpen(false); setPreviewPdfData(null); }}
+                data={previewPdfData}
+                loading={previewLoading}
+                onDownload={previewPdfData ? handleDownloadFromPreview : undefined}
             />
         </Box>
     );

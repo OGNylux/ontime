@@ -3,6 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import {
     BarChart,
     Bar,
+    Rectangle,
     XAxis,
     YAxis,
     Tooltip,
@@ -50,6 +51,17 @@ export default function BarChartSection({
         );
     };
 
+    const getTopProjectIdForIndex = (dataIndex: number) => {
+        for (let i = projectIds.length - 1; i >= 0; i -= 1) {
+            const projectId = projectIds[i];
+            const value = data?.[dataIndex]?.[projectId];
+            if (typeof value === 'number' && value > 0) return projectId;
+        }
+        return null;
+    };
+
+    const topRadius = isSmallScreen ? ([0, 6, 6, 0] as const) : ([6, 6, 0, 0] as const);
+
     return (
         <Box
             flex={2}
@@ -91,13 +103,18 @@ export default function BarChartSection({
                         cursor={{ fill: theme.palette.background.paper }}
                     />
                     <Legend content={renderLegend} />
-                    {projectIds.map((projectId, _) => (
+                    {projectIds.map((projectId) => (
                         <Bar
                             key={projectId}
                             dataKey={projectId}
                             stackId="a"
                             fill={projectColors[projectId]}
-                        />
+                            shape={(props: any) => {
+                                const isTop = getTopProjectIdForIndex(props.index) === projectId;
+                                return <Rectangle {...props} radius={isTop ? topRadius : 0} />;
+                            }}
+                        >
+                        </Bar>
                     ))}
                 </BarChart>
             </ResponsiveContainer>
